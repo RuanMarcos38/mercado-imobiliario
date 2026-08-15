@@ -36,6 +36,23 @@ jobs:
       - name: Auto-fix lint formatting
         run: npm run lint -- --fix
 
+      - name: Lint source
+        run: npm run lint
+
+      - name: Persist formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- src; then
+            echo "No formatting changes"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src
+            git commit -m "Format property search experience"
+            git push
+          fi
+
       - name: Run safe tests
         run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
 
@@ -49,20 +66,3 @@ jobs:
         run: |
           npm run build
           test -f .output/server/index.mjs
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Persist formatting
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- src; then
-            echo "No formatting changes"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src
-          git commit -m "Format property search experience"
-          git push
