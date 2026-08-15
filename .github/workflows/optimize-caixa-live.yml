@@ -1,0 +1,62 @@
+name: Optimize CAIXA live search
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/optimize-caixa-live.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use live CAIXA only for a selected UF
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("src/lib/property-search.functions.ts")
+          text = path.read_text(encoding="utf-8")
+          old = '''async function fetchCaixaLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
+            const requestedState = input.state?.trim().toUpperCase();
+            const states =
+              requestedState && CAIXA_STATES.includes(requestedState as (typeof CAIXA_STATES)[number])
+                ? [requestedState]
+                : [...CAIXA_STATES];
+
+            const results = await Promise.allSettled(states.map((state) => fetchCaixaState(state)));
+            const items = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
+            return items.filter((item) => matchesSearch(item, input));
+          }
+          '''
+          new = '''async function fetchCaixaLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
+            const requestedState = input.state?.trim().toUpperCase();
+            if (
+              !requestedState ||
+              !CAIXA_STATES.includes(requestedState as (typeof CAIXA_STATES)[number])
+            ) {
+              return [];
+            }
+
+            const items = await fetchCaixaState(requestedState);
+            return items.filter((item) => matchesSearch(item, input));
+          }
+          '''
+          if old not in text:
+              raise SystemExit("Target block not found; refusing unsafe patch")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+      - name: Format and commit
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund
+          npx prettier --write src/lib/property-search.functions.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/property-search.functions.ts
+          git commit -m "Use indexed national search with live CAIXA refresh by UF"
+          git push
