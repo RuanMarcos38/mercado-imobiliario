@@ -33,10 +33,7 @@ import {
   savePropertySearch,
   searchRealProperties,
 } from "@/lib/property-search.functions";
-import type {
-  PropertySearchInput,
-  PropertySearchItem,
-} from "@/lib/property-search.functions";
+import type { PropertySearchInput, PropertySearchItem } from "@/lib/property-search.functions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: PropertySearchPage,
@@ -158,7 +155,10 @@ function PropertySearchPage() {
   }, []);
 
   const comparedProperties = useMemo(
-    () => compareIds.map((id) => results.find((item) => item.id === id)).filter(Boolean) as PropertySearchItem[],
+    () =>
+      compareIds
+        .map((id) => results.find((item) => item.id === id))
+        .filter(Boolean) as PropertySearchItem[],
     [compareIds, results],
   );
 
@@ -263,16 +263,23 @@ function PropertySearchPage() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-400/15 text-cyan-300 ring-1 ring-cyan-300/25">
               <Building2 className="h-5 w-5" />
             </span>
-            <span className="text-lg">Mercado<span className="text-cyan-300">Imobi</span></span>
+            <span className="text-lg">
+              Mercado<span className="text-cyan-300">Imobi</span>
+            </span>
           </Link>
 
           <nav className="hidden items-center gap-7 text-sm text-slate-300 md:flex">
             <button className="font-semibold text-white">Buscar imóveis</button>
-            <button onClick={() => setShowSaved((value) => !value)} className="transition hover:text-white">
+            <button
+              onClick={() => setShowSaved((value) => !value)}
+              className="transition hover:text-white"
+            >
               Pesquisas salvas
             </button>
             <button
-              onClick={() => document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() =>
+                document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" })
+              }
               className="transition hover:text-white"
             >
               Favoritos ({favorites.size})
@@ -298,17 +305,25 @@ function PropertySearchPage() {
       </header>
 
       {showSaved && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setShowSaved(false)}>
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowSaved(false)}
+        >
           <div
             className="ml-auto h-full w-full max-w-md border-l border-white/10 bg-[#0b1727] p-6 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Atalhos</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                  Atalhos
+                </p>
                 <h2 className="mt-1 text-xl font-bold">Pesquisas salvas</h2>
               </div>
-              <button onClick={() => setShowSaved(false)} className="rounded-lg p-2 text-slate-400 hover:bg-white/5">
+              <button
+                onClick={() => setShowSaved(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-white/5"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -351,7 +366,8 @@ function PropertySearchPage() {
                 </span>
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                Pesquise opções reais, compare características e siga direto para a fonte original do anúncio.
+                Pesquise opções reais, compare características e siga direto para a fonte original
+                do anúncio.
               </p>
             </div>
 
@@ -360,7 +376,9 @@ function PropertySearchPage() {
                 <SearchField label="Cidade" icon={<MapPin className="h-4 w-4" />}>
                   <input
                     value={filters.city}
-                    onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}
+                    onChange={(event) =>
+                      setFilters((current) => ({ ...current, city: event.target.value }))
+                    }
                     placeholder="Ex.: Joinville"
                     className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
                   />
@@ -369,12 +387,18 @@ function PropertySearchPage() {
                 <SearchField label="Estado">
                   <select
                     value={filters.state}
-                    onChange={(event) => setFilters((current) => ({ ...current, state: event.target.value }))}
+                    onChange={(event) =>
+                      setFilters((current) => ({ ...current, state: event.target.value }))
+                    }
                     className="w-full bg-transparent text-sm text-white outline-none"
                   >
-                    <option value="" className="bg-[#0b1727]">Todos</option>
+                    <option value="" className="bg-[#0b1727]">
+                      Todos
+                    </option>
                     {STATES.map((state) => (
-                      <option key={state} value={state} className="bg-[#0b1727]">{state}</option>
+                      <option key={state} value={state} className="bg-[#0b1727]">
+                        {state}
+                      </option>
                     ))}
                   </select>
                 </SearchField>
@@ -382,12 +406,18 @@ function PropertySearchPage() {
                 <SearchField label="Tipo" icon={<Home className="h-4 w-4" />}>
                   <select
                     value={filters.propertyType}
-                    onChange={(event) => setFilters((current) => ({ ...current, propertyType: event.target.value }))}
+                    onChange={(event) =>
+                      setFilters((current) => ({ ...current, propertyType: event.target.value }))
+                    }
                     className="w-full bg-transparent text-sm text-white outline-none"
                   >
-                    <option value="" className="bg-[#0b1727]">Todos</option>
+                    <option value="" className="bg-[#0b1727]">
+                      Todos
+                    </option>
                     {PROPERTY_TYPES.map((type) => (
-                      <option key={type} value={type} className="bg-[#0b1727]">{type}</option>
+                      <option key={type} value={type} className="bg-[#0b1727]">
+                        {type}
+                      </option>
                     ))}
                   </select>
                 </SearchField>
@@ -397,7 +427,9 @@ function PropertySearchPage() {
                     type="number"
                     min="0"
                     value={filters.maxPrice}
-                    onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
+                    onChange={(event) =>
+                      setFilters((current) => ({ ...current, maxPrice: event.target.value }))
+                    }
                     placeholder="R$ 800.000"
                     className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
                   />
@@ -413,9 +445,24 @@ function PropertySearchPage() {
               </div>
 
               <div className="mt-3 grid gap-3 border-t border-white/10 pt-3 sm:grid-cols-2 lg:grid-cols-6">
-                <MiniField label="Preço mínimo" value={filters.minPrice} type="number" onChange={(value) => setFilters((current) => ({ ...current, minPrice: value }))} />
-                <MiniSelect label="Quartos" value={filters.bedrooms} options={["1", "2", "3", "4", "5"]} onChange={(value) => setFilters((current) => ({ ...current, bedrooms: value }))} />
-                <MiniSelect label="Banheiros" value={filters.bathrooms} options={["1", "2", "3", "4"]} onChange={(value) => setFilters((current) => ({ ...current, bathrooms: value }))} />
+                <MiniField
+                  label="Preço mínimo"
+                  value={filters.minPrice}
+                  type="number"
+                  onChange={(value) => setFilters((current) => ({ ...current, minPrice: value }))}
+                />
+                <MiniSelect
+                  label="Quartos"
+                  value={filters.bedrooms}
+                  options={["1", "2", "3", "4", "5"]}
+                  onChange={(value) => setFilters((current) => ({ ...current, bedrooms: value }))}
+                />
+                <MiniSelect
+                  label="Banheiros"
+                  value={filters.bathrooms}
+                  options={["1", "2", "3", "4"]}
+                  onChange={(value) => setFilters((current) => ({ ...current, bathrooms: value }))}
+                />
                 <MiniSelect
                   label="Ordenar"
                   value={filters.sort}
@@ -424,13 +471,17 @@ function PropertySearchPage() {
                     ["price_asc", "Menor preço"],
                     ["price_desc", "Maior preço"],
                   ]}
-                  onChange={(value) => setFilters((current) => ({ ...current, sort: value as FilterState["sort"] }))}
+                  onChange={(value) =>
+                    setFilters((current) => ({ ...current, sort: value as FilterState["sort"] }))
+                  }
                 />
                 <label className="flex min-h-12 items-center gap-3 rounded-xl border border-white/10 bg-black/10 px-3 text-sm text-slate-300">
                   <input
                     type="checkbox"
                     checked={filters.verifiedOnly}
-                    onChange={(event) => setFilters((current) => ({ ...current, verifiedOnly: event.target.checked }))}
+                    onChange={(event) =>
+                      setFilters((current) => ({ ...current, verifiedOnly: event.target.checked }))
+                    }
                     className="h-4 w-4 accent-cyan-300"
                   />
                   Verificados
@@ -453,11 +504,14 @@ function PropertySearchPage() {
                 <SlidersHorizontal className="h-3.5 w-3.5" /> Resultado da pesquisa
               </div>
               <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-                {loading ? "Atualizando imóveis..." : `${results.length} ${results.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}`}
+                {loading
+                  ? "Atualizando imóveis..."
+                  : `${results.length} ${results.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}`}
               </h2>
               {lastUpdatedAt && !loading && (
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
-                  <Clock3 className="h-3.5 w-3.5" /> Última atualização disponível {formatRelative(lastUpdatedAt)}
+                  <Clock3 className="h-3.5 w-3.5" /> Última atualização disponível{" "}
+                  {formatRelative(lastUpdatedAt)}
                 </p>
               )}
             </div>
@@ -473,7 +527,9 @@ function PropertySearchPage() {
 
           {searchError && (
             <div className="rounded-3xl border border-amber-300/20 bg-amber-300/[0.05] px-6 py-8 text-center">
-              <p className="font-semibold text-amber-100">Não foi possível atualizar os resultados agora.</p>
+              <p className="font-semibold text-amber-100">
+                Não foi possível atualizar os resultados agora.
+              </p>
               <p className="mt-1 text-sm text-slate-400">Tente novamente em instantes.</p>
             </div>
           )}
@@ -485,9 +541,12 @@ function PropertySearchPage() {
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-cyan-300/[0.08] text-cyan-200">
                 <Search className="h-7 w-7" />
               </div>
-              <h3 className="mt-5 text-xl font-bold">Nenhum imóvel encontrado para estes filtros.</h3>
+              <h3 className="mt-5 text-xl font-bold">
+                Nenhum imóvel encontrado para estes filtros.
+              </h3>
               <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-400">
-                Tente ampliar a região, faixa de preço ou quantidade de quartos para encontrar mais opções.
+                Tente ampliar a região, faixa de preço ou quantidade de quartos para encontrar mais
+                opções.
               </p>
               <button
                 onClick={() => {
@@ -523,10 +582,15 @@ function PropertySearchPage() {
           <div className="mx-auto max-w-6xl rounded-[30px] border border-white/10 bg-[#0b1727] p-5 shadow-2xl sm:p-8">
             <div className="mb-7 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Comparação</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                  Comparação
+                </p>
                 <h2 className="mt-1 text-2xl font-bold">Compare seus imóveis favoritos</h2>
               </div>
-              <button onClick={() => setShowCompare(false)} className="rounded-xl border border-white/10 p-2.5 text-slate-300 hover:bg-white/5">
+              <button
+                onClick={() => setShowCompare(false)}
+                className="rounded-xl border border-white/10 p-2.5 text-slate-300 hover:bg-white/5"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -542,7 +606,15 @@ function PropertySearchPage() {
   );
 }
 
-function SearchField({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function SearchField({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex min-h-16 flex-col justify-center rounded-2xl border border-white/10 bg-black/15 px-4 transition focus-within:border-cyan-300/35 focus-within:bg-cyan-300/[0.03]">
       <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -553,11 +625,29 @@ function SearchField({ label, icon, children }: { label: string; icon?: React.Re
   );
 }
 
-function MiniField({ label, value, type, onChange }: { label: string; value: string; type: string; onChange: (value: string) => void }) {
+function MiniField({
+  label,
+  value,
+  type,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  type: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <label className="rounded-xl border border-white/10 bg-black/10 px-3 py-2">
-      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
-      <input type={type} min="0" value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent text-sm text-white outline-none" />
+      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </span>
+      <input
+        type={type}
+        min="0"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full bg-transparent text-sm text-white outline-none"
+      />
     </label>
   );
 }
@@ -575,12 +665,26 @@ function MiniSelect({
 }) {
   return (
     <label className="rounded-xl border border-white/10 bg-black/10 px-3 py-2">
-      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent text-sm text-white outline-none">
-        <option value="" className="bg-[#0b1727]">Qualquer</option>
+      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full bg-transparent text-sm text-white outline-none"
+      >
+        <option value="" className="bg-[#0b1727]">
+          Qualquer
+        </option>
         {options.map((option) => {
-          const [optionValue, optionLabel] = Array.isArray(option) ? option : [option, `${option}+`];
-          return <option key={optionValue} value={optionValue} className="bg-[#0b1727]">{optionLabel}</option>;
+          const [optionValue, optionLabel] = Array.isArray(option)
+            ? option
+            : [option, `${option}+`];
+          return (
+            <option key={optionValue} value={optionValue} className="bg-[#0b1727]">
+              {optionLabel}
+            </option>
+          );
         })}
       </select>
     </label>
@@ -605,7 +709,12 @@ function PropertyCard({
     <Card className="group overflow-hidden rounded-[26px] border-white/10 bg-white/[0.045] text-white shadow-xl shadow-black/10 transition duration-300 hover:-translate-y-1 hover:border-cyan-300/20 hover:bg-white/[0.06]">
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950">
         {image ? (
-          <img src={image} alt={property.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
+          <img
+            src={image}
+            alt={property.title}
+            loading="lazy"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+          />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
             <Building2 className="h-10 w-10" />
@@ -620,7 +729,9 @@ function PropertyCard({
               </Badge>
             )}
             {property.source_portal && (
-              <Badge className="border border-white/15 bg-slate-950/70 text-slate-200 backdrop-blur-md">{property.source_portal}</Badge>
+              <Badge className="border border-white/15 bg-slate-950/70 text-slate-200 backdrop-blur-md">
+                {property.source_portal}
+              </Badge>
             )}
           </div>
           <button
@@ -637,20 +748,35 @@ function PropertyCard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-2xl font-black tracking-tight">{formatPrice(property.price)}</p>
-            <h3 className="mt-2 line-clamp-2 text-base font-bold leading-snug text-slate-100">{property.title}</h3>
+            <h3 className="mt-2 line-clamp-2 text-base font-bold leading-snug text-slate-100">
+              {property.title}
+            </h3>
           </div>
         </div>
 
         <p className="mt-3 flex min-h-5 items-center gap-1.5 text-sm text-slate-400">
           <MapPin className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
-          {[property.location_city, property.location_state].filter(Boolean).join(" - ") || property.location_address || "Localização no anúncio"}
+          {[property.location_city, property.location_state].filter(Boolean).join(" - ") ||
+            property.location_address ||
+            "Localização no anúncio"}
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2 border-y border-white/10 py-3 text-xs text-slate-300">
-          {property.bedrooms != null && <Feature icon={<BedDouble className="h-3.5 w-3.5" />} text={`${property.bedrooms} qtos`} />}
-          {property.bathrooms != null && <Feature icon={<Bath className="h-3.5 w-3.5" />} text={`${property.bathrooms} banh.`} />}
-          {property.area_sqm != null && <Feature icon={<Ruler className="h-3.5 w-3.5" />} text={`${property.area_sqm} m²`} />}
-          {property.property_type && <Feature icon={<Home className="h-3.5 w-3.5" />} text={property.property_type} />}
+          {property.bedrooms != null && (
+            <Feature
+              icon={<BedDouble className="h-3.5 w-3.5" />}
+              text={`${property.bedrooms} qtos`}
+            />
+          )}
+          {property.bathrooms != null && (
+            <Feature icon={<Bath className="h-3.5 w-3.5" />} text={`${property.bathrooms} banh.`} />
+          )}
+          {property.area_sqm != null && (
+            <Feature icon={<Ruler className="h-3.5 w-3.5" />} text={`${property.area_sqm} m²`} />
+          )}
+          {property.property_type && (
+            <Feature icon={<Home className="h-3.5 w-3.5" />} text={property.property_type} />
+          )}
         </div>
 
         {property.updated_at && (
@@ -677,7 +803,12 @@ function PropertyCard({
               Ver anúncio original <ExternalLink className="h-4 w-4" />
             </a>
           ) : (
-            <button disabled className="h-11 rounded-xl bg-white/5 text-sm font-semibold text-slate-500">Fonte indisponível</button>
+            <button
+              disabled
+              className="h-11 rounded-xl bg-white/5 text-sm font-semibold text-slate-500"
+            >
+              Fonte indisponível
+            </button>
           )}
         </div>
       </CardContent>
@@ -686,7 +817,12 @@ function PropertyCard({
 }
 
 function Feature({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-2.5 py-1.5">{icon}{text}</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-2.5 py-1.5">
+      {icon}
+      {text}
+    </span>
+  );
 }
 
 function CompareCard({ property }: { property: PropertySearchItem }) {
@@ -695,14 +831,33 @@ function CompareCard({ property }: { property: PropertySearchItem }) {
       <h3 className="line-clamp-2 font-bold">{property.title}</h3>
       <p className="mt-3 text-2xl font-black text-cyan-200">{formatPrice(property.price)}</p>
       <div className="mt-5 space-y-3 text-sm text-slate-300">
-        <CompareLine label="Local" value={[property.location_city, property.location_state].filter(Boolean).join(" - ") || "—"} />
+        <CompareLine
+          label="Local"
+          value={
+            [property.location_city, property.location_state].filter(Boolean).join(" - ") || "—"
+          }
+        />
         <CompareLine label="Tipo" value={property.property_type ?? "—"} />
-        <CompareLine label="Quartos" value={property.bedrooms != null ? String(property.bedrooms) : "—"} />
-        <CompareLine label="Banheiros" value={property.bathrooms != null ? String(property.bathrooms) : "—"} />
-        <CompareLine label="Área" value={property.area_sqm != null ? `${property.area_sqm} m²` : "—"} />
+        <CompareLine
+          label="Quartos"
+          value={property.bedrooms != null ? String(property.bedrooms) : "—"}
+        />
+        <CompareLine
+          label="Banheiros"
+          value={property.bathrooms != null ? String(property.bathrooms) : "—"}
+        />
+        <CompareLine
+          label="Área"
+          value={property.area_sqm != null ? `${property.area_sqm} m²` : "—"}
+        />
       </div>
       {property.source_url && (
-        <a href={property.source_url} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-[#06101c]">
+        <a
+          href={property.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-[#06101c]"
+        >
           Ver anúncio <ExternalLink className="h-4 w-4" />
         </a>
       )}
@@ -711,14 +866,22 @@ function CompareCard({ property }: { property: PropertySearchItem }) {
 }
 
 function CompareLine({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between gap-3 border-b border-white/10 pb-2"><span className="text-slate-500">{label}</span><span className="text-right font-semibold">{value}</span></div>;
+  return (
+    <div className="flex justify-between gap-3 border-b border-white/10 pb-2">
+      <span className="text-slate-500">{label}</span>
+      <span className="text-right font-semibold">{value}</span>
+    </div>
+  );
 }
 
 function PropertySkeletonGrid() {
   return (
     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.035]">
+        <div
+          key={index}
+          className="overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.035]"
+        >
           <div className="aspect-[16/10] animate-pulse bg-white/[0.06]" />
           <div className="space-y-3 p-5">
             <div className="h-7 w-1/3 animate-pulse rounded bg-white/[0.08]" />
@@ -734,7 +897,11 @@ function PropertySkeletonGrid() {
 
 function formatPrice(value: number | null) {
   if (value == null) return "Preço no anúncio";
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function formatRelative(iso: string) {

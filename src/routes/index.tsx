@@ -48,17 +48,28 @@ function Index() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-300/20">
               <Building2 className="h-5 w-5" />
             </span>
-            <span className="text-lg">Mercado<span className="text-cyan-300">Imobi</span></span>
+            <span className="text-lg">
+              Mercado<span className="text-cyan-300">Imobi</span>
+            </span>
           </Link>
 
           <div className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-            <a href="#como-funciona" className="transition hover:text-white">Como funciona</a>
-            <a href="#recursos" className="transition hover:text-white">Recursos</a>
-            <a href="#para-quem" className="transition hover:text-white">Para quem é</a>
+            <a href="#como-funciona" className="transition hover:text-white">
+              Como funciona
+            </a>
+            <a href="#recursos" className="transition hover:text-white">
+              Recursos
+            </a>
+            <a href="#para-quem" className="transition hover:text-white">
+              Para quem é
+            </a>
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/auth" className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white">
+            <Link
+              to="/auth"
+              className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white"
+            >
               Entrar
             </Link>
             <Link
@@ -89,7 +100,8 @@ function Index() {
                 </span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                Pesquise opções reais, filtre o que importa, compare imóveis e siga direto para o anúncio original quando encontrar a melhor oportunidade.
+                Pesquise opções reais, filtre o que importa, compare imóveis e siga direto para o
+                anúncio original quando encontrar a melhor oportunidade.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -108,9 +120,15 @@ function Index() {
               </div>
 
               <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-400">
-                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Sem anúncios inventados</span>
-                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Comparação lado a lado</span>
-                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Acesso à fonte original</span>
+                <span className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-cyan-300" /> Sem anúncios inventados
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-cyan-300" /> Comparação lado a lado
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-cyan-300" /> Acesso à fonte original
+                </span>
               </div>
             </div>
 
@@ -119,7 +137,9 @@ function Index() {
               <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/35 backdrop-blur-xl sm:p-7">
                 <div className="mb-5 flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Pesquisa rápida</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                      Pesquisa rápida
+                    </p>
                     <h2 className="mt-1 text-xl font-bold">O que você procura?</h2>
                   </div>
                   <span className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200">
@@ -129,17 +149,29 @@ function Index() {
 
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5">
-                    <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Localização</span>
-                    <div className="mt-1 flex items-center gap-2 text-sm text-slate-300"><MapPin className="h-4 w-4 text-cyan-300" /> Cidade ou região</div>
+                    <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                      Localização
+                    </span>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-slate-300">
+                      <MapPin className="h-4 w-4 text-cyan-300" /> Cidade ou região
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5">
-                      <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Tipo</span>
-                      <span className="mt-1 block text-sm text-slate-300">Casa, apartamento...</span>
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                        Tipo
+                      </span>
+                      <span className="mt-1 block text-sm text-slate-300">
+                        Casa, apartamento...
+                      </span>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5">
-                      <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Faixa de preço</span>
-                      <span className="mt-1 block text-sm text-slate-300">Defina seu orçamento</span>
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                        Faixa de preço
+                      </span>
+                      <span className="mt-1 block text-sm text-slate-300">
+                        Defina seu orçamento
+                      </span>
                     </div>
                   </div>
                   <Link
@@ -160,39 +192,88 @@ function Index() {
           </div>
         </section>
 
-        <section id="como-funciona" className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+        <section
+          id="como-funciona"
+          className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-8 lg:py-24"
+        >
           <div className="mx-auto mb-14 max-w-2xl text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Simples por design</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Da pesquisa ao anúncio em poucos passos</h2>
-            <p className="mt-4 text-slate-400">A ferramenta organiza a busca para você focar apenas nas opções que realmente fazem sentido.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
+              Simples por design
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Da pesquisa ao anúncio em poucos passos
+            </h2>
+            <p className="mt-4 text-slate-400">
+              A ferramenta organiza a busca para você focar apenas nas opções que realmente fazem
+              sentido.
+            </p>
           </div>
 
           <div className="grid gap-5 md:grid-cols-3">
-            <StepCard number="01" icon={<Search className="h-5 w-5" />} title="Pesquise" text="Escolha cidade, tipo, preço e características do imóvel que você procura." />
-            <StepCard number="02" icon={<Scale className="h-5 w-5" />} title="Compare" text="Analise preço, localização, área e outros detalhes lado a lado." />
-            <StepCard number="03" icon={<ArrowRight className="h-5 w-5" />} title="Acesse a fonte" text="Ao encontrar a melhor opção, siga para o anúncio original e continue o contato." />
+            <StepCard
+              number="01"
+              icon={<Search className="h-5 w-5" />}
+              title="Pesquise"
+              text="Escolha cidade, tipo, preço e características do imóvel que você procura."
+            />
+            <StepCard
+              number="02"
+              icon={<Scale className="h-5 w-5" />}
+              title="Compare"
+              text="Analise preço, localização, área e outros detalhes lado a lado."
+            />
+            <StepCard
+              number="03"
+              icon={<ArrowRight className="h-5 w-5" />}
+              title="Acesse a fonte"
+              text="Ao encontrar a melhor opção, siga para o anúncio original e continue o contato."
+            />
           </div>
         </section>
 
         <section id="recursos" className="border-y border-white/10 bg-white/[0.018]">
           <div className="mx-auto grid max-w-[1440px] gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Pesquisa com clareza</p>
-              <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-4xl">Menos ruído. Mais imóveis relevantes.</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
+                Pesquisa com clareza
+              </p>
+              <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-4xl">
+                Menos ruído. Mais imóveis relevantes.
+              </h2>
               <p className="mt-5 max-w-xl leading-relaxed text-slate-400">
-                O MercadoImobi foi desenhado para facilitar a pesquisa de quem compra e de quem trabalha todos os dias encontrando imóveis para clientes.
+                O MercadoImobi foi desenhado para facilitar a pesquisa de quem compra e de quem
+                trabalha todos os dias encontrando imóveis para clientes.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FeatureCard icon={<ShieldCheck className="h-5 w-5" />} title="Informação transparente" text="A plataforma não cria imóveis ou valores apenas para preencher resultados." />
-              <FeatureCard icon={<Scale className="h-5 w-5" />} title="Comparador" text="Selecione até três imóveis e veja os principais pontos lado a lado." />
-              <FeatureCard icon={<Heart className="h-5 w-5" />} title="Favoritos" text="Guarde rapidamente as opções que merecem uma segunda análise." />
-              <FeatureCard icon={<Search className="h-5 w-5" />} title="Pesquisas salvas" text="Repita combinações de filtros sem precisar preencher tudo novamente." />
+              <FeatureCard
+                icon={<ShieldCheck className="h-5 w-5" />}
+                title="Informação transparente"
+                text="A plataforma não cria imóveis ou valores apenas para preencher resultados."
+              />
+              <FeatureCard
+                icon={<Scale className="h-5 w-5" />}
+                title="Comparador"
+                text="Selecione até três imóveis e veja os principais pontos lado a lado."
+              />
+              <FeatureCard
+                icon={<Heart className="h-5 w-5" />}
+                title="Favoritos"
+                text="Guarde rapidamente as opções que merecem uma segunda análise."
+              />
+              <FeatureCard
+                icon={<Search className="h-5 w-5" />}
+                title="Pesquisas salvas"
+                text="Repita combinações de filtros sem precisar preencher tudo novamente."
+              />
             </div>
           </div>
         </section>
 
-        <section id="para-quem" className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+        <section
+          id="para-quem"
+          className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-8 lg:py-24"
+        >
           <div className="grid gap-6 lg:grid-cols-2">
             <AudienceCard
               label="Para clientes"
@@ -209,9 +290,15 @@ function Index() {
 
         <section className="px-4 pb-20 sm:px-6 lg:px-8 lg:pb-24">
           <div className="mx-auto max-w-[1440px] overflow-hidden rounded-[34px] border border-cyan-300/15 bg-gradient-to-br from-cyan-300/12 via-sky-500/8 to-transparent px-6 py-12 text-center shadow-2xl shadow-cyan-950/20 sm:px-10 lg:py-16">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Comece sua pesquisa</p>
-            <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">O próximo imóvel pode estar a uma pesquisa de distância.</h2>
-            <p className="mx-auto mt-5 max-w-2xl text-slate-300">Entre, defina seus filtros e compare as opções disponíveis para o seu perfil.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
+              Comece sua pesquisa
+            </p>
+            <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">
+              O próximo imóvel pode estar a uma pesquisa de distância.
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-slate-300">
+              Entre, defina seus filtros e compare as opções disponíveis para o seu perfil.
+            </p>
             <Link
               to="/auth"
               className="mt-8 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-cyan-300 px-7 text-sm font-black text-[#06101c] transition hover:bg-cyan-200"
@@ -237,16 +324,29 @@ function Index() {
 function MiniBenefit({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.035] px-3 py-2.5 text-xs font-semibold text-slate-300">
-      <span className="text-cyan-300">{icon}</span>{label}
+      <span className="text-cyan-300">{icon}</span>
+      {label}
     </div>
   );
 }
 
-function StepCard({ number, icon, title, text }: { number: string; icon: React.ReactNode; title: string; text: string }) {
+function StepCard({
+  number,
+  icon,
+  title,
+  text,
+}: {
+  number: string;
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
   return (
     <div className="rounded-[26px] border border-white/10 bg-white/[0.028] p-6 transition hover:border-cyan-300/20 hover:bg-white/[0.04]">
       <div className="flex items-center justify-between">
-        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200">{icon}</span>
+        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200">
+          {icon}
+        </span>
         <span className="text-sm font-black text-white/15">{number}</span>
       </div>
       <h3 className="mt-6 text-xl font-bold">{title}</h3>
@@ -255,10 +355,20 @@ function StepCard({ number, icon, title, text }: { number: string; icon: React.R
   );
 }
 
-function FeatureCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+function FeatureCard({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/10 p-5">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200">{icon}</span>
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200">
+        {icon}
+      </span>
       <h3 className="mt-4 font-bold">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-slate-400">{text}</p>
     </div>
