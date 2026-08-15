@@ -1,0 +1,130 @@
+name: Snapshot CAIXA properties
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/snapshot-caixa-properties.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and normalize official CAIXA listings
+        shell: python
+        run: |
+          import csv
+          import json
+          import re
+          import urllib.request
+          from datetime import datetime, timezone
+
+          states = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"]
+          items = []
+          state_counts = {}
+
+          def number(value):
+              value = (value or "").strip()
+              if not value:
+                  return None
+              clean = re.sub(r"[^0-9,.-]", "", value)
+              if "," in clean and "." in clean:
+                  clean = clean.replace(".", "").replace(",", ".")
+              elif "," in clean:
+                  clean = clean.replace(",", ".")
+              try:
+                  return float(clean)
+              except ValueError:
+                  return None
+
+          def extract(pattern, text):
+              match = re.search(pattern, text or "", re.I)
+              return number(match.group(1)) if match else None
+
+          def area(text):
+              for pattern in [r"([\d.,]+)\s+de área privativa", r"([\d.,]+)\s+de área total", r"([\d.,]+)\s+de área do terreno"]:
+                  value = extract(pattern, text)
+                  if value and value > 0:
+                      return value
+              return None
+
+          for state in states:
+              url = f"https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{state}.csv"
+              request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 MercadoImobi/1.0"})
+              try:
+                  with urllib.request.urlopen(request, timeout=25) as response:
+                      text = response.read().decode("latin-1")
+              except Exception as exc:
+                  print(f"{state}: ERROR {exc}")
+                  state_counts[state] = 0
+                  continue
+
+              lines = [line for line in text.splitlines() if line.strip("; \r\n")]
+              if len(lines) < 3:
+                  state_counts[state] = 0
+                  continue
+
+              generation_match = re.search(r"(\d{2}/\d{2}/\d{4})", lines[0])
+              generation = generation_match.group(1) if generation_match else None
+              generated_at = None
+              if generation:
+                  generated_at = datetime.strptime(generation, "%d/%m/%Y").replace(tzinfo=timezone.utc).isoformat()
+
+              reader = csv.reader(lines[2:], delimiter=";", quotechar='"')
+              count = 0
+              for row in reader:
+                  if len(row) < 12:
+                      continue
+                  raw_id, raw_state, city, neighborhood, address, raw_price, evaluation, discount, financing, description, sale_mode, source_url = [value.strip() for value in row[:12]]
+                  if not raw_id or not source_url.startswith("https://venda-imoveis.caixa.gov.br/"):
+                      continue
+
+                  property_type = description.split(",", 1)[0].strip() if description else None
+                  bedrooms = extract(r"(\d+)\s*qto\(s\)", description)
+                  bathrooms = extract(r"(\d+)\s*(?:banheiro|wc)\(s\)?", description)
+                  details = " • ".join(part for part in [description, f"Modalidade: {sale_mode}" if sale_mode else None, f"Financiamento: {financing}" if financing else None] if part)
+
+                  items.append({
+                      "title": f"{property_type or 'Imóvel'} em {city or raw_state or 'Brasil'}" + (f" — {neighborhood}" if neighborhood else ""),
+                      "description": details or None,
+                      "price": number(raw_price),
+                      "location_city": city or None,
+                      "location_state": raw_state or state,
+                      "location_address": address or None,
+                      "property_type": property_type,
+                      "bedrooms": int(bedrooms) if bedrooms is not None else None,
+                      "bathrooms": int(bathrooms) if bathrooms is not None else None,
+                      "area_sqm": area(description),
+                      "images": None,
+                      "source_url": source_url,
+                      "source_portal": "Imóveis CAIXA",
+                      "is_verified": True,
+                      "scanned_at": generated_at,
+                      "metadata": {
+                          "official_id": raw_id,
+                          "source": "caixa",
+                          "generation_date": generation,
+                          "sale_mode": sale_mode or None,
+                          "financing": financing or None,
+                          "evaluation_value": number(evaluation),
+                          "discount_percent": number(discount),
+                      },
+                  })
+                  count += 1
+              state_counts[state] = count
+              print(f"{state}: {count}")
+
+          with open("caixa-properties.json", "w", encoding="utf-8") as handle:
+              json.dump({"generated_at": datetime.now(timezone.utc).isoformat(), "state_counts": state_counts, "items": items}, handle, ensure_ascii=False)
+
+          print(f"TOTAL={len(items)}")
+
+      - name: Upload normalized snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: caixa-properties
+          path: caixa-properties.json
+          retention-days: 1
