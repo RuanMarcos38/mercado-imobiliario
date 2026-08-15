@@ -1,0 +1,24 @@
+name: Probe CAIXA property source
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/probe-caixa-source.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check official CAIXA CSV
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_SC.csv"
+          curl -fsSL --retry 3 --connect-timeout 15 -A "Mozilla/5.0" "$url" -o /tmp/caixa.csv
+          echo "bytes=$(wc -c < /tmp/caixa.csv)"
+          echo "lines=$(wc -l < /tmp/caixa.csv)"
+          iconv -f ISO-8859-1 -t UTF-8 /tmp/caixa.csv | head -n 8
