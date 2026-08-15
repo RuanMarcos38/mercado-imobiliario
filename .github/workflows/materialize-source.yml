@@ -65,8 +65,8 @@ jobs:
           npm run build
           test -f .output/server/index.mjs
 
-      - name: Format production source
-        run: npx prettier --write src
+      - name: Format production source and tests
+        run: npx prettier --write src tests
 
       - name: Relax legacy generated any rule
         shell: bash
