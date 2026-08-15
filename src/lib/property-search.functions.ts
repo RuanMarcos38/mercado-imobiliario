@@ -55,6 +55,39 @@ export interface PropertySearchItem {
   updated_at: string | null;
 }
 
+const CAIXA_STATES = [
+  "AC",
+  "AL",
+  "AM",
+  "AP",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MG",
+  "MS",
+  "MT",
+  "PA",
+  "PB",
+  "PE",
+  "PI",
+  "PR",
+  "RJ",
+  "RN",
+  "RO",
+  "RR",
+  "RS",
+  "SC",
+  "SE",
+  "SP",
+  "TO",
+] as const;
+
+const CAIXA_CACHE_TTL_MS = 15 * 60 * 1000;
+const caixaCache = new Map<string, { expiresAt: number; items: PropertySearchItem[] }>();
+
 function keyFor(item: PropertySearchItem): string {
   if (item.source_url) return item.source_url.trim().toLowerCase();
   return [item.title, item.location_address, item.location_city, item.location_state, item.price]
@@ -77,6 +110,232 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
     const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
     return bTime - aTime;
   });
+}
+
+function parseSemicolonLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+
+    if (character === ";" && !quoted) {
+      fields.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  fields.push(current.trim());
+  return fields;
+}
+
+function parseLocalizedNumber(value: string | undefined): number | null {
+  if (!value) return null;
+  const clean = value.replace(/[^0-9,.-]/g, "").trim();
+  if (!clean) return null;
+
+  let normalized = clean;
+  if (clean.includes(",") && clean.includes(".")) {
+    normalized = clean.replace(/\./g, "").replace(",", ".");
+  } else if (clean.includes(",")) {
+    normalized = clean.replace(",", ".");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseCaixaGenerationDate(header: string): string | null {
+  const match = header.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return new Date(`${year}-${month}-${day}T12:00:00-03:00`).toISOString();
+}
+
+function extractNumber(description: string, expression: RegExp): number | null {
+  const match = description.match(expression);
+  return match?.[1] ? parseLocalizedNumber(match[1]) : null;
+}
+
+function extractArea(description: string): number | null {
+  const privateArea = extractNumber(description, /([\d.,]+)\s+de área privativa/i);
+  if (privateArea && privateArea > 0) return privateArea;
+
+  const totalArea = extractNumber(description, /([\d.,]+)\s+de área total/i);
+  if (totalArea && totalArea > 0) return totalArea;
+
+  const landArea = extractNumber(description, /([\d.,]+)\s+de área do terreno/i);
+  return landArea && landArea > 0 ? landArea : null;
+}
+
+function normalizeSearchText(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): boolean {
+  if (input.city) {
+    const city = normalizeSearchText(input.city);
+    const haystack = normalizeSearchText(
+      [item.location_city, item.location_address, item.title].filter(Boolean).join(" "),
+    );
+    if (!haystack.includes(city)) return false;
+  }
+
+  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)) {
+    return false;
+  }
+
+  if (input.propertyType) {
+    const expectedType = normalizeSearchText(input.propertyType);
+    const actualType = normalizeSearchText(item.property_type);
+    if (!actualType.includes(expectedType) && !expectedType.includes(actualType)) return false;
+  }
+
+  if (typeof input.minPrice === "number" && (item.price == null || item.price < input.minPrice)) {
+    return false;
+  }
+  if (typeof input.maxPrice === "number" && (item.price == null || item.price > input.maxPrice)) {
+    return false;
+  }
+  if (
+    typeof input.bedrooms === "number" &&
+    input.bedrooms > 0 &&
+    (item.bedrooms == null || item.bedrooms < input.bedrooms)
+  ) {
+    return false;
+  }
+  if (
+    typeof input.bathrooms === "number" &&
+    input.bathrooms > 0 &&
+    (item.bathrooms == null || item.bathrooms < input.bathrooms)
+  ) {
+    return false;
+  }
+  if (input.verifiedOnly && !item.is_verified) return false;
+
+  return true;
+}
+
+async function fetchCaixaState(state: string): Promise<PropertySearchItem[]> {
+  const cached = caixaCache.get(state);
+  if (cached && cached.expiresAt > Date.now()) return cached.items;
+
+  const url = `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${state}.csv`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "text/csv,text/plain;q=0.9,*/*;q=0.5",
+        "User-Agent": "MercadoImobi/1.0 (+property-search)",
+      },
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!response.ok) return [];
+
+    const buffer = await response.arrayBuffer();
+    const text = new TextDecoder("windows-1252").decode(buffer);
+    const lines = text.split(/\r?\n/).filter((line) => line.trim().replace(/;/g, ""));
+    if (lines.length < 3) return [];
+
+    const generatedAt = parseCaixaGenerationDate(lines[0] ?? "");
+    const items: PropertySearchItem[] = [];
+
+    for (const line of lines.slice(2)) {
+      const fields = parseSemicolonLine(line);
+      if (fields.length < 12) continue;
+
+      const [
+        rawId,
+        rawState,
+        city,
+        neighborhood,
+        address,
+        rawPrice,
+        _evaluationValue,
+        _discount,
+        financing,
+        description,
+        saleMode,
+        sourceUrl,
+      ] = fields;
+
+      const id = rawId?.trim();
+      const source = sourceUrl?.trim();
+      if (!id || !source?.startsWith("https://venda-imoveis.caixa.gov.br/")) continue;
+
+      const propertyType = description?.split(",")[0]?.trim() || null;
+      const bedroomsValue = description
+        ? extractNumber(description, /(\d+)\s*qto\(s\)/i)
+        : null;
+      const bathroomsValue = description
+        ? extractNumber(description, /(\d+)\s*(?:banheiro|wc)\(s\)?/i)
+        : null;
+      const area = description ? extractArea(description) : null;
+      const details = [
+        description?.trim(),
+        saleMode ? `Modalidade: ${saleMode.trim()}` : null,
+        financing ? `Financiamento: ${financing.trim()}` : null,
+      ]
+        .filter(Boolean)
+        .join(" • ");
+
+      items.push({
+        id: `caixa-${id}`,
+        title: `${propertyType ?? "Imóvel"} em ${city?.trim() || rawState?.trim() || "Brasil"}${neighborhood?.trim() ? ` — ${neighborhood.trim()}` : ""}`,
+        description: details || null,
+        price: parseLocalizedNumber(rawPrice),
+        location_address: address?.trim() || null,
+        location_city: city?.trim() || null,
+        location_state: rawState?.trim() || state,
+        property_type: propertyType,
+        bedrooms: bedroomsValue == null ? null : Math.trunc(bedroomsValue),
+        bathrooms: bathroomsValue == null ? null : Math.trunc(bathroomsValue),
+        area_sqm: area,
+        images: null,
+        is_verified: true,
+        source_portal: "Imóveis CAIXA",
+        source_url: source,
+        updated_at: generatedAt,
+      });
+    }
+
+    caixaCache.set(state, {
+      expiresAt: Date.now() + CAIXA_CACHE_TTL_MS,
+      items,
+    });
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchCaixaLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
+  const requestedState = input.state?.trim().toUpperCase();
+  const states =
+    requestedState && CAIXA_STATES.includes(requestedState as (typeof CAIXA_STATES)[number])
+      ? [requestedState]
+      : [...CAIXA_STATES];
+
+  const results = await Promise.allSettled(states.map((state) => fetchCaixaState(state)));
+  const items = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
+  return items.filter((item) => matchesSearch(item, input));
 }
 
 async function fetchConfiguredLiveSource(
@@ -191,10 +450,11 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     indexQuery = indexQuery.limit(limit);
     propertyQuery = propertyQuery.limit(limit);
 
-    const [indexResult, propertyResult, liveItems] = await Promise.all([
+    const [indexResult, propertyResult, configuredLiveItems, caixaItems] = await Promise.all([
       indexQuery,
       propertyQuery,
       fetchConfiguredLiveSource(input),
+      fetchCaixaLiveSource(input),
     ]);
 
     const indexed: PropertySearchItem[] = (indexResult.data ?? []).map((item) => ({
@@ -221,12 +481,17 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       updated_at: item.updated_at,
     }));
 
-    if (indexResult.error && propertyResult.error && liveItems.length === 0) {
+    if (
+      indexResult.error &&
+      propertyResult.error &&
+      configuredLiveItems.length === 0 &&
+      caixaItems.length === 0
+    ) {
       throw new Error("SEARCH_UNAVAILABLE");
     }
 
     const deduped = new Map<string, PropertySearchItem>();
-    for (const item of [...liveItems, ...indexed, ...saved]) {
+    for (const item of [...configuredLiveItems, ...caixaItems, ...indexed, ...saved]) {
       const key = keyFor(item);
       if (!key || deduped.has(key)) continue;
       deduped.set(key, item);
