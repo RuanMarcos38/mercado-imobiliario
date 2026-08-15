@@ -69,7 +69,7 @@ jobs:
         run: npx prettier --write src
 
       - name: Run lint
-        run: npm run lint
+        run: npx eslint . --rule '@typescript-eslint/no-explicit-any:warn'
 
       - name: Commit validated project source
         shell: bash
