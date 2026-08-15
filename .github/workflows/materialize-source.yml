@@ -35,12 +35,37 @@ jobs:
             echo "Refusing to commit .env"
             exit 1
           fi
-          if git status --porcelain | grep -E '(^|/)(\.env)$' >/dev/null 2>&1; then
-            echo "Refusing to commit .env"
+          if find . -maxdepth 2 -type f -name '.env' | grep -q .; then
+            echo "Refusing to commit an .env file"
             exit 1
           fi
 
-      - name: Commit project source
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build production server
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+          VITE_SUPABASE_PROJECT_ID: placeholder
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+        run: |
+          npm run build
+          test -f .output/server/index.mjs
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Commit validated project source
         shell: bash
         run: |
           set -euo pipefail
@@ -51,5 +76,5 @@ jobs:
             echo "No changes to commit"
             exit 0
           fi
-          git commit -m "Deploy Casa Conectada source for EasyPanel"
+          git commit -m "Deploy validated Casa Conectada source for EasyPanel"
           git push
