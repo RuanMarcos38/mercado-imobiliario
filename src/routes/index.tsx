@@ -1,39 +1,37 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Home,
-  Search,
-  TrendingUp,
-  Users,
-  MapPin,
-  ShieldCheck,
-  Zap,
   ArrowRight,
   Building2,
   CheckCircle2,
-  Shield,
+  Heart,
+  Home,
+  MapPin,
+  Scale,
+  Search,
+  ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
-    title: "Mercado Imobiliário | Ponte Inteligente entre Clientes, Corretores e Construtoras",
+    title: "MercadoImobi | Encontre imóveis com mais agilidade",
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       {
         name: "description",
         content:
-          "Busca nacional de imóveis, score anti-fraude, leads qualificados por IA e dashboard de KPIs em tempo real.",
+          "Pesquise imóveis, compare opções e acesse o anúncio original em uma experiência rápida e organizada.",
       },
       {
         property: "og:title",
-        content:
-          "Mercado Imobiliário | Ponte Inteligente entre Clientes, Corretores e Construtoras",
+        content: "MercadoImobi | Pesquisa imobiliária simples e inteligente",
       },
       {
         property: "og:description",
         content:
-          "Busca nacional de imóveis, score anti-fraude, leads qualificados por IA e dashboard de KPIs em tempo real.",
+          "Encontre imóveis, compare características e siga direto para a fonte original do anúncio.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -43,337 +41,236 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <div className="flex flex-col min-h-screen bg-background relative">
-      {/* Implementar login multi-tenant */}
-
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4 sm:px-8">
-          <div className="flex items-center gap-2 font-bold text-2xl tracking-tighter text-primary">
-            <Building2 className="h-6 w-6" />
-            <span>
-              MERCADO<span className="text-muted-foreground font-light">IMOBI</span>
+    <div className="min-h-screen bg-[#06101c] text-white">
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#06101c]/88 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-2 font-bold tracking-tight">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-300/20">
+              <Building2 className="h-5 w-5" />
             </span>
+            <span className="text-lg">Mercado<span className="text-cyan-300">Imobi</span></span>
+          </Link>
+
+          <div className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
+            <a href="#como-funciona" className="transition hover:text-white">Como funciona</a>
+            <a href="#recursos" className="transition hover:text-white">Recursos</a>
+            <a href="#para-quem" className="transition hover:text-white">Para quem é</a>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-            <Link to="/" className="transition-colors hover:text-primary">
-              Início
-            </Link>
-            <a href="#funcionalidades" className="transition-colors hover:text-primary">
-              Funcionalidades
-            </a>
-            <a href="#dashboard" className="transition-colors hover:text-primary">
-              Dashboard
-            </a>
-            <a href="#contato" className="transition-colors hover:text-primary">
-              Contato
-            </a>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/auth" className="text-sm font-medium transition-colors hover:text-primary">
+
+          <div className="flex items-center gap-2">
+            <Link to="/auth" className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white">
               Entrar
             </Link>
             <Link
               to="/auth"
-              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+              className="inline-flex items-center justify-center rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-[#06101c] transition hover:bg-cyan-200"
             >
-              7 Dias Grátis
+              Buscar imóveis
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-24 md:py-32">
-        <div className="container relative z-10 px-4 sm:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground mb-6">
-              Lançamento Nacional
-            </div>
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl mb-6">
-              A Ponte Inteligente do <span className="text-primary">Mercado Imobiliário</span>
-            </h1>
-            <p className="mx-auto max-w-[700px] text-lg text-muted-foreground mb-10">
-              Conectamos clientes, corretores e construtoras em todo o Brasil. Busca nacional,
-              qualificação anti-fraude por IA e leads gratuitos em um único painel.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                to="/auth"
-                className="inline-flex h-12 w-full sm:w-auto items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 group"
-              >
-                Começar agora
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <a
-                href="#dashboard"
-                className="inline-flex h-12 w-full sm:w-auto items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                Ver Demonstração
-              </a>
-            </div>
-          </div>
-        </div>
-        {/* Background Decorative */}
-        <div className="absolute top-0 -left-1/4 h-[500px] w-[500px] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute bottom-0 -right-1/4 h-[500px] w-[500px] rounded-full bg-primary/10 blur-[120px]" />
-      </section>
+      <main>
+        <section className="relative overflow-hidden border-b border-white/10">
+          <div className="absolute inset-0 opacity-90 [background-image:linear-gradient(rgba(54,225,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(54,225,255,.045)_1px,transparent_1px)] [background-size:52px_52px]" />
+          <div className="absolute left-[8%] top-[-180px] h-[520px] w-[520px] rounded-full bg-cyan-400/12 blur-[130px]" />
+          <div className="absolute right-[-8%] top-[80px] h-[520px] w-[520px] rounded-full bg-blue-600/10 blur-[150px]" />
 
-      {/* Stats Section */}
-      <section className="border-y bg-muted/30 py-12">
-        <div className="container px-4 sm:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="text-3xl font-bold tracking-tighter">500k+</div>
-              <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mt-1">
-                Imóveis no Brasil
-              </div>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="text-3xl font-bold tracking-tighter">100%</div>
-              <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mt-1">
-                Qualificados por IA
-              </div>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="text-3xl font-bold tracking-tighter">24/7</div>
-              <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mt-1">
-                Varredura Google/OLX
-              </div>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="text-3xl font-bold tracking-tighter">7 Dias</div>
-              <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mt-1">
-                Teste Gratuito
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="funcionalidades" className="py-24">
-        <div className="container px-4 sm:px-8">
-          <div className="mb-16 text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4 text-foreground">
-              Inovação para o seu dia a dia
-            </h2>
-            <p className="text-muted-foreground">
-              Tecnologia de ponta para quem quer vender mais e melhor.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Busca Nacional Sem Exceção",
-                description:
-                  "Varredura completa em portais, redes sociais e Google. Todo o Brasil em uma única tela.",
-                icon: Search,
-              },
-              {
-                title: "IA Anti-Fraude",
-                description:
-                  "Algoritmo exclusivo que qualifica anúncios e identifica golpes antes mesmo de você ver.",
-                icon: ShieldCheck,
-              },
-              {
-                title: "Leads Gratuitos por IA",
-                description:
-                  "Agente inteligente que prospecta clientes no perfil ideal do seu imóvel automaticamente.",
-                icon: Zap,
-              },
-              {
-                title: "Integração N8N & Portais",
-                description:
-                  "Conectado diretamente ao n8n, OLX e Marketplace para fluxo de dados em tempo real.",
-                icon: TrendingUp,
-              },
-              {
-                title: "Isolamento Total de Dados",
-                description:
-                  "Sistema Multi-tenant onde sua informação é sua. Ninguém mais tem acesso aos seus dados.",
-                icon: Users,
-              },
-              {
-                title: "Cobertura de Construtoras",
-                description:
-                  "Base integrada com todas as construtoras do Brasil, atualizada constantemente.",
-                icon: MapPin,
-              },
-            ].map((feature, i) => (
-              <div
-                key={i}
-                className="relative overflow-hidden rounded-lg border bg-background p-8 transition-all hover:shadow-lg group"
-              >
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <feature.icon className="h-6 w-6" />
-                </div>
-                <h3 className="mb-2 font-bold text-xl">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Dashboard Preview Section */}
-      <section id="dashboard" className="py-24 bg-muted/50">
-        <div className="container px-4 sm:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="relative mx-auto grid max-w-[1440px] items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-28">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6 text-foreground">
-                Painel Visual de KPIs <br />
-                <span className="text-primary">Dados reais, decisões rápidas.</span>
-              </h2>
-              <ul className="space-y-4 mb-8">
-                {[
-                  "Monitoramento de resultados em tempo real",
-                  "Métricas de conversão por canal (Google, OLX, Marketplace)",
-                  "Indicadores de performance (KPIs) estratégicos",
-                  "Interface intuitiva voltada para conversão",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm font-medium">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-              >
-                Explorar Painel
-              </Link>
-            </div>
-            <div className="relative rounded-2xl border bg-background p-4 shadow-2xl overflow-hidden group">
-              {/* Mock Dashboard Illustration */}
-              <div className="aspect-[4/3] w-full rounded-xl bg-muted/20 p-6 flex flex-col gap-4 overflow-hidden">
-                <div className="flex justify-between items-center">
-                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-                  <div className="h-4 w-24 rounded bg-muted animate-pulse" />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="h-24 rounded-lg bg-primary/10 animate-pulse" />
-                  <div className="h-24 rounded-lg bg-primary/10 animate-pulse" />
-                  <div className="h-24 rounded-lg bg-primary/10 animate-pulse" />
-                </div>
-                <div className="flex-1 rounded-lg bg-muted/40 animate-pulse" />
-                <div className="h-32 rounded-lg bg-muted/40 animate-pulse" />
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/[0.055] px-3 py-1.5 text-xs font-semibold text-cyan-200">
+                <Sparkles className="h-3.5 w-3.5" /> Sua pesquisa imobiliária em um só lugar
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent pointer-events-none" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 border-t">
-        <div className="container px-4 sm:px-8">
-          <div className="rounded-3xl bg-primary px-8 py-16 text-center text-primary-foreground shadow-xl md:px-16 overflow-hidden relative">
-            <div className="relative z-10">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-5xl mb-6">
-                Pronto para inovar no mercado?
-              </h2>
-              <p className="mx-auto max-w-[600px] text-primary-foreground/80 mb-10 text-lg">
-                Junte-se a milhares de corretores e imobiliárias que já estão usando a IA para
-                vender mais imóveis.
-              </p>
-              <Link
-                to="/auth"
-                className="inline-flex h-14 items-center justify-center rounded-md bg-background px-10 text-base font-bold text-foreground shadow-lg transition-all hover:scale-105 active:scale-95"
-              >
-                Começar 7 Dias Grátis
-              </Link>
-            </div>
-            {/* Background pattern */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer id="contato" className="bg-background border-t py-12 md:py-24">
-        <div className="container px-4 sm:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-2 font-bold text-2xl tracking-tighter text-primary mb-6">
-                <Building2 className="h-6 w-6" />
-                <span>
-                  MERCADO<span className="text-muted-foreground font-light">IMOBI</span>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-6xl lg:text-7xl">
+                Encontre o imóvel certo,
+                <span className="block bg-gradient-to-r from-cyan-200 via-sky-300 to-blue-400 bg-clip-text text-transparent">
+                  sem perder tempo.
                 </span>
-              </div>
-              <p className="text-muted-foreground max-w-sm mb-6">
-                Plataforma de alta performance para o mercado imobiliário brasileiro. Tecnologia,
-                inteligência e conexão.
+              </h1>
+              <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+                Pesquise opções reais, filtre o que importa, compare imóveis e siga direto para o anúncio original quando encontrar a melhor oportunidade.
               </p>
-              <div className="text-sm font-medium">
-                GitHub: <span className="text-primary">RuanMarcos38</span>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  to="/auth"
+                  className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-cyan-300 px-6 text-sm font-bold text-[#06101c] shadow-xl shadow-cyan-950/30 transition hover:bg-cyan-200"
+                >
+                  <Search className="h-4 w-4" /> Começar uma pesquisa
+                </Link>
+                <a
+                  href="#como-funciona"
+                  className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/[0.035] px-6 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.07]"
+                >
+                  Ver como funciona <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
+
+              <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-400">
+                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Sem anúncios inventados</span>
+                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Comparação lado a lado</span>
+                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /> Acesso à fonte original</span>
               </div>
             </div>
-            <div>
-              <h4 className="font-bold mb-6 text-foreground uppercase tracking-widest text-xs">
-                Produto
-              </h4>
-              <ul className="space-y-4 text-sm text-muted-foreground">
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Funcionalidades
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Preços
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Trial 7 Dias
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    IA Agente
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6 text-foreground uppercase tracking-widest text-xs">
-                Suporte
-              </h4>
-              <ul className="space-y-4 text-sm text-muted-foreground">
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Central de Ajuda
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    API Docs
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Privacidade
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Termos de Uso
-                  </a>
-                </li>
-              </ul>
+
+            <div className="relative mx-auto w-full max-w-xl">
+              <div className="absolute -inset-8 rounded-[44px] bg-cyan-300/[0.05] blur-2xl" />
+              <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/35 backdrop-blur-xl sm:p-7">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Pesquisa rápida</p>
+                    <h2 className="mt-1 text-xl font-bold">O que você procura?</h2>
+                  </div>
+                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200">
+                    <Home className="h-5 w-5" />
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5">
+                    <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Localização</span>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-slate-300"><MapPin className="h-4 w-4 text-cyan-300" /> Cidade ou região</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5">
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Tipo</span>
+                      <span className="mt-1 block text-sm text-slate-300">Casa, apartamento...</span>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5">
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Faixa de preço</span>
+                      <span className="mt-1 block text-sm text-slate-300">Defina seu orçamento</span>
+                    </div>
+                  </div>
+                  <Link
+                    to="/auth"
+                    className="mt-2 inline-flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-cyan-300 text-sm font-black text-[#06101c] transition hover:bg-cyan-200"
+                  >
+                    <Search className="h-4 w-4" /> Buscar imóveis
+                  </Link>
+                </div>
+
+                <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-5">
+                  <MiniBenefit icon={<Search className="h-4 w-4" />} label="Filtre" />
+                  <MiniBenefit icon={<Scale className="h-4 w-4" />} label="Compare" />
+                  <MiniBenefit icon={<Heart className="h-4 w-4" />} label="Favorite" />
+                </div>
+              </div>
             </div>
           </div>
-          <div className="mt-16 pt-8 border-t text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Mercado Imobi. Todos os direitos reservados.
+        </section>
+
+        <section id="como-funciona" className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto mb-14 max-w-2xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Simples por design</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Da pesquisa ao anúncio em poucos passos</h2>
+            <p className="mt-4 text-slate-400">A ferramenta organiza a busca para você focar apenas nas opções que realmente fazem sentido.</p>
           </div>
+
+          <div className="grid gap-5 md:grid-cols-3">
+            <StepCard number="01" icon={<Search className="h-5 w-5" />} title="Pesquise" text="Escolha cidade, tipo, preço e características do imóvel que você procura." />
+            <StepCard number="02" icon={<Scale className="h-5 w-5" />} title="Compare" text="Analise preço, localização, área e outros detalhes lado a lado." />
+            <StepCard number="03" icon={<ArrowRight className="h-5 w-5" />} title="Acesse a fonte" text="Ao encontrar a melhor opção, siga para o anúncio original e continue o contato." />
+          </div>
+        </section>
+
+        <section id="recursos" className="border-y border-white/10 bg-white/[0.018]">
+          <div className="mx-auto grid max-w-[1440px] gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Pesquisa com clareza</p>
+              <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-4xl">Menos ruído. Mais imóveis relevantes.</h2>
+              <p className="mt-5 max-w-xl leading-relaxed text-slate-400">
+                O MercadoImobi foi desenhado para facilitar a pesquisa de quem compra e de quem trabalha todos os dias encontrando imóveis para clientes.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FeatureCard icon={<ShieldCheck className="h-5 w-5" />} title="Informação transparente" text="A plataforma não cria imóveis ou valores apenas para preencher resultados." />
+              <FeatureCard icon={<Scale className="h-5 w-5" />} title="Comparador" text="Selecione até três imóveis e veja os principais pontos lado a lado." />
+              <FeatureCard icon={<Heart className="h-5 w-5" />} title="Favoritos" text="Guarde rapidamente as opções que merecem uma segunda análise." />
+              <FeatureCard icon={<Search className="h-5 w-5" />} title="Pesquisas salvas" text="Repita combinações de filtros sem precisar preencher tudo novamente." />
+            </div>
+          </div>
+        </section>
+
+        <section id="para-quem" className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <AudienceCard
+              label="Para clientes"
+              title="Escolha com mais segurança e menos confusão."
+              text="Pesquise, filtre, compare e organize suas opções antes de falar com o anunciante."
+            />
+            <AudienceCard
+              label="Para corretores"
+              title="Encontre opções com mais agilidade para cada perfil."
+              text="Salve pesquisas, compare imóveis e mantenha as melhores alternativas à mão durante o atendimento."
+            />
+          </div>
+        </section>
+
+        <section className="px-4 pb-20 sm:px-6 lg:px-8 lg:pb-24">
+          <div className="mx-auto max-w-[1440px] overflow-hidden rounded-[34px] border border-cyan-300/15 bg-gradient-to-br from-cyan-300/12 via-sky-500/8 to-transparent px-6 py-12 text-center shadow-2xl shadow-cyan-950/20 sm:px-10 lg:py-16">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Comece sua pesquisa</p>
+            <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">O próximo imóvel pode estar a uma pesquisa de distância.</h2>
+            <p className="mx-auto mt-5 max-w-2xl text-slate-300">Entre, defina seus filtros e compare as opções disponíveis para o seu perfil.</p>
+            <Link
+              to="/auth"
+              className="mt-8 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-cyan-300 px-7 text-sm font-black text-[#06101c] transition hover:bg-cyan-200"
+            >
+              Pesquisar imóveis <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-white/10">
+        <div className="mx-auto flex max-w-[1440px] flex-col justify-between gap-6 px-4 py-10 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center lg:px-8">
+          <div className="flex items-center gap-2 font-semibold text-slate-300">
+            <Building2 className="h-4 w-4 text-cyan-300" /> MercadoImobi
+          </div>
+          <p>Pesquisa imobiliária organizada para clientes e corretores.</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function MiniBenefit({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.035] px-3 py-2.5 text-xs font-semibold text-slate-300">
+      <span className="text-cyan-300">{icon}</span>{label}
+    </div>
+  );
+}
+
+function StepCard({ number, icon, title, text }: { number: string; icon: React.ReactNode; title: string; text: string }) {
+  return (
+    <div className="rounded-[26px] border border-white/10 bg-white/[0.028] p-6 transition hover:border-cyan-300/20 hover:bg-white/[0.04]">
+      <div className="flex items-center justify-between">
+        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200">{icon}</span>
+        <span className="text-sm font-black text-white/15">{number}</span>
+      </div>
+      <h3 className="mt-6 text-xl font-bold">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-400">{text}</p>
+    </div>
+  );
+}
+
+function FeatureCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/10 p-5">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200">{icon}</span>
+      <h3 className="mt-4 font-bold">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-400">{text}</p>
+    </div>
+  );
+}
+
+function AudienceCard({ label, title, text }: { label: string; title: string; text: string }) {
+  return (
+    <div className="rounded-[30px] border border-white/10 bg-gradient-to-br from-white/[0.055] to-white/[0.015] p-7 sm:p-9">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">{label}</p>
+      <h3 className="mt-3 max-w-xl text-2xl font-black tracking-tight sm:text-3xl">{title}</h3>
+      <p className="mt-4 max-w-xl leading-relaxed text-slate-400">{text}</p>
     </div>
   );
 }
