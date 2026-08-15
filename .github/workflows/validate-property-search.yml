@@ -28,7 +28,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Run safe tests
         run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
