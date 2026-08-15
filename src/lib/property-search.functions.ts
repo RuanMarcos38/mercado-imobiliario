@@ -55,44 +55,9 @@ export interface PropertySearchItem {
   updated_at: string | null;
 }
 
-function applyFilters<T extends {
-  eq: (column: string, value: unknown) => T;
-  ilike: (column: string, pattern: string) => T;
-  gte: (column: string, value: number) => T;
-  lte: (column: string, value: number) => T;
-  order: (column: string, options: { ascending: boolean }) => T;
-  limit: (count: number) => T;
-}>(query: T, input: PropertySearchInput): T {
-  let next = query;
-  if (input.city) next = next.ilike("location_city", `%${input.city}%`);
-  if (input.state) next = next.eq("location_state", input.state.toUpperCase());
-  if (input.propertyType) next = next.eq("property_type", input.propertyType);
-  if (typeof input.minPrice === "number") next = next.gte("price", input.minPrice);
-  if (typeof input.maxPrice === "number") next = next.lte("price", input.maxPrice);
-  if (typeof input.bedrooms === "number" && input.bedrooms > 0) {
-    next = next.gte("bedrooms", input.bedrooms);
-  }
-  if (typeof input.bathrooms === "number" && input.bathrooms > 0) {
-    next = next.gte("bathrooms", input.bathrooms);
-  }
-  if (input.verifiedOnly) next = next.eq("is_verified", true);
-
-  if (input.sort === "price_asc") next = next.order("price", { ascending: true });
-  else if (input.sort === "price_desc") next = next.order("price", { ascending: false });
-  else next = next.order("updated_at", { ascending: false });
-
-  return next.limit(input.limit ?? 30);
-}
-
 function keyFor(item: PropertySearchItem): string {
   if (item.source_url) return item.source_url.trim().toLowerCase();
-  return [
-    item.title,
-    item.location_address,
-    item.location_city,
-    item.location_state,
-    item.price,
-  ]
+  return [item.title, item.location_address, item.location_city, item.location_state, item.price]
     .filter(Boolean)
     .join("|")
     .toLowerCase();
@@ -100,7 +65,9 @@ function keyFor(item: PropertySearchItem): string {
 
 function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"]) {
   if (sort === "price_asc") {
-    return items.sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
+    return items.sort(
+      (a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER),
+    );
   }
   if (sort === "price_desc") {
     return items.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
@@ -112,7 +79,9 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
   });
 }
 
-async function fetchConfiguredLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
+async function fetchConfiguredLiveSource(
+  input: PropertySearchInput,
+): Promise<PropertySearchItem[]> {
   const url = process.env["PROPERTY_SEARCH_LIVE_URL"];
   if (!url) return [];
 
@@ -150,7 +119,7 @@ async function fetchConfiguredLiveSource(input: PropertySearchInput): Promise<Pr
       is_verified: item.is_verified ?? null,
       source_portal: item.source_portal ?? null,
       source_url: item.source_url,
-      updated_at: item.updated_at ?? new Date().toISOString(),
+      updated_at: item.updated_at ?? null,
     }));
   } catch {
     return [];
@@ -161,23 +130,66 @@ export const searchRealProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => searchSchema.parse(data ?? {}))
   .handler(async ({ data: input, context }) => {
-    const indexQuery = applyFilters(
-      context.supabase
-        .from("property_search_index")
-        .select(
-          "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at",
-        ),
-      input,
-    );
+    let indexQuery = context.supabase
+      .from("property_search_index")
+      .select(
+        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at",
+      );
 
-    const propertyQuery = applyFilters(
-      context.supabase
-        .from("properties")
-        .select(
-          "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",
-        ),
-      input,
-    );
+    let propertyQuery = context.supabase
+      .from("properties")
+      .select(
+        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",
+      );
+
+    if (input.city) {
+      indexQuery = indexQuery.ilike("location_city", `%${input.city}%`);
+      propertyQuery = propertyQuery.ilike("location_city", `%${input.city}%`);
+    }
+    if (input.state) {
+      const state = input.state.toUpperCase();
+      indexQuery = indexQuery.eq("location_state", state);
+      propertyQuery = propertyQuery.eq("location_state", state);
+    }
+    if (input.propertyType) {
+      indexQuery = indexQuery.eq("property_type", input.propertyType);
+      propertyQuery = propertyQuery.eq("property_type", input.propertyType);
+    }
+    if (typeof input.minPrice === "number") {
+      indexQuery = indexQuery.gte("price", input.minPrice);
+      propertyQuery = propertyQuery.gte("price", input.minPrice);
+    }
+    if (typeof input.maxPrice === "number") {
+      indexQuery = indexQuery.lte("price", input.maxPrice);
+      propertyQuery = propertyQuery.lte("price", input.maxPrice);
+    }
+    if (typeof input.bedrooms === "number" && input.bedrooms > 0) {
+      indexQuery = indexQuery.gte("bedrooms", input.bedrooms);
+      propertyQuery = propertyQuery.gte("bedrooms", input.bedrooms);
+    }
+    if (typeof input.bathrooms === "number" && input.bathrooms > 0) {
+      indexQuery = indexQuery.gte("bathrooms", input.bathrooms);
+      propertyQuery = propertyQuery.gte("bathrooms", input.bathrooms);
+    }
+    if (input.verifiedOnly) {
+      indexQuery = indexQuery.eq("is_verified", true);
+      propertyQuery = propertyQuery.eq("is_verified", true);
+    }
+
+    if (input.sort === "price_asc") {
+      indexQuery = indexQuery.order("price", { ascending: true });
+      propertyQuery = propertyQuery.order("price", { ascending: true });
+    } else if (input.sort === "price_desc") {
+      indexQuery = indexQuery.order("price", { ascending: false });
+      propertyQuery = propertyQuery.order("price", { ascending: false });
+    } else {
+      indexQuery = indexQuery.order("scanned_at", { ascending: false });
+      propertyQuery = propertyQuery.order("updated_at", { ascending: false });
+    }
+
+    const limit = input.limit ?? 30;
+    indexQuery = indexQuery.limit(limit);
+    propertyQuery = propertyQuery.limit(limit);
 
     const [indexResult, propertyResult, liveItems] = await Promise.all([
       indexQuery,
@@ -216,22 +228,19 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     const deduped = new Map<string, PropertySearchItem>();
     for (const item of [...liveItems, ...indexed, ...saved]) {
       const key = keyFor(item);
-      if (!key) continue;
-      if (!deduped.has(key)) deduped.set(key, item);
+      if (!key || deduped.has(key)) continue;
+      deduped.set(key, item);
     }
 
-    const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, input.limit ?? 30);
-    const latestTimestamp = items
-      .map((item) => item.updated_at)
-      .filter((value): value is string => Boolean(value))
-      .sort()
-      .at(-1) ?? null;
+    const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);
+    const latestTimestamp =
+      items
+        .map((item) => item.updated_at)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
 
-    return {
-      items,
-      total: items.length,
-      latestTimestamp,
-    };
+    return { items, total: items.length, latestTimestamp };
   });
 
 const savedSearchSchema = z.object({
@@ -243,10 +252,11 @@ export const savePropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => savedSearchSchema.parse(data))
   .handler(async ({ data, context }) => {
+    const criteria = JSON.parse(JSON.stringify(data.criteria));
     const { error } = await context.supabase.from("search_configurations").insert({
       user_id: context.userId,
       name: data.name,
-      criteria: data.criteria,
+      criteria,
       is_active: true,
     });
     if (error) throw new Error(error.message);
