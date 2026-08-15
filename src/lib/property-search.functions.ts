@@ -329,10 +329,7 @@ async function fetchCaixaState(state: string): Promise<PropertySearchItem[]> {
 
 async function fetchCaixaLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
   const requestedState = input.state?.trim().toUpperCase();
-  if (
-    !requestedState ||
-    !CAIXA_STATES.includes(requestedState as (typeof CAIXA_STATES)[number])
-  ) {
+  if (!requestedState || !CAIXA_STATES.includes(requestedState as (typeof CAIXA_STATES)[number])) {
     return [];
   }
 
