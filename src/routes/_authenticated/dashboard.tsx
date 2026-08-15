@@ -1,48 +1,143 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  Bath,
+  BedDouble,
+  Bookmark,
   Building2,
-  Users,
+  Check,
+  Clock3,
+  ExternalLink,
+  Heart,
   Home,
-  Zap,
-  ShieldCheck,
-  Shield,
-  Search,
-  LayoutDashboard,
   LogOut,
-  Bell,
-  ArrowDownRight,
-  Server,
+  MapPin,
+  Ruler,
+  Scale,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  UserRound,
+  X,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from "recharts";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { OnboardingGuide } from "@/components/OnboardingGuide";
-import { getDashboardMetrics } from "@/lib/metrics.functions";
+import {
+  listSavedPropertySearches,
+  savePropertySearch,
+  searchRealProperties,
+} from "@/lib/property-search.functions";
+import type {
+  PropertySearchInput,
+  PropertySearchItem,
+} from "@/lib/property-search.functions";
 
-export const Route = createFileRoute("/_authenticated/dashboard")({ component: Dashboard });
+export const Route = createFileRoute("/_authenticated/dashboard")({
+  component: PropertySearchPage,
+  head: () => ({
+    title: "Buscar imóveis | MercadoImobi",
+    meta: [
+      {
+        name: "description",
+        content:
+          "Pesquise imóveis reais, compare opções e acesse o anúncio original em uma experiência simples e rápida.",
+      },
+    ],
+  }),
+});
 
-function Dashboard() {
-  const [user, setUser] = useState<any>(null);
+const STATES = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+];
+
+const PROPERTY_TYPES = [
+  "Apartamento",
+  "Casa",
+  "Terreno",
+  "Sobrado",
+  "Cobertura",
+  "Studio",
+  "Comercial",
+  "Rural",
+];
+
+interface FilterState {
+  city: string;
+  state: string;
+  propertyType: string;
+  minPrice: string;
+  maxPrice: string;
+  bedrooms: string;
+  bathrooms: string;
+  verifiedOnly: boolean;
+  sort: "recent" | "price_asc" | "price_desc";
+}
+
+const initialFilters: FilterState = {
+  city: "",
+  state: "",
+  propertyType: "",
+  minPrice: "",
+  maxPrice: "",
+  bedrooms: "",
+  bathrooms: "",
+  verifiedOnly: false,
+  sort: "recent",
+};
+
+function PropertySearchPage() {
   const navigate = useNavigate();
-  const fetchMetrics = useServerFn(getDashboardMetrics);
-  const metricsQuery = useQuery({
-    queryKey: ["dashboard-metrics", user?.id],
-    queryFn: () => fetchMetrics(),
+  const searchFn = useServerFn(searchRealProperties);
+  const saveSearchFn = useServerFn(savePropertySearch);
+  const listSavedFn = useServerFn(listSavedPropertySearches);
+
+  const [user, setUser] = useState<any>(null);
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
+  const [results, setResults] = useState<PropertySearchItem[]>([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+
+  const savedSearches = useQuery({
+    queryKey: ["saved-property-searches", user?.id],
+    queryFn: () => listSavedFn(),
     enabled: Boolean(user),
   });
 
@@ -53,340 +148,604 @@ function Dashboard() {
     });
   }, [navigate]);
 
-  const handleLogout = async () => {
+  useEffect(() => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user)
-        await supabase
-          .from("auth_audit_log")
-          .insert({ event_type: "logout", user_id: session.user.id });
-    } catch (error) {
-      console.error("Erro ao registrar logout:", error);
+      const raw = window.localStorage.getItem("mercadoimobi:favorites");
+      if (raw) setFavorites(new Set(JSON.parse(raw)));
+    } catch {
+      setFavorites(new Set());
     }
+  }, []);
+
+  const comparedProperties = useMemo(
+    () => compareIds.map((id) => results.find((item) => item.id === id)).filter(Boolean) as PropertySearchItem[],
+    [compareIds, results],
+  );
+
+  const buildInput = (source = filters): PropertySearchInput => ({
+    city: source.city || undefined,
+    state: source.state || undefined,
+    propertyType: source.propertyType || undefined,
+    minPrice: source.minPrice ? Number(source.minPrice) : undefined,
+    maxPrice: source.maxPrice ? Number(source.maxPrice) : undefined,
+    bedrooms: source.bedrooms ? Number(source.bedrooms) : undefined,
+    bathrooms: source.bathrooms ? Number(source.bathrooms) : undefined,
+    verifiedOnly: source.verifiedOnly,
+    sort: source.sort,
+    limit: 36,
+  });
+
+  const runSearch = async (nextFilters = filters) => {
+    setLoading(true);
+    setSearchError(false);
+    setHasSearched(true);
+    setShowCompare(false);
+    try {
+      const response = await searchFn({ data: buildInput(nextFilters) });
+      setResults(response.items);
+      setLastUpdatedAt(response.latestTimestamp);
+      setCompareIds((ids) => ids.filter((id) => response.items.some((item) => item.id === id)));
+    } catch {
+      setResults([]);
+      setLastUpdatedAt(null);
+      setSearchError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) void runSearch(initialFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Sessão encerrada");
     navigate({ to: "/" });
   };
 
+  const toggleFavorite = (id: string) => {
+    const next = new Set(favorites);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setFavorites(next);
+    window.localStorage.setItem("mercadoimobi:favorites", JSON.stringify(Array.from(next)));
+  };
+
+  const toggleCompare = (id: string) => {
+    setCompareIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 3) {
+        toast.info("Você pode comparar até 3 imóveis por vez.");
+        return current;
+      }
+      return [...current, id];
+    });
+  };
+
+  const handleSaveSearch = async () => {
+    const name = window.prompt("Dê um nome para esta pesquisa:", filters.city || "Minha pesquisa");
+    if (!name?.trim()) return;
+    try {
+      await saveSearchFn({ data: { name: name.trim(), criteria: buildInput() } });
+      await savedSearches.refetch();
+      toast.success("Pesquisa salva.");
+    } catch {
+      toast.error("Não foi possível salvar a pesquisa agora.");
+    }
+  };
+
+  const applySavedSearch = (criteria: unknown) => {
+    const source = (criteria ?? {}) as Partial<PropertySearchInput>;
+    const next: FilterState = {
+      city: source.city ?? "",
+      state: source.state ?? "",
+      propertyType: source.propertyType ?? "",
+      minPrice: typeof source.minPrice === "number" ? String(source.minPrice) : "",
+      maxPrice: typeof source.maxPrice === "number" ? String(source.maxPrice) : "",
+      bedrooms: typeof source.bedrooms === "number" ? String(source.bedrooms) : "",
+      bathrooms: typeof source.bathrooms === "number" ? String(source.bathrooms) : "",
+      verifiedOnly: Boolean(source.verifiedOnly),
+      sort: source.sort ?? "recent",
+    };
+    setFilters(next);
+    setShowSaved(false);
+    void runSearch(next);
+  };
+
   if (!user) return null;
-  const metrics = metricsQuery.data;
-  const configured =
-    metrics?.integrations.filter((item) => item.state === "configurada").length ?? 0;
-  const integrationsTotal = metrics?.integrations.length ?? 0;
 
   return (
-    <div className="flex min-h-screen bg-muted/20">
-      <OnboardingGuide />
-      <aside className="hidden lg:flex flex-col w-64 border-r bg-background shrink-0">
-        <div className="p-6 border-b">
-          <Link
-            to="/"
-            className="flex items-center gap-2 font-bold text-xl tracking-tighter text-primary"
-          >
-            <Building2 className="h-6 w-6" />
-            <span>
-              MERCADO<span className="text-muted-foreground font-light">IMOBI</span>
+    <div className="min-h-screen bg-[#07111f] text-white">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07111f]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-2 font-bold tracking-tight">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-400/15 text-cyan-300 ring-1 ring-cyan-300/25">
+              <Building2 className="h-5 w-5" />
             </span>
+            <span className="text-lg">Mercado<span className="text-cyan-300">Imobi</span></span>
           </Link>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <NavItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" active />
-          <NavItem icon={Search} label="Buscar Imóveis" to="/dashboard" />
-          <NavItem icon={Server} label="Gestão de VPS" to="/vps" />
-          <NavItem
-            icon={Users}
-            label="Meus Leads"
-            badge={String(metrics?.totals.leads ?? 0)}
-            to="/dashboard"
-          />
-          <NavItem icon={ShieldCheck} label="Auditoria Avançada" to="/audit" />
-          <NavItem icon={Shield} label="Segurança e MFA" to="/settings/security" />
-          <NavItem icon={Home} label="Minhas Listas" to="/dashboard" />
-          <NavItem
-            icon={Zap}
-            label="Conectar importação n8n"
-            onClick={() => {
-              const url = window.location.origin + "/api/public/hooks/n8n-webhook";
-              void navigator.clipboard.writeText(url);
-              toast.info("Endpoint n8n copiado", {
-                description: "Configure N8N_WEBHOOK_SECRET antes de usar.",
-              });
-            }}
-          />
-        </nav>
-        <div className="p-4 border-t space-y-4">
-          <div className="rounded-xl bg-primary/5 p-4 border border-primary/10">
-            <p className="text-xs font-bold text-primary uppercase mb-2 tracking-widest">
-              Plano Profissional
-            </p>
-            <p className="text-sm text-muted-foreground mb-3 font-medium">
-              Período de Trial: 7 dias grátis.
-            </p>
-            <Button size="sm" className="w-full">
-              Assinar Agora
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-destructive"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-2 h-4 w-4" /> Sair
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-8">
-          <h1 className="text-lg font-bold">Dashboard Operacional</h1>
-          <div className="flex items-center gap-4">
-            <Link to="/settings/security">
-              <Button variant="ghost" size="icon">
-                <Shield className="h-5 w-5" />
-              </Button>
+
+          <nav className="hidden items-center gap-7 text-sm text-slate-300 md:flex">
+            <button className="font-semibold text-white">Buscar imóveis</button>
+            <button onClick={() => setShowSaved((value) => !value)} className="transition hover:text-white">
+              Pesquisas salvas
+            </button>
+            <button
+              onClick={() => document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" })}
+              className="transition hover:text-white"
+            >
+              Favoritos ({favorites.size})
+            </button>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/settings/security"
+              className="hidden items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 sm:flex"
+            >
+              <UserRound className="h-4 w-4" /> Minha conta
             </Link>
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs border">
-              {user.email?.[0]?.toUpperCase()}
+            <button
+              onClick={handleLogout}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-slate-400 transition hover:bg-white/5 hover:text-white"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {showSaved && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setShowSaved(false)}>
+          <div
+            className="ml-auto h-full w-full max-w-md border-l border-white/10 bg-[#0b1727] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Atalhos</p>
+                <h2 className="mt-1 text-xl font-bold">Pesquisas salvas</h2>
+              </div>
+              <button onClick={() => setShowSaved(false)} className="rounded-lg p-2 text-slate-400 hover:bg-white/5">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {(savedSearches.data ?? []).map((saved) => (
+                <button
+                  key={saved.id}
+                  onClick={() => applySavedSearch(saved.criteria)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.04]"
+                >
+                  <span className="font-semibold">{saved.name}</span>
+                  <span className="mt-1 block text-xs text-slate-400">Abrir esta pesquisa</span>
+                </button>
+              ))}
+              {!savedSearches.isLoading && (savedSearches.data?.length ?? 0) === 0 && (
+                <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400">
+                  Você ainda não salvou nenhuma pesquisa.
+                </div>
+              )}
             </div>
           </div>
-        </header>
-        <div className="p-8 space-y-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        </div>
+      )}
+
+      <main>
+        <section className="relative overflow-hidden border-b border-white/10">
+          <div className="absolute inset-0 opacity-80 [background-image:linear-gradient(rgba(50,220,255,.04)_1px,transparent_1px),linear-gradient(90deg,rgba(50,220,255,.04)_1px,transparent_1px)] [background-size:48px_48px]" />
+          <div className="absolute left-[15%] top-[-120px] h-[360px] w-[360px] rounded-full bg-cyan-400/15 blur-[100px]" />
+          <div className="absolute right-[8%] top-[30px] h-[300px] w-[300px] rounded-full bg-blue-600/10 blur-[110px]" />
+
+          <div className="relative mx-auto max-w-[1500px] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+            <div className="max-w-3xl">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-1.5 text-xs font-semibold text-cyan-200">
+                <Sparkles className="h-3.5 w-3.5" /> Pesquisa imobiliária inteligente
+              </div>
+              <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                Encontre o imóvel certo,
+                <span className="block bg-gradient-to-r from-cyan-200 to-sky-400 bg-clip-text text-transparent">
+                  em menos tempo.
+                </span>
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+                Pesquise opções reais, compare características e siga direto para a fonte original do anúncio.
+              </p>
+            </div>
+
+            <div className="mt-9 rounded-[28px] border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-5">
+              <div className="grid gap-3 lg:grid-cols-[1.55fr_.7fr_.8fr_.8fr_auto]">
+                <SearchField label="Cidade" icon={<MapPin className="h-4 w-4" />}>
+                  <input
+                    value={filters.city}
+                    onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}
+                    placeholder="Ex.: Joinville"
+                    className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                </SearchField>
+
+                <SearchField label="Estado">
+                  <select
+                    value={filters.state}
+                    onChange={(event) => setFilters((current) => ({ ...current, state: event.target.value }))}
+                    className="w-full bg-transparent text-sm text-white outline-none"
+                  >
+                    <option value="" className="bg-[#0b1727]">Todos</option>
+                    {STATES.map((state) => (
+                      <option key={state} value={state} className="bg-[#0b1727]">{state}</option>
+                    ))}
+                  </select>
+                </SearchField>
+
+                <SearchField label="Tipo" icon={<Home className="h-4 w-4" />}>
+                  <select
+                    value={filters.propertyType}
+                    onChange={(event) => setFilters((current) => ({ ...current, propertyType: event.target.value }))}
+                    className="w-full bg-transparent text-sm text-white outline-none"
+                  >
+                    <option value="" className="bg-[#0b1727]">Todos</option>
+                    {PROPERTY_TYPES.map((type) => (
+                      <option key={type} value={type} className="bg-[#0b1727]">{type}</option>
+                    ))}
+                  </select>
+                </SearchField>
+
+                <SearchField label="Preço máximo">
+                  <input
+                    type="number"
+                    min="0"
+                    value={filters.maxPrice}
+                    onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
+                    placeholder="R$ 800.000"
+                    className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                </SearchField>
+
+                <Button
+                  onClick={() => void runSearch()}
+                  disabled={loading}
+                  className="h-full min-h-16 rounded-2xl bg-cyan-300 px-7 font-bold text-[#06101c] hover:bg-cyan-200"
+                >
+                  <Search className="mr-2 h-4 w-4" /> {loading ? "Buscando..." : "Buscar imóveis"}
+                </Button>
+              </div>
+
+              <div className="mt-3 grid gap-3 border-t border-white/10 pt-3 sm:grid-cols-2 lg:grid-cols-6">
+                <MiniField label="Preço mínimo" value={filters.minPrice} type="number" onChange={(value) => setFilters((current) => ({ ...current, minPrice: value }))} />
+                <MiniSelect label="Quartos" value={filters.bedrooms} options={["1", "2", "3", "4", "5"]} onChange={(value) => setFilters((current) => ({ ...current, bedrooms: value }))} />
+                <MiniSelect label="Banheiros" value={filters.bathrooms} options={["1", "2", "3", "4"]} onChange={(value) => setFilters((current) => ({ ...current, bathrooms: value }))} />
+                <MiniSelect
+                  label="Ordenar"
+                  value={filters.sort}
+                  options={[
+                    ["recent", "Mais recentes"],
+                    ["price_asc", "Menor preço"],
+                    ["price_desc", "Maior preço"],
+                  ]}
+                  onChange={(value) => setFilters((current) => ({ ...current, sort: value as FilterState["sort"] }))}
+                />
+                <label className="flex min-h-12 items-center gap-3 rounded-xl border border-white/10 bg-black/10 px-3 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={filters.verifiedOnly}
+                    onChange={(event) => setFilters((current) => ({ ...current, verifiedOnly: event.target.checked }))}
+                    className="h-4 w-4 accent-cyan-300"
+                  />
+                  Verificados
+                </label>
+                <button
+                  onClick={() => void handleSaveSearch()}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.05]"
+                >
+                  <Bookmark className="h-4 w-4" /> Salvar pesquisa
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="resultados" className="mx-auto max-w-[1500px] px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">
-                Olá, {user.user_metadata?.full_name || user.email}
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Resultado da pesquisa
+              </div>
+              <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
+                {loading ? "Atualizando imóveis..." : `${results.length} ${results.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}`}
               </h2>
-              <p className="text-muted-foreground text-lg">Dados reais da sua organização.</p>
+              {lastUpdatedAt && !loading && (
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
+                  <Clock3 className="h-3.5 w-3.5" /> Última atualização disponível {formatRelative(lastUpdatedAt)}
+                </p>
+              )}
             </div>
-            <div className="flex gap-3 flex-wrap">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  const { exportLeadsCsv } = await import("@/lib/ops.functions");
-                  const csv = await exportLeadsCsv();
-                  const blob = new Blob([csv], { type: "text/csv" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `leads-${new Date().toISOString()}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
+            {compareIds.length > 0 && (
+              <button
+                onClick={() => setShowCompare(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-300/25 bg-cyan-300/[0.07] px-4 py-2.5 text-sm font-semibold text-cyan-100"
               >
-                <ArrowDownRight className="h-4 w-4 mr-2" />
-                Exportar Leads
-              </Button>
-              <Button variant="outline" onClick={() => navigate({ to: "/audit" })}>
-                <Shield className="h-4 w-4 mr-2" />
-                Auditoria
-              </Button>
-              <Button onClick={() => window.open("/api/public/status", "_blank")}>
-                <Zap className="h-4 w-4 mr-2" />
-                Status
-              </Button>
-            </div>
+                <Scale className="h-4 w-4" /> Comparar ({compareIds.length}/3)
+              </button>
+            )}
           </div>
 
-          {metricsQuery.isError && (
-            <Card className="border-destructive">
-              <CardContent className="p-4 text-sm text-destructive">
-                Falha ao carregar métricas:{" "}
-                {metricsQuery.error instanceof Error
-                  ? metricsQuery.error.message
-                  : "erro desconhecido"}
-              </CardContent>
-            </Card>
+          {searchError && (
+            <div className="rounded-3xl border border-amber-300/20 bg-amber-300/[0.05] px-6 py-8 text-center">
+              <p className="font-semibold text-amber-100">Não foi possível atualizar os resultados agora.</p>
+              <p className="mt-1 text-sm text-slate-400">Tente novamente em instantes.</p>
+            </div>
           )}
 
-          <Card className="shadow-sm border-muted">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          {loading && <PropertySkeletonGrid />}
+
+          {!loading && !searchError && hasSearched && results.length === 0 && (
+            <div className="rounded-[32px] border border-dashed border-white/15 bg-white/[0.025] px-6 py-16 text-center">
+              <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-cyan-300/[0.08] text-cyan-200">
+                <Search className="h-7 w-7" />
+              </div>
+              <h3 className="mt-5 text-xl font-bold">Nenhum imóvel encontrado para estes filtros.</h3>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-400">
+                Tente ampliar a região, faixa de preço ou quantidade de quartos para encontrar mais opções.
+              </p>
+              <button
+                onClick={() => {
+                  setFilters(initialFilters);
+                  void runSearch(initialFilters);
+                }}
+                className="mt-6 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          )}
+
+          {!loading && results.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {results.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  favorite={favorites.has(property.id)}
+                  comparing={compareIds.includes(property.id)}
+                  onFavorite={() => toggleFavorite(property.id)}
+                  onCompare={() => toggleCompare(property.id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {showCompare && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-md sm:p-8">
+          <div className="mx-auto max-w-6xl rounded-[30px] border border-white/10 bg-[#0b1727] p-5 shadow-2xl sm:p-8">
+            <div className="mb-7 flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Gestão e Integração de Dados</CardTitle>
-                <CardDescription>
-                  Somente integrações com credencial configurada aparecem como ativas.
-                </CardDescription>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Comparação</p>
+                <h2 className="mt-1 text-2xl font-bold">Compare seus imóveis favoritos</h2>
               </div>
-              <Badge variant="outline">
-                {metricsQuery.isLoading
-                  ? "Carregando"
-                  : `${configured}/${integrationsTotal} configuradas`}
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {(metrics?.integrations ?? []).slice(0, 4).map((item) => (
-                  <div
-                    key={item.key}
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/10"
-                  >
-                    <div
-                      className={`h-2 w-2 rounded-full ${item.state === "configurada" ? "bg-green-500" : "bg-muted-foreground/40"}`}
-                    />
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <span className="ml-auto text-[10px] text-muted-foreground">{item.state}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard
-              title="Leads Totais"
-              value={metricsQuery.isLoading ? "—" : String(metrics?.totals.leads ?? 0)}
-              description="No seu tenant"
-            />
-            <StatCard
-              title="Imóveis"
-              value={metricsQuery.isLoading ? "—" : String(metrics?.totals.properties ?? 0)}
-              description="Cadastrados"
-            />
-            <StatCard
-              title="Imóveis Verificados"
-              value={metricsQuery.isLoading ? "—" : String(metrics?.totals.verifiedProperties ?? 0)}
-              description="Validados"
-            />
-            <StatCard
-              title="Construtoras"
-              value={metricsQuery.isLoading ? "—" : String(metrics?.totals.companies ?? 0)}
-              description="Base nacional"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <Card className="lg:col-span-2 shadow-sm border-muted">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Fluxo de Leads e Imóveis</CardTitle>
-                  <CardDescription>Últimos 7 dias</CardDescription>
-                </div>
-                <Badge variant="outline">Dados reais</Badge>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={metrics?.series ?? []}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                      <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
-                      <RechartsTooltip />
-                      <Area
-                        type="monotone"
-                        dataKey="leads"
-                        stroke="hsl(var(--primary))"
-                        fill="hsl(var(--primary))"
-                        fillOpacity={0.08}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="imoveis"
-                        stroke="hsl(var(--accent-foreground))"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-muted">
-              <CardHeader>
-                <CardTitle>Atividade Recente</CardTitle>
-                <CardDescription>Eventos registrados no seu tenant</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {metricsQuery.isLoading && (
-                  <p className="text-sm text-muted-foreground">Carregando...</p>
-                )}
-                {!metricsQuery.isLoading && (metrics?.activity.length ?? 0) === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhuma atividade registrada.</p>
-                )}
-                {metrics?.activity.map((item) => (
-                  <ActivityItem
-                    key={item.id}
-                    title={item.title}
-                    desc={item.desc}
-                    time={formatRelative(item.createdAt)}
-                  />
-                ))}
-              </CardContent>
-            </Card>
+              <button onClick={() => setShowCompare(false)} className="rounded-xl border border-white/10 p-2.5 text-slate-300 hover:bg-white/5">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {comparedProperties.map((property) => (
+                <CompareCard key={property.id} property={property} />
+              ))}
+            </div>
           </div>
         </div>
-      </main>
-    </div>
-  );
-}
-
-function formatRelative(iso: string) {
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return `há ${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `há ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `há ${hours} h`;
-  return `há ${Math.floor(hours / 24)} d`;
-}
-function NavItem({ icon: Icon, label, active = false, badge, onClick, to }: any) {
-  const content = (
-    <div
-      onClick={onClick}
-      className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${active ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"}`}
-    >
-      <div className="flex items-center gap-3">
-        <Icon className="h-5 w-5" />
-        <span className="text-sm">{label}</span>
-      </div>
-      {badge && (
-        <Badge variant={active ? "secondary" : "default"} className="h-5 px-1.5">
-          {badge}
-        </Badge>
       )}
     </div>
   );
-  return to ? (
-    <Link to={to} className="block no-underline">
-      {content}
-    </Link>
-  ) : (
-    content
+}
+
+function SearchField({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <label className="flex min-h-16 flex-col justify-center rounded-2xl border border-white/10 bg-black/15 px-4 transition focus-within:border-cyan-300/35 focus-within:bg-cyan-300/[0.03]">
+      <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+        {icon} {label}
+      </span>
+      {children}
+    </label>
   );
 }
-function StatCard({
-  title,
+
+function MiniField({ label, value, type, onChange }: { label: string; value: string; type: string; onChange: (value: string) => void }) {
+  return (
+    <label className="rounded-xl border border-white/10 bg-black/10 px-3 py-2">
+      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <input type={type} min="0" value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent text-sm text-white outline-none" />
+    </label>
+  );
+}
+
+function MiniSelect({
+  label,
   value,
-  description,
+  options,
+  onChange,
 }: {
-  title: string;
+  label: string;
   value: string;
-  description: string;
+  options: Array<string | [string, string]>;
+  onChange: (value: string) => void;
 }) {
   return (
-    <Card className="shadow-sm border-muted">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold mb-1">{value}</div>
-        <span className="text-xs text-muted-foreground">{description}</span>
+    <label className="rounded-xl border border-white/10 bg-black/10 px-3 py-2">
+      <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full bg-transparent text-sm text-white outline-none">
+        <option value="" className="bg-[#0b1727]">Qualquer</option>
+        {options.map((option) => {
+          const [optionValue, optionLabel] = Array.isArray(option) ? option : [option, `${option}+`];
+          return <option key={optionValue} value={optionValue} className="bg-[#0b1727]">{optionLabel}</option>;
+        })}
+      </select>
+    </label>
+  );
+}
+
+function PropertyCard({
+  property,
+  favorite,
+  comparing,
+  onFavorite,
+  onCompare,
+}: {
+  property: PropertySearchItem;
+  favorite: boolean;
+  comparing: boolean;
+  onFavorite: () => void;
+  onCompare: () => void;
+}) {
+  const image = property.images?.find(Boolean) ?? null;
+  return (
+    <Card className="group overflow-hidden rounded-[26px] border-white/10 bg-white/[0.045] text-white shadow-xl shadow-black/10 transition duration-300 hover:-translate-y-1 hover:border-cyan-300/20 hover:bg-white/[0.06]">
+      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950">
+        {image ? (
+          <img src={image} alt={property.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
+            <Building2 className="h-10 w-10" />
+            <span className="text-xs">Imagem indisponível</span>
+          </div>
+        )}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+          <div className="flex gap-2">
+            {property.is_verified && (
+              <Badge className="border border-emerald-300/30 bg-emerald-950/75 text-emerald-200 backdrop-blur-md">
+                <ShieldCheck className="mr-1 h-3 w-3" /> Verificado
+              </Badge>
+            )}
+            {property.source_portal && (
+              <Badge className="border border-white/15 bg-slate-950/70 text-slate-200 backdrop-blur-md">{property.source_portal}</Badge>
+            )}
+          </div>
+          <button
+            onClick={onFavorite}
+            className={`grid h-10 w-10 place-items-center rounded-full border backdrop-blur-md transition ${favorite ? "border-rose-300/30 bg-rose-500 text-white" : "border-white/15 bg-slate-950/60 text-white hover:bg-slate-900"}`}
+            title={favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+          >
+            <Heart className={`h-4 w-4 ${favorite ? "fill-current" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-2xl font-black tracking-tight">{formatPrice(property.price)}</p>
+            <h3 className="mt-2 line-clamp-2 text-base font-bold leading-snug text-slate-100">{property.title}</h3>
+          </div>
+        </div>
+
+        <p className="mt-3 flex min-h-5 items-center gap-1.5 text-sm text-slate-400">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+          {[property.location_city, property.location_state].filter(Boolean).join(" - ") || property.location_address || "Localização no anúncio"}
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2 border-y border-white/10 py-3 text-xs text-slate-300">
+          {property.bedrooms != null && <Feature icon={<BedDouble className="h-3.5 w-3.5" />} text={`${property.bedrooms} qtos`} />}
+          {property.bathrooms != null && <Feature icon={<Bath className="h-3.5 w-3.5" />} text={`${property.bathrooms} banh.`} />}
+          {property.area_sqm != null && <Feature icon={<Ruler className="h-3.5 w-3.5" />} text={`${property.area_sqm} m²`} />}
+          {property.property_type && <Feature icon={<Home className="h-3.5 w-3.5" />} text={property.property_type} />}
+        </div>
+
+        {property.updated_at && (
+          <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+            <Clock3 className="h-3.5 w-3.5" /> Atualizado {formatRelative(property.updated_at)}
+          </p>
+        )}
+
+        <div className="mt-5 grid grid-cols-[auto_1fr] gap-2">
+          <button
+            onClick={onCompare}
+            className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition ${comparing ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-300 hover:bg-white/5"}`}
+          >
+            {comparing ? <Check className="h-4 w-4" /> : <Scale className="h-4 w-4" />}
+            {comparing ? "Selecionado" : "Comparar"}
+          </button>
+          {property.source_url ? (
+            <a
+              href={property.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 text-sm font-bold text-[#06101c] transition hover:bg-cyan-200"
+            >
+              Ver anúncio original <ExternalLink className="h-4 w-4" />
+            </a>
+          ) : (
+            <button disabled className="h-11 rounded-xl bg-white/5 text-sm font-semibold text-slate-500">Fonte indisponível</button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 }
-function ActivityItem({ title, desc, time }: { title: string; desc: string; time: string }) {
+
+function Feature({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-2.5 py-1.5">{icon}{text}</span>;
+}
+
+function CompareCard({ property }: { property: PropertySearchItem }) {
   return (
-    <div className="flex gap-4">
-      <div className="mt-1 h-2 w-2 rounded-full shrink-0 bg-primary" />
-      <div className="space-y-1">
-        <p className="text-sm font-semibold leading-none">{title}</p>
-        <p className="text-xs text-muted-foreground leading-snug">{desc}</p>
-        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase">{time}</p>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
+      <h3 className="line-clamp-2 font-bold">{property.title}</h3>
+      <p className="mt-3 text-2xl font-black text-cyan-200">{formatPrice(property.price)}</p>
+      <div className="mt-5 space-y-3 text-sm text-slate-300">
+        <CompareLine label="Local" value={[property.location_city, property.location_state].filter(Boolean).join(" - ") || "—"} />
+        <CompareLine label="Tipo" value={property.property_type ?? "—"} />
+        <CompareLine label="Quartos" value={property.bedrooms != null ? String(property.bedrooms) : "—"} />
+        <CompareLine label="Banheiros" value={property.bathrooms != null ? String(property.bathrooms) : "—"} />
+        <CompareLine label="Área" value={property.area_sqm != null ? `${property.area_sqm} m²` : "—"} />
       </div>
+      {property.source_url && (
+        <a href={property.source_url} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-bold text-[#06101c]">
+          Ver anúncio <ExternalLink className="h-4 w-4" />
+        </a>
+      )}
     </div>
   );
+}
+
+function CompareLine({ label, value }: { label: string; value: string }) {
+  return <div className="flex justify-between gap-3 border-b border-white/10 pb-2"><span className="text-slate-500">{label}</span><span className="text-right font-semibold">{value}</span></div>;
+}
+
+function PropertySkeletonGrid() {
+  return (
+    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.035]">
+          <div className="aspect-[16/10] animate-pulse bg-white/[0.06]" />
+          <div className="space-y-3 p-5">
+            <div className="h-7 w-1/3 animate-pulse rounded bg-white/[0.08]" />
+            <div className="h-4 w-4/5 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-white/[0.05]" />
+            <div className="h-11 animate-pulse rounded-xl bg-white/[0.05]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatPrice(value: number | null) {
+  if (value == null) return "Preço no anúncio";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+}
+
+function formatRelative(iso: string) {
+  const timestamp = new Date(iso).getTime();
+  if (!Number.isFinite(timestamp)) return "recentemente";
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return "agora";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `há ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return `há ${days} d`;
 }
