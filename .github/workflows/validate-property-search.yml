@@ -33,6 +33,9 @@ jobs:
       - name: Format source
         run: npx prettier --write src
 
+      - name: Auto-fix lint formatting
+        run: npm run lint -- --fix
+
       - name: Run safe tests
         run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
 
