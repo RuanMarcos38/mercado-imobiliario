@@ -1,5 +1,6 @@
 name: Validate property search
 
+# This workflow validates the latest main branch, including live-source adapters.
 on:
   push:
     branches: [main]
