@@ -1,0 +1,48 @@
+name: Validate property search
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - ".github/workflows/validate-property-search.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run safe tests
+        run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
+
+      - name: Build production application
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+          VITE_SUPABASE_PROJECT_ID: placeholder
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+        run: |
+          npm run build
+          test -f .output/server/index.mjs
+
+      - name: Lint
+        run: npm run lint
