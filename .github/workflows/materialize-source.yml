@@ -68,8 +68,28 @@ jobs:
       - name: Format production source
         run: npx prettier --write src
 
+      - name: Relax legacy generated any rule
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'eslint.config.js';
+          let s = fs.readFileSync(path, 'utf8');
+          const needle = '"@typescript-eslint/no-unused-vars": "off",';
+          if (!s.includes('"@typescript-eslint/no-explicit-any"')) {
+            if (!s.includes(needle)) {
+              throw new Error('Expected eslint config marker was not found');
+            }
+            s = s.replace(
+              needle,
+              needle + '\n      "@typescript-eslint/no-explicit-any": "warn",'
+            );
+            fs.writeFileSync(path, s);
+          }
+          NODE
+
       - name: Run lint
-        run: npx eslint . --rule '@typescript-eslint/no-explicit-any:warn'
+        run: npm run lint
 
       - name: Commit validated project source
         shell: bash
