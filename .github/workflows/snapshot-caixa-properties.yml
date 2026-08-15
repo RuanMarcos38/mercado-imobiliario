@@ -29,6 +29,7 @@ jobs:
           import json
           import os
           import re
+          import time
           import urllib.request
           from datetime import datetime, timezone
 
@@ -61,8 +62,22 @@ jobs:
 
           url = f"https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{state}.csv"
           request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 MercadoImobi/1.0"})
-          with urllib.request.urlopen(request, timeout=30) as response:
-              text = response.read().decode("latin-1")
+          text = None
+          last_error = None
+          for attempt in range(4):
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      candidate = response.read().decode("latin-1")
+                  if "Lista de Imóveis da Caixa" not in candidate:
+                      raise RuntimeError("Invalid CAIXA response")
+                  text = candidate
+                  break
+              except Exception as exc:
+                  last_error = exc
+                  if attempt < 3:
+                      time.sleep(3 * (attempt + 1))
+          if text is None:
+              raise RuntimeError(f"CAIXA download failed for {state}: {last_error}")
 
           lines = [line for line in text.splitlines() if line.strip("; \r\n")]
           if len(lines) < 3 or "Lista de Imóveis da Caixa" not in lines[0]:
@@ -158,6 +173,11 @@ jobs:
               items.extend(state_items)
               state_counts[state] = len(state_items)
               generation_dates[state] = payload.get("generation_date")
+
+          if len(state_counts) != 27:
+              raise RuntimeError(f"Expected 27 UFs, got {len(state_counts)}")
+          if len(items) < 1000:
+              raise RuntimeError(f"National CAIXA snapshot unexpectedly small: {len(items)}")
 
           with open("caixa-properties.json", "w", encoding="utf-8") as handle:
               json.dump({
