@@ -64,8 +64,8 @@ jobs:
           npm run build
           test -f .output/server/index.mjs
 
-      - name: Format onboarding source
-        run: npx prettier --write src/components/OnboardingGuide.tsx
+      - name: Format production source
+        run: npx prettier --write src
 
       - name: Run lint
         run: npm run lint
