@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "source.tar.gz.b64"
+      - "source.ready"
   workflow_dispatch:
 
 permissions:
@@ -19,13 +19,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Decode source archive
+      - name: Reassemble and decode source archive
         shell: bash
         run: |
           set -euo pipefail
+          test -d source.parts
+          cat source.parts/part-* > source.tar.gz.b64
           base64 -d source.tar.gz.b64 > source.tar.gz
           tar -xzf source.tar.gz
-          rm -f source.tar.gz source.tar.gz.b64
+          rm -rf source.parts source.ready source.tar.gz source.tar.gz.b64
 
       - name: Verify no environment secrets were materialized
         shell: bash
