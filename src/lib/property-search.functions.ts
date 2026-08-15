@@ -198,7 +198,10 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     if (!haystack.includes(city)) return false;
   }
 
-  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)) {
+  if (
+    input.state &&
+    normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)
+  ) {
     return false;
   }
 
@@ -281,9 +284,7 @@ async function fetchCaixaState(state: string): Promise<PropertySearchItem[]> {
       if (!id || !source?.startsWith("https://venda-imoveis.caixa.gov.br/")) continue;
 
       const propertyType = description?.split(",")[0]?.trim() || null;
-      const bedroomsValue = description
-        ? extractNumber(description, /(\d+)\s*qto\(s\)/i)
-        : null;
+      const bedroomsValue = description ? extractNumber(description, /(\d+)\s*qto\(s\)/i) : null;
       const bathroomsValue = description
         ? extractNumber(description, /(\d+)\s*(?:banheiro|wc)\(s\)?/i)
         : null;
