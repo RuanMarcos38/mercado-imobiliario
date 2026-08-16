@@ -1,22 +1,25 @@
-name: Validate property search
+name: MercadoImobi mandatory validation
 
 on:
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "package.json"
-      - "package-lock.json"
-      - "vite.config.ts"
-      - ".github/workflows/validate-property-search.yml"
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 11 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: mercadoimobi-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,43 +30,37 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
 
-      - name: Format source
-        run: npx prettier --write src
-
-      - name: Auto-fix lint formatting
-        run: npm run lint -- --fix
-
-      - name: Lint source
-        run: npm run lint
-
-      - name: Persist formatting
+      - name: Verify no private environment file is tracked
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- src; then
-            echo "No formatting changes"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add src
-            git commit -m "Format property search experience"
-            git push
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production|development|test)$'; then
+            echo "Private environment file found in repository"
+            exit 1
           fi
 
-      - name: Run safe tests
-        run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
+      - name: Lint
+        run: npm run lint
 
-      - name: Build production application without Supabase environment variables
+      - name: Test all automated checks
+        run: npm run test -- --passWithNoTests
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build without EasyPanel Supabase environment variables
+        shell: bash
         run: |
+          set -euo pipefail
           unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
           unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
           npm run build
           test -f .output/server/index.mjs
 
-      - name: Smoke test backend and Supabase connection without EasyPanel environment variables
+      - name: Smoke test backend and real search index
         shell: bash
         run: |
           set -euo pipefail
@@ -81,5 +78,15 @@ jobs:
           done
 
           cat /tmp/status.json
-          grep -q '"status":"operational"' /tmp/status.json
-          grep -q '"search":"available"' /tmp/status.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/status.json', 'utf8'));
+          if (status.status !== 'operational') throw new Error(`status=${status.status}`);
+          if (status.search !== 'available') throw new Error(`search=${status.search}`);
+          if (!Number.isFinite(status.indexedProperties) || status.indexedProperties < 1000) {
+            throw new Error(`indexedProperties=${status.indexedProperties}`);
+          }
+          if (!Number.isFinite(status.coveredStates) || status.coveredStates < 27) {
+            throw new Error(`coveredStates=${status.coveredStates}`);
+          }
+          NODE
