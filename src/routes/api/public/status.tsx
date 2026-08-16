@@ -10,7 +10,7 @@ type SearchHealth = {
   latest_update?: string | null;
 };
 
-const RELEASE = process.env["APP_RELEASE"] || "2026.08.16-search-platform-r2";
+const RELEASE = process.env["APP_RELEASE"] || "2026.08.16-search-platform-r3";
 
 async function checkSearchAvailability() {
   try {
@@ -48,12 +48,18 @@ function runtimeHealth() {
   );
   const whatsappWebhookProtected = Boolean(process.env["WHATSAPP_WEBHOOK_SECRET"]);
   const propertyImportConfigured = Boolean(process.env["PROPERTY_IMPORT_WEBHOOK_SECRET"]);
+  const propertyFeedSyncConfigured = Boolean(process.env["PROPERTY_FEED_SYNC_SECRET"]);
+  const oruloConfigured = Boolean(
+    process.env["ORULO_CLIENT_ID"] && process.env["ORULO_CLIENT_SECRET"],
+  );
 
   return {
     ai: aiConfigured ? "configured" : "not_configured",
     whatsapp: whatsappConfigured ? "configured" : "not_configured",
     whatsappWebhook: whatsappWebhookProtected ? "protected" : "not_configured",
     propertyImport: propertyImportConfigured ? "configured" : "not_configured",
+    authorizedSourceSync: propertyFeedSyncConfigured ? "configured" : "not_configured",
+    orulo: oruloConfigured ? "configured" : "not_configured",
   } as const;
 }
 
