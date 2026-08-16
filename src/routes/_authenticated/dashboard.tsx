@@ -154,6 +154,7 @@ function PropertySearchPage() {
   const [showCompare, setShowCompare] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<PropertySearchItem | null>(null);
 
   const savedSearches = useQuery({
     queryKey: ["saved-property-searches", user?.id],
@@ -763,12 +764,137 @@ function PropertySearchPage() {
                   comparing={compareIds.includes(property.id)}
                   onFavorite={() => void toggleFavorite(property)}
                   onCompare={() => toggleCompare(property.id)}
+                  onDetails={() => setSelectedProperty(property)}
                 />
               ))}
             </div>
           )}
         </section>
       </main>
+
+      {selectedProperty && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-md sm:p-8"
+          onClick={() => setSelectedProperty(null)}
+        >
+          <div
+            className="mx-auto max-w-3xl rounded-[30px] border border-white/10 bg-[#0b1727] p-5 shadow-2xl sm:p-8"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                  Detalhes do imóvel
+                </p>
+                <h2 className="mt-2 text-2xl font-black leading-tight sm:text-3xl">
+                  {selectedProperty.title}
+                </h2>
+                <p className="mt-3 text-3xl font-black text-cyan-100">
+                  {formatPrice(selectedProperty.price)}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedProperty(null)}
+                className="rounded-xl border border-white/10 p-2.5 text-slate-300 hover:bg-white/5"
+                title="Fechar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {selectedProperty.property_type && (
+                <DetailBox label="Tipo" value={selectedProperty.property_type} />
+              )}
+              {selectedProperty.bedrooms != null && (
+                <DetailBox label="Quartos" value={String(selectedProperty.bedrooms)} />
+              )}
+              {selectedProperty.bathrooms != null && (
+                <DetailBox label="Banheiros" value={String(selectedProperty.bathrooms)} />
+              )}
+              {selectedProperty.area_sqm != null && (
+                <DetailBox label="Área" value={`${selectedProperty.area_sqm} m²`} />
+              )}
+              {selectedProperty.price != null &&
+                selectedProperty.area_sqm != null &&
+                selectedProperty.area_sqm > 0 && (
+                  <DetailBox
+                    label="Preço por m²"
+                    value={formatPrice(selectedProperty.price / selectedProperty.area_sqm)}
+                  />
+                )}
+              {selectedProperty.source_portal && (
+                <DetailBox label="Fonte" value={selectedProperty.source_portal} />
+              )}
+              {selectedProperty.updated_at && (
+                <DetailBox
+                  label="Atualização"
+                  value={formatRelative(selectedProperty.updated_at)}
+                />
+              )}
+            </div>
+
+            {(selectedProperty.location_address ||
+              selectedProperty.location_city ||
+              selectedProperty.location_state) && (
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                  Localização
+                </p>
+                <p className="mt-2 flex items-start gap-2 text-sm leading-relaxed text-slate-200">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                  {[
+                    selectedProperty.location_address,
+                    selectedProperty.location_city,
+                    selectedProperty.location_state,
+                  ]
+                    .filter(Boolean)
+                    .join(" — ")}
+                </p>
+              </div>
+            )}
+
+            {selectedProperty.description && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                  Informações do anúncio
+                </p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-300">
+                  {selectedProperty.description}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => void toggleFavorite(selectedProperty)}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 px-5 text-sm font-semibold text-slate-200 hover:bg-white/5"
+              >
+                <Heart
+                  className={`h-4 w-4 ${
+                    favorites.has(getPropertyKey(selectedProperty))
+                      ? "fill-current text-rose-300"
+                      : ""
+                  }`}
+                />
+                {favorites.has(getPropertyKey(selectedProperty))
+                  ? "Remover dos favoritos"
+                  : "Adicionar aos favoritos"}
+              </button>
+              {selectedProperty.source_url && (
+                <a
+                  href={selectedProperty.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 text-sm font-black text-[#06101c] transition hover:bg-cyan-200"
+                >
+                  Ver anúncio original <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCompare && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur-md sm:p-8">
@@ -890,12 +1016,14 @@ function PropertyCard({
   comparing,
   onFavorite,
   onCompare,
+  onDetails,
 }: {
   property: PropertySearchItem;
   favorite: boolean;
   comparing: boolean;
   onFavorite: () => void;
   onCompare: () => void;
+  onDetails: () => void;
 }) {
   const image = property.images?.find(Boolean) ?? null;
   return (
@@ -978,7 +1106,13 @@ function PropertyCard({
           </p>
         )}
 
-        <div className="mt-5 grid grid-cols-[auto_1fr] gap-2">
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            onClick={onDetails}
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
+          >
+            Detalhes
+          </button>
           <button
             onClick={onCompare}
             className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition ${comparing ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-300 hover:bg-white/5"}`}
@@ -991,14 +1125,14 @@ function PropertyCard({
               href={property.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 text-sm font-bold text-[#06101c] transition hover:bg-cyan-200"
+              className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 text-sm font-bold text-[#06101c] transition hover:bg-cyan-200"
             >
               Ver anúncio original <ExternalLink className="h-4 w-4" />
             </a>
           ) : (
             <button
               disabled
-              className="h-11 rounded-xl bg-white/5 text-sm font-semibold text-slate-500"
+              className="col-span-2 h-11 rounded-xl bg-white/5 text-sm font-semibold text-slate-500"
             >
               Fonte indisponível
             </button>
@@ -1006,6 +1140,15 @@ function PropertyCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DetailBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1.5 text-sm font-semibold text-slate-100">{value}</p>
+    </div>
   );
 }
 
