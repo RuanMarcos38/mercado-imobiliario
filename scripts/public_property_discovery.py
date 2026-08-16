@@ -464,7 +464,7 @@ def extract_price(objects: list[dict[str, Any]], text: str) -> float | None:
         r"(?:Valores a partir de|Média das últimas negociações).{0,320}?\bCompra\b\s*R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
         r"\bValor do imóvel\b.{0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
         r"\b(?:Preço|Valor)\s+(?:de\s+)?(?:venda|compra)\b.{0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
-        r"\b(?:Compra|Comprar)\b.{0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
+        r"\b(?:Compra|Comprar)\b(?:(?![-–—]).){0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
     ]
     for pattern in purchase_patterns:
         match = re.search(pattern, plain, re.I)
