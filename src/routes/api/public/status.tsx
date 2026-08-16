@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "@/integrations/supabase/public-config";
 
 type Availability = "available" | "unavailable";
 
 async function checkSearchAvailability(): Promise<Availability> {
-  const url = process.env["SUPABASE_URL"];
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
-  if (!url || !key) return "unavailable";
+  const url = process.env["SUPABASE_URL"] || PUBLIC_SUPABASE_URL;
+  const key = process.env["SUPABASE_PUBLISHABLE_KEY"] || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   try {
     const client = createClient<Database>(url, key, {
