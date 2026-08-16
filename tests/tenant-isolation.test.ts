@@ -65,13 +65,13 @@ describe("RLS isolation for anonymous visitors", () => {
     expect(data ?? []).toHaveLength(0);
   });
 
-  it("rejects anonymous favorite creation", async () => {
+  it("rejects anonymous favorite creation through RLS", async () => {
     const { data, error } = await client
       .from("property_favorites")
       .insert({
         user_id: "00000000-0000-0000-0000-000000000001",
         property_key: "security-test",
-        property_data: { source_url: "https://example.invalid/security-test" },
+        property_snapshot: { source_url: "https://example.invalid/security-test" },
       })
       .select();
 
