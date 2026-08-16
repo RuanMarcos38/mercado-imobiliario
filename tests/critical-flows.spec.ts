@@ -43,8 +43,10 @@ describe("MercadoImobi product invariants", () => {
 
   it("has the requested corporate sidebar and separate operational areas", () => {
     const layout = source("src/routes/_authenticated.tsx");
+    const searchRoute = source("src/routes/_authenticated/buscar.tsx");
 
-    expect(layout).toContain('to: "/dashboard"');
+    expect(layout).toContain('to="/dashboard"');
+    expect(layout).toContain('to: "/buscar"');
     expect(layout).toContain('to: "/leiloes"');
     expect(layout).toContain('to: "/alertas"');
     expect(layout).toContain('to: "/atendimento"');
@@ -52,6 +54,20 @@ describe("MercadoImobi product invariants", () => {
     expect(layout).toContain('to: "/assistente"');
     expect(layout).toContain('to: "/integracoes"');
     expect(layout).toContain("Sair");
+    expect(searchRoute).toContain("PropertyWorkspace");
+  });
+
+  it("supports a legible light and dark SaaS theme", () => {
+    const theme = source("src/mercadoimobi.css");
+    const toggle = source("src/components/ThemeToggle.tsx");
+
+    expect(theme).toContain("html.light-mode");
+    expect(theme).toContain("html.dark-mode");
+    expect(theme).toContain("--mi-text:");
+    expect(theme).toContain("--mi-bg:");
+    expect(theme).toContain("--mi-surface:");
+    expect(toggle).toContain('choose("light")');
+    expect(toggle).toContain('choose("dark")');
   });
 
   it("separates CAIXA opportunities and real auction classification", () => {
@@ -63,6 +79,8 @@ describe("MercadoImobi product invariants", () => {
     expect(search).toContain('input.market === "auction"');
     expect(workspace).toContain("Leilões CAIXA");
     expect(workspace).toContain("Modalidade:");
+    expect(workspace).toContain("Preço do imóvel");
+    expect(workspace).toContain("nunca compõem o preço exibido do imóvel");
     expect(refresh).toContain("listing_market='caixa'");
     expect(refresh).toContain("like '%leil%'");
   });
