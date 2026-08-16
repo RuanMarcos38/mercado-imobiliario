@@ -78,10 +78,10 @@ async function handleWebhook(request: Request) {
 
   const payload = object(await request.json().catch(() => ({})));
   const event = normalizeEvent(payload["event"] ?? payload["type"]);
-  const instance = String(payload["instance"] ?? object(payload["instanceData"])["instanceName"] ?? "");
-  if (!instance) {
-    return Response.json({ ok: true, ignored: true });
-  }
+  const instance = String(
+    payload["instance"] ?? object(payload["instanceData"])["instanceName"] ?? "",
+  );
+  if (!instance) return Response.json({ ok: true, ignored: true });
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
@@ -91,9 +91,7 @@ async function handleWebhook(request: Request) {
     .eq("instance_name", instance)
     .maybeSingle();
 
-  if (!connection?.tenant_id) {
-    return Response.json({ ok: true, ignored: true });
-  }
+  if (!connection?.tenant_id) return Response.json({ ok: true, ignored: true });
 
   if (event.includes("CONNECTION_UPDATE")) {
     const data = object(payload["data"]);
@@ -123,6 +121,7 @@ async function handleWebhook(request: Request) {
   const rawData = payload["data"];
   const entries = Array.isArray(rawData) ? rawData : [rawData];
   let processed = 0;
+  let autoReplies = 0;
 
   for (const entry of entries) {
     const data = object(entry);
@@ -184,7 +183,9 @@ async function handleWebhook(request: Request) {
     if (messageInsert.error?.code === "23505") continue;
     if (messageInsert.error) throw new Error(messageInsert.error.message);
 
-    const nextUnread = fromMe ? Number(conversation.unread_count ?? 0) : Number(conversation.unread_count ?? 0) + 1;
+    const nextUnread = fromMe
+      ? Number(conversation.unread_count ?? 0)
+      : Number(conversation.unread_count ?? 0) + 1;
     await db
       .from("whatsapp_conversations")
       .update({
@@ -196,9 +197,24 @@ async function handleWebhook(request: Request) {
       })
       .eq("id", conversation.id);
     processed += 1;
+
+    if (!fromMe && body) {
+      try {
+        const { maybeAutoReply } = await import("@/lib/whatsapp-auto-reply.server");
+        const reply = await maybeAutoReply({
+          tenantId: connection.tenant_id,
+          conversationId: conversation.id,
+          phone,
+          inboundText: body,
+        });
+        if (reply.sent) autoReplies += 1;
+      } catch {
+        // Falha da IA nunca impede o recebimento da mensagem do cliente.
+      }
+    }
   }
 
-  return Response.json({ ok: true, processed });
+  return Response.json({ ok: true, processed, autoReplies });
 }
 
 export const Route = createFileRoute("/api/public/hooks/whatsapp")({
