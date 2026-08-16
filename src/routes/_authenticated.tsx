@@ -14,6 +14,7 @@ import {
   Workflow,
   X,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveTenantContext, type TenantContext } from "@/lib/tenant";
 
@@ -67,7 +68,7 @@ function AuthenticatedLayout() {
     { to: "/atendimento", label: "Conversas", icon: MessageCircle },
     { to: "/fluxos", label: "Fluxos", icon: Workflow },
     { to: "/assistente", label: "Assistente IA", icon: Bot },
-    { to: "/integracoes", label: "Integrações", icon: Plug },
+    { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
     { to: "/settings/security", label: "Minha conta", icon: UserRound },
   ] as const;
 
@@ -94,7 +95,9 @@ function AuthenticatedLayout() {
         {items.slice(7).map((item) => <SidebarLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />)}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      <div className="space-y-2 border-t border-white/10 p-3">
+        <div className="px-1 pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">Aparência</div>
+        <ThemeToggle />
         <button onClick={() => void signOut()} className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-400 transition hover:bg-rose-400/[0.07] hover:text-rose-200">
           <LogOut className="h-4 w-4" /> Sair
         </button>
@@ -107,7 +110,10 @@ function AuthenticatedLayout() {
       <div className="fixed inset-y-0 left-0 z-50 hidden lg:block">{sidebar}</div>
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/10 bg-[#07111f]/95 px-4 text-white backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-2 font-black"><Building2 className="h-5 w-5 text-cyan-300" /> Mercado<span className="-ml-2 text-cyan-300">Imobi</span></div>
-        <button onClick={() => setMobileOpen(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-white/10"><Menu className="h-4 w-4" /></button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle compact />
+          <button onClick={() => setMobileOpen(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-white/10"><Menu className="h-4 w-4" /></button>
+        </div>
       </div>
       {mobileOpen && (
         <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)}>
