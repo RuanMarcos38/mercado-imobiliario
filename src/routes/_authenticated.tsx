@@ -5,7 +5,6 @@ import {
   Bot,
   Building2,
   Gavel,
-  Heart,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -70,13 +69,13 @@ function AuthenticatedLayout() {
     const value = globalSearch.trim();
     if (!value) return;
     sessionStorage.setItem("mercadoimobi:globalSearch", value);
-    void navigate({ to: "/dashboard" }).then(() => {
+    void navigate({ to: "/buscar" }).then(() => {
       window.dispatchEvent(new CustomEvent("mercadoimobi:global-search", { detail: value }));
     });
   };
 
   const items = [
-    { to: "/dashboard", label: "Buscar imóveis", icon: Search },
+    { to: "/buscar", label: "Buscar imóveis", icon: Search },
     { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel },
     { to: "/alertas", label: "Alertas", icon: Bell },
     { to: "/atendimento", label: "Atendimento", icon: MessageCircle },
@@ -123,11 +122,7 @@ function AuthenticatedLayout() {
           {items.slice(6).map((item) => (
             <SidebarLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
           ))}
-          <Link
-            to="/settings/security"
-            onClick={() => setMobileOpen(false)}
-            className="mi-sidebar-link"
-          >
+          <Link to="/settings/security" onClick={() => setMobileOpen(false)} className="mi-sidebar-link">
             <Settings className="h-4 w-4" /> Configurações
           </Link>
         </div>
@@ -145,10 +140,7 @@ function AuthenticatedLayout() {
         </div>
         <div className="mb-2 px-1 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">Aparência</div>
         <ThemeToggle />
-        <button
-          onClick={() => void signOut()}
-          className="mt-2 flex h-10 w-full items-center gap-3 rounded-xl px-3 text-xs font-semibold text-[var(--mi-text-muted)] transition hover:bg-rose-500/10 hover:text-rose-600"
-        >
+        <button onClick={() => void signOut()} className="mt-2 flex h-10 w-full items-center gap-3 rounded-xl px-3 text-xs font-semibold text-[var(--mi-text-muted)] transition hover:bg-rose-500/10 hover:text-rose-600">
           <LogOut className="h-4 w-4" /> Sair
         </button>
       </div>
@@ -168,92 +160,42 @@ function AuthenticatedLayout() {
           className="mi-global-search flex h-10 w-full max-w-2xl items-center gap-2 rounded-xl border px-3"
         >
           <Search className="h-4 w-4 text-[var(--mi-text-soft)]" />
-          <input
-            value={globalSearch}
-            onChange={(event) => setGlobalSearch(event.target.value)}
-            placeholder="Buscar imóveis, cidades, bairros ou referências..."
-            className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]"
-          />
+          <input value={globalSearch} onChange={(event) => setGlobalSearch(event.target.value)} placeholder="Buscar imóveis, cidades, bairros ou referências..." className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]" />
           <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--mi-text-soft)]">Enter</span>
         </form>
 
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle compact />
-          <Link to="/alertas" className="mi-icon-button relative" title="Alertas">
-            <Bell className="h-4 w-4" />
-          </Link>
+          <Link to="/alertas" className="mi-icon-button relative" title="Alertas"><Bell className="h-4 w-4" /></Link>
           <Link to="/settings/security" className="flex h-10 items-center gap-2 rounded-xl px-2.5 transition hover:bg-[var(--mi-hover)]">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-xs font-black text-white">MI</span>
-            <span className="hidden text-left xl:block">
-              <span className="block text-[11px] font-black text-[var(--mi-text)]">Minha conta</span>
-              <span className="block text-[9px] text-[var(--mi-text-muted)]">MercadoImobi</span>
-            </span>
+            <span className="hidden text-left xl:block"><span className="block text-[11px] font-black text-[var(--mi-text)]">Minha conta</span><span className="block text-[9px] text-[var(--mi-text-muted)]">MercadoImobi</span></span>
           </Link>
         </div>
       </header>
 
       <div className="mi-topbar sticky top-0 z-40 flex h-14 items-center justify-between border-b px-4 lg:hidden">
-        <div className="flex items-center gap-2 font-black text-[var(--mi-text)]">
-          <Building2 className="h-5 w-5 text-blue-600" /> Mercado<span className="-ml-2 text-blue-600">Imobi</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle compact />
-          <button onClick={() => setMobileOpen(true)} className="mi-icon-button"><Menu className="h-4 w-4" /></button>
-        </div>
+        <div className="flex items-center gap-2 font-black text-[var(--mi-text)]"><Building2 className="h-5 w-5 text-blue-600" /> Mercado<span className="-ml-2 text-blue-600">Imobi</span></div>
+        <div className="flex items-center gap-2"><ThemeToggle compact /><button onClick={() => setMobileOpen(true)} className="mi-icon-button"><Menu className="h-4 w-4" /></button></div>
       </div>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)}>
-          <div className="h-full w-[260px] max-w-[88vw]" onClick={(event) => event.stopPropagation()}>
-            <div className="relative h-full">
-              {sidebar}
-              <button onClick={() => setMobileOpen(false)} className="mi-icon-button absolute right-3 top-3"><X className="h-4 w-4" /></button>
-            </div>
-          </div>
+          <div className="h-full w-[260px] max-w-[88vw]" onClick={(event) => event.stopPropagation()}><div className="relative h-full">{sidebar}<button onClick={() => setMobileOpen(false)} className="mi-icon-button absolute right-3 top-3"><X className="h-4 w-4" /></button></div></div>
         </div>
       )}
 
-      <div className="min-h-[calc(100vh-64px)] lg:ml-[224px]">
-        <Outlet />
-      </div>
+      <div className="min-h-[calc(100vh-64px)] lg:ml-[224px]"><Outlet /></div>
     </div>
   );
 }
 
-function SidebarStatic({
-  active,
-  icon: Icon,
-  label,
-  to,
-  onClick,
-}: {
-  active: boolean;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  to: string;
-  onClick: () => void;
-}) {
-  return (
-    <Link to={to} onClick={onClick} className={`mi-sidebar-link ${active ? "mi-sidebar-link-active" : ""}`}>
-      <Icon className="h-4 w-4" /> {label}
-    </Link>
-  );
+function SidebarStatic({ active, icon: Icon, label, to, onClick }: { active: boolean; icon: React.ComponentType<{ className?: string }>; label: string; to: string; onClick: () => void }) {
+  return <Link to={to} onClick={onClick} className={`mi-sidebar-link ${active ? "mi-sidebar-link-active" : ""}`}><Icon className="h-4 w-4" /> {label}</Link>;
 }
 
-function SidebarLink({
-  item,
-  pathname,
-  onClick,
-}: {
-  item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
-  pathname: string;
-  onClick: () => void;
-}) {
+function SidebarLink({ item, pathname, onClick }: { item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }; pathname: string; onClick: () => void }) {
   const Icon = item.icon;
   const active = pathname === item.to;
-  return (
-    <Link to={item.to} onClick={onClick} className={`mi-sidebar-link ${active ? "mi-sidebar-link-active" : ""}`}>
-      <Icon className="h-4 w-4" /> {item.label}
-    </Link>
-  );
+  return <Link to={item.to} onClick={onClick} className={`mi-sidebar-link ${active ? "mi-sidebar-link-active" : ""}`}><Icon className="h-4 w-4" /> {item.label}</Link>;
 }
