@@ -1,0 +1,147 @@
+name: MercadoImobi public property discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5 * * * *"
+  push:
+    paths:
+      - "scripts/public_property_discovery.py"
+      - ".github/workflows/public-property-discovery.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - code: zap
+            name: ZAP Imóveis
+            domain: zapimoveis.com.br
+          - code: vivareal
+            name: Viva Real
+            domain: vivareal.com.br
+          - code: olx
+            name: OLX Imóveis
+            domain: olx.com.br
+          - code: imovelweb
+            name: Imovelweb
+            domain: imovelweb.com.br
+          - code: quintoandar
+            name: QuintoAndar
+            domain: quintoandar.com.br
+          - code: chavesnamao
+            name: Chaves na Mão
+            domain: chavesnamao.com.br
+          - code: netimoveis
+            name: Netimóveis
+            domain: netimoveis.com
+          - code: orulo
+            name: Órulo
+            domain: orulo.com.br
+          - code: mrv
+            name: MRV
+            domain: mrv.com.br
+          - code: rogga
+            name: Rogga
+            domain: rogga.com.br
+          - code: rottas
+            name: Rottas
+            domain: rottasconstrutora.com.br
+          - code: inicio
+            name: Início Empreendimentos
+            domain: inicioempreendimentos.com.br
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Discover public listings
+        run: |
+          python scripts/public_property_discovery.py \
+            --code "${{ matrix.code }}" \
+            --name "${{ matrix.name }}" \
+            --domain "${{ matrix.domain }}" \
+            --batch-size 24 \
+            --output "public-${{ matrix.code }}.json"
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-${{ matrix.code }}
+          path: public-${{ matrix.code }}.json
+          retention-days: 1
+
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: discover
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download discoveries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: public-*
+          path: discoveries
+          merge-multiple: true
+
+      - name: Merge public discovery snapshot
+        shell: python
+        run: |
+          import glob
+          import json
+          from datetime import datetime, timezone
+
+          sources = {}
+          items_by_url = {}
+          removed = set()
+          for path in sorted(glob.glob("discoveries/public-*.json")):
+              with open(path, encoding="utf-8") as handle:
+                  payload = json.load(handle)
+              source = payload.get("source") or {}
+              code = source.get("code")
+              if code:
+                  sources[code] = source
+              for item in payload.get("items") or []:
+                  url = item.get("source_url")
+                  if url:
+                      items_by_url[url] = item
+              removed.update(payload.get("removed_urls") or [])
+
+          for url in removed:
+              items_by_url.pop(url, None)
+
+          output = {
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "sources": sources,
+              "removed_urls": sorted(removed),
+              "items": list(items_by_url.values()),
+          }
+          with open("public-properties.json", "w", encoding="utf-8") as handle:
+              json.dump(output, handle, ensure_ascii=False, separators=(",", ":"))
+          print(f"SOURCES={len(sources)} ITEMS={len(items_by_url)} REMOVED={len(removed)}")
+
+      - name: Publish discovery snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mercadoimobi-public-data
+          cp public-properties.json /tmp/mercadoimobi-public-data/public-properties.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan public-data-cache
+          git rm -rf . || true
+          cp /tmp/mercadoimobi-public-data/public-properties.json public-properties.json
+          git add public-properties.json
+          git commit -m "Refresh public property discovery snapshot"
+          git push --force origin public-data-cache
