@@ -61,7 +61,7 @@ export const listPropertySources = createServerFn({ method: "GET" })
       db
         .from("property_source_catalog")
         .select(
-          "code,name,category,integration_mode,status,website_domain,supports_contacts,supports_updates,notes",
+          "code,name,category,integration_mode,status,website_domain,supports_contacts,supports_updates,notes,public_discovery_enabled,public_discovery_mode,official_integration_optional,public_discovery_status,public_discovery_count,last_public_discovery_at",
         )
         .order("name"),
       db
@@ -175,16 +175,29 @@ export const getPropertySourceSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = context.supabase as any;
-    const { data, error } = await db
-      .from("property_search_index")
-      .select("listing_market,is_auction,sale_mode,source_portal");
+    const [{ data, error }, { data: catalog, error: catalogError }] = await Promise.all([
+      db
+        .from("property_search_index")
+        .select("listing_market,is_auction,sale_mode,source_portal,metadata"),
+      db
+        .from("property_source_catalog")
+        .select("code,public_discovery_enabled,public_discovery_status,public_discovery_count"),
+    ]);
     if (error) throw new Error(error.message);
+    if (catalogError) throw new Error(catalogError.message);
     const rows = data ?? [];
+    const sources = catalog ?? [];
     return {
       total: rows.length,
       caixa: rows.filter((row: any) => row.listing_market === "caixa").length,
       auctions: rows.filter((row: any) => row.is_auction).length,
       market: rows.filter((row: any) => row.listing_market !== "caixa").length,
+      publicDiscovered: rows.filter(
+        (row: any) => String(row.metadata?.public_discovery ?? "false") === "true",
+      ).length,
+      discoverySources: sources.filter((source: any) => source.public_discovery_enabled).length,
+      activeDiscoverySources: sources.filter((source: any) => source.public_discovery_status === "active")
+        .length,
       withPortal: rows.filter((row: any) => Boolean(row.source_portal)).length,
       portals: Array.from(
         new Set(
