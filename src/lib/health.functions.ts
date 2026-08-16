@@ -1,26 +1,53 @@
 import { createServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "@/integrations/supabase/public-config";
 
-export const getSystemHealth = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await supabase.rpc("search_index_health");
+type SearchHealth = {
+  count?: number;
+  states?: number;
+  latest_update?: string | null;
+};
 
-  if (error) {
-    throw new Error("Não foi possível verificar a disponibilidade da pesquisa.");
+async function fetchSearchHealth(): Promise<SearchHealth> {
+  const response = await fetch(`${PUBLIC_SUPABASE_URL}/rest/v1/rpc/search_index_health`, {
+    method: "POST",
+    headers: {
+      apikey: PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      "content-type": "application/json",
+    },
+    body: "{}",
+  });
+
+  if (!response.ok) {
+    throw new Error("SEARCH_HEALTH_UNAVAILABLE");
   }
 
-  const health = (data ?? {}) as {
-    count?: number;
-    states?: number;
-    latest_update?: string | null;
-  };
+  return (await response.json()) as SearchHealth;
+}
 
-  return {
-    status: (health.count ?? 0) > 0 ? "healthy" : "degraded",
-    timestamp: new Date().toISOString(),
-    search: {
-      indexed_properties: health.count ?? 0,
-      covered_states: health.states ?? 0,
-      latest_update: health.latest_update ?? null,
-    },
-  };
+export const getSystemHealth = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const health = await fetchSearchHealth();
+    return {
+      status: (health.count ?? 0) > 0 ? "healthy" : "degraded",
+      timestamp: new Date().toISOString(),
+      search: {
+        indexed_properties: health.count ?? 0,
+        covered_states: health.states ?? 0,
+        latest_update: health.latest_update ?? null,
+      },
+    };
+  } catch {
+    return {
+      status: "degraded",
+      timestamp: new Date().toISOString(),
+      search: {
+        indexed_properties: 0,
+        covered_states: 0,
+        latest_update: null,
+      },
+    };
+  }
 });
