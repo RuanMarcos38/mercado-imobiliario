@@ -93,6 +93,35 @@ def number(value: Any) -> float | None:
         return None
 
 
+def currency_number(value: Any) -> float | None:
+    """Parse property prices without truncating Brazilian thousands separators."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = re.sub(r"[^0-9,.-]", "", str(value))
+    if not text:
+        return None
+
+    if "," in text and "." in text:
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "." in text:
+        parts = text.split(".")
+        if len(parts) > 1 and all(part.isdigit() for part in parts) and all(len(part) == 3 for part in parts[1:]):
+            text = "".join(parts)
+
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
 def safe_url(value: str, base: str | None = None) -> str | None:
     try:
         url = urllib.parse.urljoin(base or "", value.strip())
@@ -427,23 +456,50 @@ def infer_property_type(text: str, schema_types: list[str]) -> str | None:
 
 
 def extract_price(objects: list[dict[str, Any]], text: str) -> float | None:
+    plain = clean_text(text) or ""
+
+    # Prefer the purchase/sale amount on pages that expose rent and purchase together.
+    # This keeps cards from showing a rental price as the property's purchase price.
+    purchase_patterns = [
+        r"(?:Valores a partir de|Média das últimas negociações).{0,320}?\bCompra\b\s*R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
+        r"\bValor do imóvel\b.{0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
+        r"\b(?:Preço|Valor)\s+(?:de\s+)?(?:venda|compra)\b.{0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
+        r"\b(?:Compra|Comprar)\b.{0,120}?R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)",
+    ]
+    for pattern in purchase_patterns:
+        match = re.search(pattern, plain, re.I)
+        if match:
+            value = currency_number(match.group(1))
+            if value and value > 0:
+                return value
+
+    # If a combined rent/purchase page explicitly has no purchase amount, do not
+    # fall back to the rental amount and mislabel it as a sale price.
+    purchase_unavailable = re.search(
+        r"(?:Valores a partir de|Média das últimas negociações).{0,320}?\bCompra\b\s*(?:-|–|—|indispon[ií]vel|não disponível)",
+        plain,
+        re.I,
+    )
+    if purchase_unavailable:
+        return None
+
     for obj in objects:
         offers = obj.get("offers")
         offer_list = offers if isinstance(offers, list) else [offers]
         for offer in offer_list:
             if isinstance(offer, dict):
-                value = number(offer.get("price") or offer.get("lowPrice"))
+                value = currency_number(offer.get("price") or offer.get("lowPrice"))
                 if value and value > 0:
                     return value
-        value = number(obj.get("price"))
+        value = currency_number(obj.get("price"))
         if value and value > 0:
             return value
     meta_price = meta_value(text, ["product:price:amount", "og:price:amount"])
-    value = number(meta_price)
+    value = currency_number(meta_price)
     if value and value > 0:
         return value
-    match = re.search(r"R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)", clean_text(text) or "", re.I)
-    return number(match.group(1)) if match else None
+    match = re.search(r"R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)", plain, re.I)
+    return currency_number(match.group(1)) if match else None
 
 
 def extract_int(patterns: list[str], text: str) -> int | None:
