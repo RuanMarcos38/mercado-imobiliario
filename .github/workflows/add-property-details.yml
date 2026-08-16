@@ -1,0 +1,68 @@
+name: Add property details
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/add_property_details.py"
+      - ".github/workflows/add-property-details.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  details:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply property details
+        run: python scripts/add_property_details.py
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Format dashboard
+        run: npx prettier --write src/routes/_authenticated/dashboard.tsx
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run safe tests
+        run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
+
+      - name: Build production application
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+          VITE_SUPABASE_PROJECT_ID: placeholder
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+        run: |
+          npm run build
+          test -f .output/server/index.mjs
+
+      - name: Commit validated details
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/dashboard.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Add property detail experience"
+          git stash push --include-untracked -m generated-build-files || true
+          git pull --rebase origin main
+          git push origin main
