@@ -80,7 +80,7 @@ describe("MercadoImobi product invariants", () => {
     expect(workspace).toContain("Leilões CAIXA");
     expect(workspace).toContain("Modalidade:");
     expect(workspace).toContain("Preço do imóvel");
-    expect(workspace).toContain("nunca compõem o preço exibido do imóvel");
+    expect(workspace).toMatch(/nunca compõem\s+o\s+preço exibido do imóvel/);
     expect(refresh).toContain("listing_market='caixa'");
     expect(refresh).toContain("like '%leil%'");
   });
