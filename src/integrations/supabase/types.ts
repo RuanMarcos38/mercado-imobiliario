@@ -942,7 +942,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       subscription_status: ["trialing", "active", "past_due", "canceled", "unpaid"],
-      user_type: ["corretor", "imobiliaria", "proprietario", "construtora", "admin"],
+      user_type: ["cliente", "corretor", "imobiliaria", "proprietario", "construtora", "admin"],
     },
   },
 } as const;
