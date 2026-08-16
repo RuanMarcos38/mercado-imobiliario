@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { resolveTenantContext, type TenantContext } from "@/lib/tenant";
 import {
   Dialog,
   DialogContent,
@@ -28,11 +27,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const authSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
-  fullName: z.string().min(3, "Nome completo é obrigatório").optional(),
-  companyName: z.string().min(2, "Informe o nome da sua imobiliária ou organização").optional(),
+});
+
+const registerSchema = loginSchema.extend({
+  fullName: z.string().min(3, "Nome completo é obrigatório"),
+  userType: z.enum(["cliente", "corretor"]),
 });
 
 export const Route = createFileRoute("/auth")({
@@ -46,185 +48,95 @@ function AuthPage() {
   const [mfaCode, setMfaCode] = useState("");
   const navigate = useNavigate();
   const searchParams = Route.useSearch();
-  const next = (searchParams as any).next || "/dashboard";
+  const requestedNext = (searchParams as any).next;
+  const next =
+    typeof requestedNext === "string" &&
+    requestedNext.startsWith("/") &&
+    !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/dashboard";
   const type = (searchParams as any).type;
   const isRecovery = type === "recovery";
 
-  const loginForm = useForm<z.infer<typeof authSchema>>({
-    resolver: zodResolver(authSchema.omit({ fullName: true })),
+  const loginForm = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
     },
   });
 
-  const registerForm = useForm<z.infer<typeof authSchema>>({
-    resolver: zodResolver(authSchema),
+  const registerForm = useForm<z.infer<typeof registerSchema>>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
       password: "",
       fullName: "",
-      companyName: "",
+      userType: "cliente",
     },
   });
 
-  async function onLogin(values: z.infer<typeof authSchema>) {
+  async function onLogin(values: z.infer<typeof loginSchema>) {
     setIsLoading(true);
     try {
-      // 1. Rate Limiting Check
-      try {
-        const { data: isAllowed, error: rateLimitError } = await supabase.rpc("check_rate_limit", {
-          _ip: "client-ip-placeholder",
-        });
-
-        if (rateLimitError) {
-          console.error("Rate limit check error:", rateLimitError);
-        } else if (isAllowed === false) {
-          throw new Error("Múltiplas tentativas falhas. Acesso bloqueado temporariamente.");
-        }
-      } catch (err) {
-        console.warn("Ignorando erro de rate limit para garantir login:", err);
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
-
       if (error) throw error;
 
-      // If session is null but no error, it might be waiting for MFA
-      // MFA Enforcement: Every login must check for MFA if user has it enabled
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: assurance, error: assuranceError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assuranceError) throw assuranceError;
 
-      if (!session) {
-        // This might be null if user has MFA and hasn't solved it yet
+      if (assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
         setShowMfa(true);
-        setIsLoading(false);
+        setMfaCode("");
         return;
       }
 
-      // If session exists, we should still check if it's "aal2" (MFA solved)
-      // for users that are required to have MFA.
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const hasVerifiedFactors = factors?.all.some((f) => f.status === "verified");
-
-      // Note: We check amr (Authentication Method Reference) in the session
-      const amr = (session as any).auth_level || (session as any).amr;
-
-      if (hasVerifiedFactors && amr !== "aal2") {
-        // Force MFA solving
-        await supabase.auth.signOut(); // Clear partial session
-        setShowMfa(true);
-        setIsLoading(false);
-        toast.info("Autenticação de dois fatores necessária.");
-        return;
-      }
-
-      // Login multi-tenant: resolve a organização do usuário autenticado
-      const { data: userData } = await supabase.auth.getUser();
-      let tenant: TenantContext | null = null;
-
-      if (userData.user) {
-        tenant = await resolveTenantContext(userData.user.id);
-
-        // Log de auditoria silencioso e resiliente
-        try {
-          await supabase.from("auth_audit_log").insert({
-            event_type: "login",
-            user_id: userData.user.id,
-            metadata: {
-              source: "Auth Page",
-              tenant_id: tenant?.tenantId ?? null,
-              tenant_slug: tenant?.tenantSlug ?? null,
-            } as any,
-          });
-        } catch (auditErr) {
-          console.warn("Erro ao registrar log de auditoria, prosseguindo login.");
-        }
-      }
-
-      if (tenant) {
-        toast.success(`Login realizado — organização: ${tenant.tenantName}`);
-      } else {
-        toast.success("Login realizado com sucesso!");
-        toast.warning("Nenhuma organização vinculada a esta conta ainda.");
-      }
+      toast.success("Login realizado com sucesso.");
       navigate({ to: next });
     } catch (error: any) {
-      // Treat specific Supabase MFA error if any
-      if (error.message?.includes("mfa")) {
-        setShowMfa(true);
-        setIsLoading(false);
-        return;
+      const message = String(error?.message ?? "").toLowerCase();
+      if (
+        message.includes("invalid login credentials") ||
+        message.includes("invalid credentials")
+      ) {
+        toast.error("E-mail ou senha inválidos.");
+      } else if (message.includes("email not confirmed")) {
+        toast.error("Confirme seu e-mail antes de entrar.");
+      } else {
+        toast.error("Não foi possível entrar agora. Tente novamente em instantes.");
       }
-      // Audit log: login failed
-      try {
-        await supabase.from("auth_audit_log").insert({
-          event_type: "failed_attempt",
-          user_id: null,
-          metadata: { email: values.email } as any,
-        });
-
-        // Check for multiple failures in last 5 minutes
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const { count } = await supabase
-          .from("auth_audit_log")
-          .select("*", { count: "exact", head: true })
-          .eq("event_type", "failed_attempt")
-          .gt("created_at", fiveMinutesAgo);
-
-        if (count && count >= 3) {
-          toast.error("ALERTA DE SEGURANÇA: Múltiplas tentativas falhas detectadas.", {
-            description: "Sua conta pode ser bloqueada temporariamente para proteção.",
-          });
-
-          // Enviar alerta crítico
-          const { sendSlackAlert } = await import("@/lib/alerts.functions");
-          await sendSlackAlert({
-            data: {
-              message: `Possível ataque de força bruta para o e-mail: ${values.email}`,
-              type: "security",
-            },
-          });
-        }
-      } catch (auditError) {
-        console.error("Erro ao registrar auditoria de falha:", auditError);
-      }
-
-      console.error("Erro de login detalhado:", error);
-      const errorMessage =
-        error.message?.includes("Database error querying schema") || error.code === "42501"
-          ? "Erro de permissão no servidor. Estamos resolvendo, tente novamente em alguns segundos (migrações em curso)."
-          : error.message || "Erro ao realizar login";
-      toast.error(errorMessage);
     } finally {
-      if (!showMfa) setIsLoading(false);
+      setIsLoading(false);
     }
   }
 
   async function handleMfaVerify() {
     setIsLoading(true);
     try {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const factor = factors?.all.find((f) => f.status === "verified");
-
-      if (!factor) throw new Error("Nenhum fator MFA verificado encontrado.");
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+      const factor = factors?.all.find((item) => item.status === "verified");
+      if (!factor) {
+        toast.error("Não foi possível localizar sua verificação em duas etapas.");
+        return;
+      }
 
       const { error } = await supabase.auth.mfa.challengeAndVerify({
         factorId: factor.id,
         code: mfaCode,
       });
-
       if (error) throw error;
 
-      toast.success("MFA verificado com sucesso!");
+      toast.success("Verificação concluída. Bem-vindo!");
       setShowMfa(false);
+      setMfaCode("");
       navigate({ to: next });
-    } catch (error: any) {
-      toast.error(error.message || "Código MFA inválido");
+    } catch {
+      toast.error("Código inválido ou expirado. Confira e tente novamente.");
     } finally {
       setIsLoading(false);
     }
@@ -245,7 +157,7 @@ function AuthPage() {
       if (error) throw error;
       toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
     } catch (error: any) {
-      toast.error(error.message || "Erro ao enviar e-mail de recuperação");
+      toast.error("Não foi possível enviar o e-mail de recuperação agora.");
     } finally {
       setIsLoading(false);
     }
@@ -267,13 +179,13 @@ function AuthPage() {
       toast.success("Senha atualizada com sucesso!");
       navigate({ to: "/dashboard" });
     } catch (error: any) {
-      toast.error(error.message || "Erro ao atualizar senha");
+      toast.error("Não foi possível atualizar a senha agora.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function onRegister(values: z.infer<typeof authSchema>) {
+  async function onRegister(values: z.infer<typeof registerSchema>) {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
@@ -283,17 +195,15 @@ function AuthPage() {
           emailRedirectTo: window.location.origin,
           data: {
             full_name: values.fullName,
-            // Usado pelo backend para criar a organização (tenant) do usuário
-            company_name: values.companyName,
+            user_type: values.userType,
           },
         },
       });
 
       if (error) throw error;
-
-      toast.success("Conta criada! Verifique seu e-mail.");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
+      toast.success("Conta criada. Verifique seu e-mail para continuar.");
+    } catch {
+      toast.error("Não foi possível criar sua conta agora. Confira os dados e tente novamente.");
     } finally {
       setIsLoading(false);
     }
@@ -301,7 +211,7 @@ function AuthPage() {
 
   if (isRecovery) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-[#06101c] px-4 py-12 text-white">
         <div className="w-full max-w-md space-y-8">
           <div className="flex flex-col items-center text-center">
             <Link
@@ -317,7 +227,7 @@ function AuthPage() {
             <p className="text-muted-foreground">Escolha uma nova senha segura para sua conta.</p>
           </div>
 
-          <Card>
+          <Card className="border-white/10 bg-white/[0.045] text-white shadow-2xl shadow-black/20">
             <CardHeader>
               <CardTitle>Nova Senha</CardTitle>
               <CardDescription>Digite sua nova senha abaixo.</CardDescription>
@@ -357,21 +267,21 @@ function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-[#06101c] px-4 py-12 text-white">
       <div className="w-full max-w-md space-y-8">
         <Dialog open={showMfa} onOpenChange={setShowMfa}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Autenticação de Dois Fatores</DialogTitle>
+              <DialogTitle>Verificação em duas etapas</DialogTitle>
               <DialogDescription>
-                Sua conta possui MFA ativado. Insira o código do seu aplicativo autenticador.
+                Insira o código de 6 dígitos do seu aplicativo autenticador.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="mfa-code">Código MFA</Label>
+                <Label htmlFor="verification-code">Código de verificação</Label>
                 <Input
-                  id="mfa-code"
+                  id="verification-code"
                   placeholder="000000"
                   maxLength={6}
                   value={mfaCode}
@@ -398,22 +308,24 @@ function AuthPage() {
               MERCADO<span className="text-muted-foreground font-light">IMOBI</span>
             </span>
           </Link>
-          <h2 className="text-2xl font-bold tracking-tight">Bem-vindo à Inovação</h2>
-          <p className="text-muted-foreground">7 dias grátis para transformar seu negócio.</p>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Encontre imóveis com mais inteligência
+          </h2>
+          <p className="text-muted-foreground">Pesquise, compare e salve imóveis em um só lugar.</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="mb-8 grid w-full grid-cols-2 bg-white/[0.06]">
             <TabsTrigger value="login">Entrar</TabsTrigger>
             <TabsTrigger value="register">Cadastrar</TabsTrigger>
           </TabsList>
 
           <TabsContent value="login">
-            <Card>
+            <Card className="border-white/10 bg-white/[0.045] text-white shadow-2xl shadow-black/20">
               <CardHeader>
-                <CardTitle>Acessar Painel</CardTitle>
+                <CardTitle>Acessar MercadoImobi</CardTitle>
                 <CardDescription>
-                  Entre com seu e-mail e senha para gerenciar seus imóveis e leads.
+                  Entre com seu e-mail e senha para continuar suas pesquisas e favoritos.
                 </CardDescription>
               </CardHeader>
               <form onSubmit={loginForm.handleSubmit(onLogin)}>
@@ -467,11 +379,7 @@ function AuthPage() {
                 </CardContent>
                 <CardFooter>
                   <Button className="w-full" type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      "Entrar no Painel"
-                    )}
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Entrar"}
                   </Button>
                 </CardFooter>
               </form>
@@ -479,10 +387,10 @@ function AuthPage() {
           </TabsContent>
 
           <TabsContent value="register">
-            <Card>
+            <Card className="border-white/10 bg-white/[0.045] text-white shadow-2xl shadow-black/20">
               <CardHeader>
                 <CardTitle>Criar Conta</CardTitle>
-                <CardDescription>Inicie seu teste de 7 dias grátis agora mesmo.</CardDescription>
+                <CardDescription>Crie sua conta para pesquisar e salvar imóveis.</CardDescription>
               </CardHeader>
               <form onSubmit={registerForm.handleSubmit(onRegister)}>
                 <CardContent className="space-y-4">
@@ -501,28 +409,18 @@ function AuthPage() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">Imobiliária / Organização</Label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="companyName"
-                        placeholder="Nome da sua imobiliária"
-                        className="pl-10"
-                        {...registerForm.register("companyName")}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Cada organização tem dados totalmente isolados das demais.
-                    </p>
-                    {registerForm.formState.errors.companyName && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {registerForm.formState.errors.companyName.message}
-                      </p>
-                    )}
+                    <Label htmlFor="userType">Como você vai usar a plataforma?</Label>
+                    <select
+                      id="userType"
+                      {...registerForm.register("userType")}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="cliente">Estou buscando um imóvel</option>
+                      <option value="corretor">Sou corretor de imóveis</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-email">E-mail Profissional</Label>
+                    <Label htmlFor="reg-email">E-mail</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -572,16 +470,9 @@ function AuthPage() {
           </TabsContent>
         </Tabs>
 
-        <p className="px-8 text-center text-sm text-muted-foreground">
-          Ao clicar em continuar, você concorda com nossos{" "}
-          <Link to="/auth" className="underline underline-offset-4 hover:text-primary">
-            Termos de Serviço
-          </Link>{" "}
-          e{" "}
-          <Link to="/auth" className="underline underline-offset-4 hover:text-primary">
-            Política de Privacidade
-          </Link>
-          .
+        <p className="px-8 text-center text-xs leading-relaxed text-muted-foreground">
+          Use dados verdadeiros no cadastro. Seus favoritos e pesquisas ficam associados à sua
+          conta.
         </p>
       </div>
     </div>
