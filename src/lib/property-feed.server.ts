@@ -254,7 +254,10 @@ function xmlTag(block: string, names: string[]) {
   for (const name of names) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = block.match(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "i"));
-    if (match?.[1]) return cleanText(decodeXml(match[1].replace(/<[^>]+>/g, " ")));
+    if (match?.[1]) {
+    const decoded = decodeXml(match[1]);
+    return cleanText(decoded.replace(/<[^>]+>/g, " "));
+  }
   }
   return null;
 }
