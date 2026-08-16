@@ -14,6 +14,7 @@ const searchSchema = z.object({
   minArea: z.number().nonnegative().optional(),
   maxArea: z.number().nonnegative().optional(),
   sourcePortal: z.string().trim().max(120).optional(),
+  market: z.enum(["all", "market", "caixa", "auction"]).optional().default("all"),
   verifiedOnly: z.boolean().optional().default(false),
   sort: z.enum(["recent", "price_asc", "price_desc", "area_desc"]).optional().default("recent"),
   limit: z.number().int().min(1).max(60).optional().default(30),
@@ -36,6 +37,13 @@ const liveListingSchema = z.object({
   source_portal: z.string().nullable().optional(),
   source_url: z.string().url(),
   updated_at: z.string().nullable().optional(),
+  listing_market: z.string().nullable().optional(),
+  is_auction: z.boolean().nullable().optional(),
+  sale_mode: z.string().nullable().optional(),
+  contact_name: z.string().nullable().optional(),
+  contact_phone: z.string().nullable().optional(),
+  contact_whatsapp: z.string().nullable().optional(),
+  contact_email: z.string().nullable().optional(),
 });
 
 export type PropertySearchInput = z.infer<typeof searchSchema>;
@@ -57,6 +65,13 @@ export interface PropertySearchItem {
   source_portal: string | null;
   source_url: string | null;
   updated_at: string | null;
+  listing_market: string | null;
+  is_auction: boolean;
+  sale_mode: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_whatsapp: string | null;
+  contact_email: string | null;
 }
 
 function keyFor(item: PropertySearchItem): string {
@@ -93,12 +108,8 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
       (a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER),
     );
   }
-  if (sort === "price_desc") {
-    return items.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
-  }
-  if (sort === "area_desc") {
-    return items.sort((a, b) => (b.area_sqm ?? -1) - (a.area_sqm ?? -1));
-  }
+  if (sort === "price_desc") return items.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
+  if (sort === "area_desc") return items.sort((a, b) => (b.area_sqm ?? -1) - (a.area_sqm ?? -1));
   return items.sort((a, b) => {
     const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
     const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -107,6 +118,10 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
 }
 
 function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): boolean {
+  if (input.market === "market" && item.listing_market === "caixa") return false;
+  if (input.market === "caixa" && item.listing_market !== "caixa") return false;
+  if (input.market === "auction" && !item.is_auction) return false;
+
   if (input.city) {
     const city = normalizeSearchText(input.city);
     const haystack = normalizeSearchText(
@@ -121,9 +136,7 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     );
     if (!haystack.includes(neighborhood)) return false;
   }
-  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)) {
-    return false;
-  }
+  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)) return false;
   if (input.propertyType) {
     const expected = normalizeSearchText(input.propertyType);
     const actual = normalizeSearchText(item.property_type);
@@ -178,6 +191,13 @@ async function fetchConfiguredLiveSource(input: PropertySearchInput): Promise<Pr
         source_portal: item.source_portal ?? null,
         source_url: item.source_url,
         updated_at: item.updated_at ?? null,
+        listing_market: item.listing_market ?? "market",
+        is_auction: item.is_auction ?? false,
+        sale_mode: item.sale_mode ?? null,
+        contact_name: item.contact_name ?? null,
+        contact_phone: item.contact_phone ?? null,
+        contact_whatsapp: item.contact_whatsapp ?? null,
+        contact_email: item.contact_email ?? null,
       }))
       .filter((item) => matchesSearch(item, input));
   } catch {
@@ -192,7 +212,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     let indexQuery = context.supabase
       .from("property_search_index")
       .select(
-        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at",
+        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email",
       );
 
     let propertyQuery = context.supabase
@@ -201,15 +221,17 @@ export const searchRealProperties = createServerFn({ method: "POST" })
         "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",
       );
 
+    if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");
+    if (input.market === "caixa") indexQuery = indexQuery.eq("listing_market", "caixa");
+    if (input.market === "auction") indexQuery = indexQuery.eq("is_auction", true);
+
     if (input.city) {
       const variants = textVariants(input.city);
-      const expression = variants
-        .flatMap((term) => [
-          `location_city.ilike.%${term}%`,
-          `location_address.ilike.%${term}%`,
-          `title.ilike.%${term}%`,
-        ])
-        .join(",");
+      const expression = variants.flatMap((term) => [
+        `location_city.ilike.%${term}%`,
+        `location_address.ilike.%${term}%`,
+        `title.ilike.%${term}%`,
+      ]).join(",");
       if (expression) {
         indexQuery = indexQuery.or(expression);
         propertyQuery = propertyQuery.or(expression);
@@ -217,13 +239,11 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
     if (input.neighborhood) {
       const variants = textVariants(input.neighborhood);
-      const expression = variants
-        .flatMap((term) => [
-          `title.ilike.%${term}%`,
-          `description.ilike.%${term}%`,
-          `location_address.ilike.%${term}%`,
-        ])
-        .join(",");
+      const expression = variants.flatMap((term) => [
+        `title.ilike.%${term}%`,
+        `description.ilike.%${term}%`,
+        `location_address.ilike.%${term}%`,
+      ]).join(",");
       if (expression) {
         indexQuery = indexQuery.or(expression);
         propertyQuery = propertyQuery.or(expression);
@@ -292,7 +312,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
 
     const [indexResult, propertyResult, configuredLiveItems] = await Promise.all([
       indexQuery,
-      propertyQuery,
+      input.market === "market" || input.market === "all" ? propertyQuery : Promise.resolve({ data: [], error: null }),
       fetchConfiguredLiveSource(input),
     ]);
 
@@ -317,11 +337,25 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       source_portal: item.source_portal,
       source_url: item.source_url,
       updated_at: item.scanned_at,
+      listing_market: item.listing_market,
+      is_auction: Boolean(item.is_auction),
+      sale_mode: item.sale_mode,
+      contact_name: item.contact_name,
+      contact_phone: item.contact_phone,
+      contact_whatsapp: item.contact_whatsapp,
+      contact_email: item.contact_email,
     }));
 
     const saved: PropertySearchItem[] = (propertyResult.data ?? []).map((item) => ({
       ...item,
       updated_at: item.updated_at,
+      listing_market: "market",
+      is_auction: false,
+      sale_mode: null,
+      contact_name: null,
+      contact_phone: null,
+      contact_whatsapp: null,
+      contact_email: null,
     }));
 
     const deduped = new Map<string, PropertySearchItem>();
@@ -333,20 +367,16 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
 
     const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);
-    const latestTimestamp =
-      items
-        .map((item) => item.updated_at)
-        .filter((value): value is string => Boolean(value))
-        .sort()
-        .at(-1) ?? null;
+    const latestTimestamp = items
+      .map((item) => item.updated_at)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
 
     return { items, total: items.length, latestTimestamp };
   });
 
-const savedSearchSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  criteria: searchSchema,
-});
+const savedSearchSchema = z.object({ name: z.string().trim().min(1).max(80), criteria: searchSchema });
 
 export const savePropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -377,44 +407,23 @@ export const listSavedPropertySearches = createServerFn({ method: "GET" })
   });
 
 const favoritePropertySchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().nullable(),
-  price: z.number().nullable(),
-  location_address: z.string().nullable(),
-  location_city: z.string().nullable(),
-  location_state: z.string().nullable(),
-  property_type: z.string().nullable(),
-  bedrooms: z.number().nullable(),
-  bathrooms: z.number().nullable(),
-  area_sqm: z.number().nullable(),
-  images: z.array(z.string()).nullable(),
-  is_verified: z.boolean().nullable(),
-  source_portal: z.string().nullable(),
-  source_url: z.string().nullable(),
-  updated_at: z.string().nullable(),
+  id: z.string().min(1), title: z.string().min(1), description: z.string().nullable(),
+  price: z.number().nullable(), location_address: z.string().nullable(), location_city: z.string().nullable(),
+  location_state: z.string().nullable(), property_type: z.string().nullable(), bedrooms: z.number().nullable(),
+  bathrooms: z.number().nullable(), area_sqm: z.number().nullable(), images: z.array(z.string()).nullable(),
+  is_verified: z.boolean().nullable(), source_portal: z.string().nullable(), source_url: z.string().nullable(),
+  updated_at: z.string().nullable(), listing_market: z.string().nullable(), is_auction: z.boolean(), sale_mode: z.string().nullable(),
+  contact_name: z.string().nullable(), contact_phone: z.string().nullable(), contact_whatsapp: z.string().nullable(), contact_email: z.string().nullable(),
 });
 
-const favoriteMutationSchema = z.object({
-  property: favoritePropertySchema,
-  favorite: z.boolean(),
-});
-
-function favoriteKey(property: z.infer<typeof favoritePropertySchema>): string {
-  return property.source_url?.trim().toLowerCase() || property.id;
-}
+const favoriteMutationSchema = z.object({ property: favoritePropertySchema, favorite: z.boolean() });
+function favoriteKey(property: z.infer<typeof favoritePropertySchema>): string { return property.source_url?.trim().toLowerCase() || property.id; }
 
 export const listFavoriteProperties = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("property_favorites")
-      .select("property_key,property_snapshot,created_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const { data, error } = await context.supabase.from("property_favorites").select("property_key,property_snapshot,created_at").eq("user_id", context.userId).order("created_at", { ascending: false }).limit(100);
     if (error) throw new Error(error.message);
-
     return (data ?? []).flatMap((row) => {
       const parsed = favoritePropertySchema.safeParse(row.property_snapshot);
       if (!parsed.success) return [];
@@ -427,60 +436,33 @@ export const setPropertyFavorite = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => favoriteMutationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const propertyKey = favoriteKey(data.property);
-
     if (!data.favorite) {
-      const { error } = await context.supabase
-        .from("property_favorites")
-        .delete()
-        .eq("user_id", context.userId)
-        .eq("property_key", propertyKey);
+      const { error } = await context.supabase.from("property_favorites").delete().eq("user_id", context.userId).eq("property_key", propertyKey);
       if (error) throw new Error(error.message);
       return { success: true, favorite: false, propertyKey };
     }
-
     const snapshot = JSON.parse(JSON.stringify(data.property));
-    const { error } = await context.supabase.from("property_favorites").upsert(
-      {
-        user_id: context.userId,
-        property_key: propertyKey,
-        property_snapshot: snapshot,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,property_key" },
-    );
+    const { error } = await context.supabase.from("property_favorites").upsert({ user_id: context.userId, property_key: propertyKey, property_snapshot: snapshot, updated_at: new Date().toISOString() }, { onConflict: "user_id,property_key" });
     if (error) throw new Error(error.message);
     return { success: true, favorite: true, propertyKey };
   });
 
-const savedSearchUpdateSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().trim().min(1).max(80),
-});
-
+const savedSearchUpdateSchema = z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(80) });
 export const renameSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => savedSearchUpdateSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("search_configurations")
-      .update({ name: data.name, updated_at: new Date().toISOString() })
-      .eq("id", data.id)
-      .eq("user_id", context.userId);
+    const { error } = await context.supabase.from("search_configurations").update({ name: data.name, updated_at: new Date().toISOString() }).eq("id", data.id).eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
 
 const savedSearchDeleteSchema = z.object({ id: z.string().uuid() });
-
 export const deleteSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => savedSearchDeleteSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("search_configurations")
-      .delete()
-      .eq("id", data.id)
-      .eq("user_id", context.userId);
+    const { error } = await context.supabase.from("search_configurations").delete().eq("id", data.id).eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
