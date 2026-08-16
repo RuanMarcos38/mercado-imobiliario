@@ -353,6 +353,25 @@ function PropertySearchPage() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSaved(true)}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-slate-300 transition hover:bg-white/5 md:hidden"
+              title="Pesquisas salvas"
+            >
+              <Bookmark className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setShowFavorites(true)}
+              className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-slate-300 transition hover:bg-white/5 md:hidden"
+              title="Favoritos"
+            >
+              <Heart className="h-4 w-4" />
+              {favorites.size > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-cyan-300 px-1 text-[10px] font-black text-[#06101c]">
+                  {favorites.size > 9 ? "9+" : favorites.size}
+                </span>
+              )}
+            </button>
             <Link
               to="/settings/security"
               className="hidden items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 sm:flex"
