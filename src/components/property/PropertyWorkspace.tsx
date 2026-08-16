@@ -40,7 +40,6 @@ import {
 import { getPropertyDashboardStats } from "@/lib/property-dashboard.functions";
 import { listFavoritePropertiesWithStatus } from "@/lib/favorite-status.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
-import { DashboardAtendimentoPanel } from "@/components/property/DashboardAtendimentoPanel";
 
 const STATES = [
   "AC",
@@ -343,7 +342,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
             </p>
           </header>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(380px,440px)]">
+          <div className="grid grid-cols-1 gap-6">
             <main className="min-w-0">
               <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <KpiCard
@@ -610,7 +609,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                   </div>
                 )}
                 {!searchQuery.isLoading && results.length > 0 && (
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {results.map((property) => (
                       <PropertyCard
                         key={property.id}
@@ -654,8 +653,6 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                   )}
               </section>
             </main>
-
-            <DashboardAtendimentoPanel />
           </div>
         </div>
       </div>
