@@ -153,6 +153,12 @@ function PropertySearchPage() {
     enabled: Boolean(user),
   });
 
+  const favoriteProperties = useQuery({
+    queryKey: ["property-favorites", user?.id],
+    queryFn: () => listFavoritesFn(),
+    enabled: Boolean(user),
+  });
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) navigate({ to: "/auth" });
@@ -161,13 +167,10 @@ function PropertySearchPage() {
   }, [navigate]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("mercadoimobi:favorites");
-      if (raw) setFavorites(new Set(JSON.parse(raw)));
-    } catch {
-      setFavorites(new Set());
+    if (favoriteProperties.data) {
+      setFavorites(new Set(favoriteProperties.data.map((item) => item.key)));
     }
-  }, []);
+  }, [favoriteProperties.data]);
 
   const comparedProperties = useMemo(
     () =>
@@ -219,12 +222,25 @@ function PropertySearchPage() {
     navigate({ to: "/" });
   };
 
-  const toggleFavorite = (id: string) => {
-    const next = new Set(favorites);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setFavorites(next);
-    window.localStorage.setItem("mercadoimobi:favorites", JSON.stringify(Array.from(next)));
+  const toggleFavorite = async (property: PropertySearchItem) => {
+    const key = getPropertyKey(property);
+    const nextFavorite = !favorites.has(key);
+    const previous = new Set(favorites);
+    const optimistic = new Set(favorites);
+    if (nextFavorite) optimistic.add(key);
+    else optimistic.delete(key);
+    setFavorites(optimistic);
+
+    try {
+      await setFavoriteFn({ data: { property, favorite: nextFavorite } });
+      await favoriteProperties.refetch();
+      toast.success(
+        nextFavorite ? "Imóvel salvo nos favoritos." : "Imóvel removido dos favoritos.",
+      );
+    } catch {
+      setFavorites(previous);
+      toast.error("Não foi possível atualizar seus favoritos agora.");
+    }
   };
 
   const toggleCompare = (id: string) => {
@@ -314,12 +330,7 @@ function PropertySearchPage() {
             >
               Pesquisas salvas
             </button>
-            <button
-              onClick={() =>
-                document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" })
-              }
-              className="transition hover:text-white"
-            >
+            <button onClick={() => setShowFavorites(true)} className="transition hover:text-white">
               Favoritos ({favorites.size})
             </button>
           </nav>
@@ -367,14 +378,32 @@ function PropertySearchPage() {
             </div>
             <div className="space-y-3">
               {(savedSearches.data ?? []).map((saved) => (
-                <button
+                <div
                   key={saved.id}
-                  onClick={() => applySavedSearch(saved.criteria)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.04]"
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.04]"
                 >
-                  <span className="font-semibold">{saved.name}</span>
-                  <span className="mt-1 block text-xs text-slate-400">Abrir esta pesquisa</span>
-                </button>
+                  <button
+                    onClick={() => applySavedSearch(saved.criteria)}
+                    className="w-full text-left"
+                  >
+                    <span className="font-semibold">{saved.name}</span>
+                    <span className="mt-1 block text-xs text-slate-400">Abrir esta pesquisa</span>
+                  </button>
+                  <div className="mt-3 flex gap-2 border-t border-white/10 pt-3">
+                    <button
+                      onClick={() => void handleRenameSavedSearch(saved.id, saved.name)}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/5"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Renomear
+                    </button>
+                    <button
+                      onClick={() => void handleDeleteSavedSearch(saved.id, saved.name)}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-400/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    </button>
+                  </div>
+                </div>
               ))}
               {!savedSearches.isLoading && (savedSearches.data?.length ?? 0) === 0 && (
                 <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400">
@@ -673,9 +702,9 @@ function PropertySearchPage() {
                 <PropertyCard
                   key={property.id}
                   property={property}
-                  favorite={favorites.has(property.id)}
+                  favorite={favorites.has(getPropertyKey(property))}
                   comparing={compareIds.includes(property.id)}
-                  onFavorite={() => toggleFavorite(property.id)}
+                  onFavorite={() => void toggleFavorite(property)}
                   onCompare={() => toggleCompare(property.id)}
                 />
               ))}
