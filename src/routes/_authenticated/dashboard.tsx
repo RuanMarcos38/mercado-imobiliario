@@ -14,12 +14,14 @@ import {
   Home,
   LogOut,
   MapPin,
+  Pencil,
   Ruler,
   Scale,
   Search,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -29,9 +31,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
+  deleteSavedPropertySearch,
+  listFavoriteProperties,
   listSavedPropertySearches,
+  renameSavedPropertySearch,
   savePropertySearch,
   searchRealProperties,
+  setPropertyFavorite,
 } from "@/lib/property-search.functions";
 import type { PropertySearchInput, PropertySearchItem } from "@/lib/property-search.functions";
 
@@ -114,11 +120,19 @@ const initialFilters: FilterState = {
   sort: "recent",
 };
 
+function getPropertyKey(property: PropertySearchItem) {
+  return property.source_url?.trim().toLowerCase() || property.id;
+}
+
 function PropertySearchPage() {
   const navigate = useNavigate();
   const searchFn = useServerFn(searchRealProperties);
   const saveSearchFn = useServerFn(savePropertySearch);
   const listSavedFn = useServerFn(listSavedPropertySearches);
+  const renameSavedFn = useServerFn(renameSavedPropertySearch);
+  const deleteSavedFn = useServerFn(deleteSavedPropertySearch);
+  const listFavoritesFn = useServerFn(listFavoriteProperties);
+  const setFavoriteFn = useServerFn(setPropertyFavorite);
 
   const [user, setUser] = useState<any>(null);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
@@ -131,6 +145,7 @@ function PropertySearchPage() {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   const savedSearches = useQuery({
     queryKey: ["saved-property-searches", user?.id],
@@ -232,6 +247,29 @@ function PropertySearchPage() {
       toast.success("Pesquisa salva.");
     } catch {
       toast.error("Não foi possível salvar a pesquisa agora.");
+    }
+  };
+
+  const handleRenameSavedSearch = async (id: string, currentName: string) => {
+    const name = window.prompt("Novo nome da pesquisa:", currentName);
+    if (!name?.trim() || name.trim() === currentName) return;
+    try {
+      await renameSavedFn({ data: { id, name: name.trim() } });
+      await savedSearches.refetch();
+      toast.success("Pesquisa renomeada.");
+    } catch {
+      toast.error("Não foi possível renomear a pesquisa agora.");
+    }
+  };
+
+  const handleDeleteSavedSearch = async (id: string, name: string) => {
+    if (!window.confirm(`Excluir a pesquisa “${name}”?`)) return;
+    try {
+      await deleteSavedFn({ data: { id } });
+      await savedSearches.refetch();
+      toast.success("Pesquisa excluída.");
+    } catch {
+      toast.error("Não foi possível excluir a pesquisa agora.");
     }
   };
 
@@ -341,6 +379,75 @@ function PropertySearchPage() {
               {!savedSearches.isLoading && (savedSearches.data?.length ?? 0) === 0 && (
                 <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400">
                   Você ainda não salvou nenhuma pesquisa.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFavorites && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowFavorites(false)}
+        >
+          <div
+            className="ml-auto h-full w-full max-w-lg overflow-y-auto border-l border-white/10 bg-[#0b1727] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                  Sua seleção
+                </p>
+                <h2 className="mt-1 text-xl font-bold">Imóveis favoritos</h2>
+              </div>
+              <button
+                onClick={() => setShowFavorites(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-white/5"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {(favoriteProperties.data ?? []).map(({ key, property }) => (
+                <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-lg font-black text-cyan-100">
+                        {formatPrice(property.price)}
+                      </p>
+                      <h3 className="mt-1 line-clamp-2 font-semibold">{property.title}</h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {[property.location_city, property.location_state]
+                          .filter(Boolean)
+                          .join(" - ") || "Localização no anúncio"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => void toggleFavorite(property)}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-rose-300/30 bg-rose-500 text-white"
+                      title="Remover dos favoritos"
+                    >
+                      <Heart className="h-4 w-4 fill-current" />
+                    </button>
+                  </div>
+                  {property.source_url && (
+                    <a
+                      href={property.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-cyan-200 hover:text-cyan-100"
+                    >
+                      Ver anúncio original <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+              ))}
+              {!favoriteProperties.isLoading && (favoriteProperties.data?.length ?? 0) === 0 && (
+                <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400">
+                  Você ainda não favoritou nenhum imóvel.
                 </div>
               )}
             </div>

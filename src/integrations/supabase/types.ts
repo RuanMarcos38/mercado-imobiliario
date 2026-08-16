@@ -281,6 +281,33 @@ export type Database = {
           },
         ];
       };
+      property_favorites: {
+        Row: {
+          created_at: string;
+          id: string;
+          property_key: string;
+          property_snapshot: Json;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          property_key: string;
+          property_snapshot: Json;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          property_key?: string;
+          property_snapshot?: Json;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       property_search_index: {
         Row: {
           anti_fraud_score: number | null;

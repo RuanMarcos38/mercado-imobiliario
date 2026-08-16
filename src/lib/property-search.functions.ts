@@ -539,3 +539,112 @@ export const listSavedPropertySearches = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
+const favoritePropertySchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  price: z.number().nullable(),
+  location_address: z.string().nullable(),
+  location_city: z.string().nullable(),
+  location_state: z.string().nullable(),
+  property_type: z.string().nullable(),
+  bedrooms: z.number().nullable(),
+  bathrooms: z.number().nullable(),
+  area_sqm: z.number().nullable(),
+  images: z.array(z.string()).nullable(),
+  is_verified: z.boolean().nullable(),
+  source_portal: z.string().nullable(),
+  source_url: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+
+const favoriteMutationSchema = z.object({
+  property: favoritePropertySchema,
+  favorite: z.boolean(),
+});
+
+function favoriteKey(property: z.infer<typeof favoritePropertySchema>): string {
+  return property.source_url?.trim().toLowerCase() || property.id;
+}
+
+export const listFavoriteProperties = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("property_favorites")
+      .select("property_key,property_snapshot,created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+
+    return (data ?? []).flatMap((row) => {
+      const parsed = favoritePropertySchema.safeParse(row.property_snapshot);
+      if (!parsed.success) return [];
+      return [{ key: row.property_key, property: parsed.data, created_at: row.created_at }];
+    });
+  });
+
+export const setPropertyFavorite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => favoriteMutationSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const propertyKey = favoriteKey(data.property);
+
+    if (!data.favorite) {
+      const { error } = await context.supabase
+        .from("property_favorites")
+        .delete()
+        .eq("user_id", context.userId)
+        .eq("property_key", propertyKey);
+      if (error) throw new Error(error.message);
+      return { success: true, favorite: false, propertyKey };
+    }
+
+    const snapshot = JSON.parse(JSON.stringify(data.property));
+    const { error } = await context.supabase.from("property_favorites").upsert(
+      {
+        user_id: context.userId,
+        property_key: propertyKey,
+        property_snapshot: snapshot,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,property_key" },
+    );
+    if (error) throw new Error(error.message);
+    return { success: true, favorite: true, propertyKey };
+  });
+
+const savedSearchUpdateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(80),
+});
+
+export const renameSavedPropertySearch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => savedSearchUpdateSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("search_configurations")
+      .update({ name: data.name, updated_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+const savedSearchDeleteSchema = z.object({ id: z.string().uuid() });
+
+export const deleteSavedPropertySearch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => savedSearchDeleteSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("search_configurations")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
