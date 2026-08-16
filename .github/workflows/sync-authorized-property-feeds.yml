@@ -1,0 +1,48 @@
+name: MercadoImobi authorized source sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Refresh authorized property sources
+        shell: bash
+        env:
+          BASE_URL: ${{ secrets.MERCADOIMOBI_BASE_URL }}
+          SYNC_KEY: ${{ secrets.PROPERTY_FEED_SYNC_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${BASE_URL:-https://mercadoimobi.rdmconsultoriaimobiliaria.com.br}"
+          BASE_URL="${BASE_URL%/}"
+
+          if [ -z "${SYNC_KEY:-}" ]; then
+            echo "::notice::PROPERTY_FEED_SYNC_SECRET ainda não foi configurado no GitHub Actions. Nenhum feed autorizado foi chamado."
+            exit 0
+          fi
+
+          echo "Atualizando fontes autorizadas do MercadoImobi..."
+          curl -fsS \
+            --connect-timeout 10 \
+            --max-time 420 \
+            -X POST \
+            -H "x-property-feed-sync-key: ${SYNC_KEY}" \
+            "${BASE_URL}/api/public/jobs/property-feeds" \
+            -o /tmp/property-feed-sync.json
+
+          cat /tmp/property-feed-sync.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('/tmp/property-feed-sync.json', 'utf8'));
+          if (payload.failed > 0) {
+            console.log(`::warning::${payload.failed} fonte(s) apresentaram falha de sincronização.`);
+          }
+          console.log(`Fontes processadas: ${payload.processed ?? 0}; sucesso: ${payload.success ?? 0}; falhas: ${payload.failed ?? 0}`);
+          NODE
