@@ -344,7 +344,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
 
             <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <KpiCard icon={<Building2 className="h-4 w-4" />} tone="blue" label="Total de imóveis" value={formatInteger(stats?.total_properties)} helper="Base completa consultável" />
-              <KpiCard icon={<Search className="h-4 w-4" />} tone="green" label="Novos anúncios" value={formatInteger(stats?.new_last_24h)} helper="Últimas 24 horas" />
+              <KpiCard icon={<Search className="h-4 w-4" />} tone="green" label="Atualizados 24h" value={formatInteger(stats?.new_last_24h)} helper="Imóveis sincronizados" />
               <KpiCard icon={<Tag className="h-4 w-4" />} tone="purple" label="Oportunidades" value={formatInteger(stats?.opportunities)} helper="Desconto comprovado na fonte" />
               <KpiCard icon={<Bell className="h-4 w-4" />} tone="orange" label="Fontes ativas" value={formatInteger(stats?.active_sources)} helper="Portais e bases monitoradas" />
               <KpiCard icon={<Gavel className="h-4 w-4" />} tone="red" label="Leilões CAIXA" value={formatInteger(stats?.auction_properties)} helper="Modalidade separada" />
