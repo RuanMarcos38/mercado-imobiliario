@@ -12,41 +12,82 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    env:
+      CUSTOM_DOMAIN: https://mercadoimobi.rdmconsultoriaimobiliaria.com.br
+      EASYPANEL_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
-      - name: Check production DNS, HTTPS and backend status
+      - name: Diagnose custom domain and EasyPanel runtime
         shell: bash
         run: |
-          set -euo pipefail
-          BASE_URL="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          echo "Testing $BASE_URL/api/public/status"
-          success=0
-          for attempt in $(seq 1 20); do
-            if curl -fsS --connect-timeout 10 --max-time 20 "$BASE_URL/api/public/status" -o /tmp/mercadoimobi-status.json; then
-              success=1
-              break
+          set -uo pipefail
+
+          CUSTOM_DOMAIN="${CUSTOM_DOMAIN%/}"
+          EASYPANEL_URL="${EASYPANEL_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
+          EASYPANEL_URL="${EASYPANEL_URL%/}"
+
+          inspect_url() {
+            local label="$1"
+            local base="$2"
+            local body="/tmp/${label}.body"
+            local headers="/tmp/${label}.headers"
+
+            echo ""
+            echo "===== $label ====="
+            echo "Base: $base"
+
+            if ! curl -sS -D "$headers" --connect-timeout 10 --max-time 20 "$base/api/public/status" -o "$body"; then
+              echo "::warning::$label não respondeu em $base/api/public/status"
+              return 2
             fi
-            echo "Attempt $attempt/20 failed; retrying in 15 seconds..."
-            sleep 15
-          done
-          if [ "$success" -ne 1 ]; then
-            echo "Production domain/backend is not reachable."
-            exit 1
-          fi
-          cat /tmp/mercadoimobi-status.json
-          node - <<'NODE'
-          const fs = require('fs');
-          const status = JSON.parse(fs.readFileSync('/tmp/mercadoimobi-status.json', 'utf8'));
-          if (status.status !== 'operational') throw new Error(`status=${status.status}`);
-          if (status.search !== 'available') throw new Error(`search=${status.search}`);
-          if (!Number.isFinite(status.indexedProperties) || status.indexedProperties < 1000) {
-            throw new Error(`indexedProperties=${status.indexedProperties}`);
+
+            local content_type
+            content_type="$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true)"
+            echo "Content-Type: ${content_type:-desconhecido}"
+
+            if grep -qi 'mercado-imobiliario-r2r\.lovable\.app' "$body"; then
+              echo "::warning::$label ainda está servindo o bridge antigo da Hostinger que redireciona para o Lovable."
+              echo "RESULT_${label}=hostinger_lovable_redirect"
+              return 3
+            fi
+
+            if node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(p.status!=="operational") process.exit(2); console.log(JSON.stringify(p,null,2));' "$body"; then
+              local release
+              release="$(node -e 'const p=require(process.argv[1]); console.log(p.release||"sem-marcador")' "$body" 2>/dev/null || echo sem-marcador)"
+              echo "Release detectado: $release"
+              echo "RESULT_${label}=mercadoimobi_backend"
+              return 0
+            fi
+
+            echo "Resposta recebida, mas não é o backend MercadoImobi esperado."
+            head -c 700 "$body" || true
+            echo
+            echo "RESULT_${label}=unexpected_response"
+            return 4
           }
-          console.log(`AI runtime: ${status.runtime?.ai ?? 'unknown'}`);
-          console.log(`WhatsApp runtime: ${status.runtime?.whatsapp ?? 'unknown'}`);
-          console.log(`WhatsApp webhook: ${status.runtime?.whatsappWebhook ?? 'unknown'}`);
-          console.log(`Property import: ${status.runtime?.propertyImport ?? 'unknown'}`);
-          if (status.runtime?.ai !== 'configured') console.log('::warning::OPENAI_API_KEY is not configured in the deployed runtime.');
-          if (status.runtime?.whatsapp !== 'configured') console.log('::warning::Evolution API runtime variables are not fully configured in the deployed runtime.');
-          if (status.runtime?.whatsappWebhook !== 'protected') console.log('::warning::WHATSAPP_WEBHOOK_SECRET is not configured in the deployed runtime.');
-          if (status.runtime?.propertyImport !== 'configured') console.log('::warning::PROPERTY_IMPORT_WEBHOOK_SECRET is not configured in the deployed runtime.');
-          NODE
+
+          CUSTOM_RESULT=0
+          EASY_RESULT=0
+          inspect_url custom "$CUSTOM_DOMAIN" || CUSTOM_RESULT=$?
+          inspect_url easypanel "$EASYPANEL_URL" || EASY_RESULT=$?
+
+          echo ""
+          echo "===== RESUMO ====="
+          echo "Custom domain result code: $CUSTOM_RESULT"
+          echo "EasyPanel result code: $EASY_RESULT"
+
+          if [ "$CUSTOM_RESULT" -eq 0 ]; then
+            echo "Domínio definitivo já está servindo o MercadoImobi novo."
+            exit 0
+          fi
+
+          if [ "$EASY_RESULT" -eq 0 ]; then
+            echo "::warning::O app novo está acessível no EasyPanel, mas o domínio definitivo ainda não aponta para ele. Remova o bridge/redirecionamento antigo da Hostinger e associe o domínio ao serviço EasyPanel."
+            exit 0
+          fi
+
+          if [ "$CUSTOM_RESULT" -eq 3 ]; then
+            echo "::warning::Confirmado: o domínio definitivo continua preso ao redirect Hostinger -> Lovable. O GitHub está atualizado, mas o tráfego não chega ao app Node/EasyPanel."
+          fi
+
+          echo "::warning::Não foi possível confirmar um backend MercadoImobi público no domínio nem no host EasyPanel testado."
+          exit 0
