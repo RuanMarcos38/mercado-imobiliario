@@ -13,7 +13,10 @@ async function checkSearchAvailability(): Promise<Availability> {
     const client = createClient<Database>(url, key, {
       auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     });
-    const { error } = await client.from("property_search_index").select("id", { head: true }).limit(1);
+    const { error } = await client
+      .from("property_search_index")
+      .select("id", { head: true })
+      .limit(1);
     return error ? "unavailable" : "available";
   } catch {
     return "unavailable";
