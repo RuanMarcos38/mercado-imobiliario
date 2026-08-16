@@ -1,6 +1,5 @@
 name: Validate property search
 
-# This workflow validates the latest main branch, including live-source adapters.
 on:
   push:
     branches: [main]
@@ -57,13 +56,30 @@ jobs:
       - name: Run safe tests
         run: npm run test -- --exclude tests/tenant-isolation.test.ts --exclude tests/critical-flows.spec.ts --passWithNoTests
 
-      - name: Build production application
-        env:
-          VITE_SUPABASE_URL: https://placeholder.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
-          VITE_SUPABASE_PROJECT_ID: placeholder
-          SUPABASE_URL: https://placeholder.supabase.co
-          SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+      - name: Build production application without Supabase environment variables
         run: |
+          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
+          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
           npm run build
           test -f .output/server/index.mjs
+
+      - name: Smoke test backend and Supabase connection without EasyPanel environment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
+          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
+          PORT=3000 HOST=127.0.0.1 NODE_ENV=production node .output/server/index.mjs > /tmp/mercadoimobi-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/api/public/status -o /tmp/status.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          cat /tmp/status.json
+          grep -q '"status":"operational"' /tmp/status.json
+          grep -q '"search":"available"' /tmp/status.json
