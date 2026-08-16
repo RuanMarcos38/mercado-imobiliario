@@ -1,20 +1,8 @@
-import { useState, useEffect } from "react";
-import {
-  Rocket,
-  Settings,
-  Search,
-  ChevronRight,
-  ChevronLeft,
-  X,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Rocket, Search, ChevronRight, ChevronLeft, Sparkles, Heart, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,28 +12,28 @@ import { toast } from "sonner";
 
 const steps = [
   {
-    title: "Bem-vindo ao Futuro Imobiliário",
+    title: "Bem-vindo ao MercadoImobi",
     description:
-      "Sua plataforma está quase pronta. Vamos configurar os pontos essenciais para você começar a prospectar com IA.",
+      "Pesquise imóveis reais em uma experiência simples, compare opções e acesse a fonte original de cada anúncio.",
     icon: Rocket,
   },
   {
-    title: "Conexão n8n & Automação",
+    title: "Defina sua pesquisa",
     description:
-      "Integramos com OLX, Marketplace e Google Ads. Copie seu endpoint no dashboard para começar a receber imóveis em tempo real.",
-    icon: Zap,
-  },
-  {
-    title: "Critérios de Busca IA",
-    description:
-      "Defina o perfil de imóvel que você busca. Nossa IA fará a varredura nacional e filtrará possíveis golpes automaticamente.",
+      "Use localização, tipo de imóvel, preço, quartos, banheiros, área e fonte para encontrar opções compatíveis com o que você procura.",
     icon: Search,
   },
   {
-    title: "Segurança & Multi-usuário",
+    title: "Salve o que interessa",
     description:
-      "Seus dados são isolados e protegidos. Você pode criar sub-contas e gerenciar permissões de forma independente.",
-    icon: Settings,
+      "Favorite imóveis e salve combinações de filtros para retomar suas pesquisas com rapidez quando quiser.",
+    icon: Heart,
+  },
+  {
+    title: "Consulte a origem",
+    description:
+      "Analise os detalhes disponíveis e abra o anúncio original para conferir as informações diretamente na fonte.",
+    icon: ExternalLink,
   },
 ];
 
@@ -55,14 +43,17 @@ export function OnboardingGuide() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkOnboardingStatus();
+    void checkOnboardingStatus();
   }, []);
 
   const checkOnboardingStatus = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("user_onboarding")
@@ -71,14 +62,13 @@ export function OnboardingGuide() {
       .maybeSingle();
 
     if (error) {
-      console.error("Error checking onboarding:", error);
       setLoading(false);
       return;
     }
 
     if (!data || !data.is_completed) {
       setIsOpen(true);
-      if (data) setCurrentStep(data.current_step - 1);
+      if (data) setCurrentStep(Math.max(0, Math.min(steps.length - 1, data.current_step - 1)));
     }
     setLoading(false);
   };
@@ -92,22 +82,19 @@ export function OnboardingGuide() {
     if (currentStep < steps.length - 1) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
-
-      // Update DB progress
       await supabase.from("user_onboarding").upsert({
         user_id: user.id,
         current_step: nextStep + 1,
         is_completed: false,
       });
-    } else {
-      handleComplete();
+      return;
     }
+
+    await handleComplete();
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 0) setCurrentStep((step) => step - 1);
   };
 
   const handleComplete = async () => {
@@ -119,10 +106,11 @@ export function OnboardingGuide() {
     await supabase.from("user_onboarding").upsert({
       user_id: user.id,
       is_completed: true,
+      current_step: steps.length,
       completed_at: new Date().toISOString(),
     });
     setIsOpen(false);
-    toast.success("Onboarding concluído! Boas vendas.");
+    toast.success("Tudo pronto. Boa pesquisa!");
   };
 
   if (loading || !isOpen) return null;
@@ -132,29 +120,29 @@ export function OnboardingGuide() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-none shadow-2xl">
-        <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
-          <Sparkles className="absolute top-4 right-4 h-12 w-12 opacity-20 animate-pulse" />
-          <div className="relative z-10 flex flex-col items-center text-center space-y-4">
-            <div className="p-4 bg-white/20 rounded-full backdrop-blur-sm">
+      <DialogContent className="overflow-hidden border-none p-0 shadow-2xl sm:max-w-[500px]">
+        <div className="relative overflow-hidden bg-primary p-8 text-primary-foreground">
+          <Sparkles className="absolute right-4 top-4 h-12 w-12 animate-pulse opacity-20" />
+          <div className="relative z-10 flex flex-col items-center space-y-4 text-center">
+            <div className="rounded-full bg-white/20 p-4 backdrop-blur-sm">
               <StepIcon className="h-10 w-10 text-white" />
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-bold tracking-tight">{currentStepData.title}</h2>
               <Progress
                 value={((currentStep + 1) / steps.length) * 100}
-                className="h-1 w-32 mx-auto bg-white/30"
+                className="mx-auto h-1 w-32 bg-white/30"
               />
             </div>
           </div>
         </div>
 
-        <div className="p-8 space-y-6 bg-background">
-          <p className="text-muted-foreground text-center text-lg leading-relaxed">
+        <div className="space-y-6 bg-background p-8">
+          <p className="text-center text-lg leading-relaxed text-muted-foreground">
             {currentStepData.description}
           </p>
 
-          <div className="flex justify-between items-center pt-4">
+          <DialogFooter className="flex items-center justify-between gap-3 sm:justify-between">
             <Button
               variant="ghost"
               onClick={handleBack}
@@ -164,24 +152,20 @@ export function OnboardingGuide() {
               <ChevronLeft className="h-4 w-4" /> Anterior
             </Button>
 
-            <div className="flex gap-2">
-              {currentStep === steps.length - 1 ? (
-                <Button onClick={handleComplete} className="bg-primary hover:bg-primary/90">
-                  Começar Agora
-                </Button>
-              ) : (
-                <Button onClick={handleNext} className="flex gap-2">
-                  Próximo <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
+            {currentStep === steps.length - 1 ? (
+              <Button onClick={() => void handleComplete()}>Começar a pesquisar</Button>
+            ) : (
+              <Button onClick={() => void handleNext()} className="flex gap-2">
+                Próximo <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
+          </DialogFooter>
 
           <div className="flex justify-center gap-1.5">
-            {steps.map((_, idx) => (
+            {steps.map((step, index) => (
               <div
-                key={idx}
-                className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentStep ? "w-8 bg-primary" : "w-2 bg-muted"}`}
+                key={step.title}
+                className={`h-1.5 rounded-full transition-all duration-300 ${index === currentStep ? "w-8 bg-primary" : "w-2 bg-muted"}`}
               />
             ))}
           </div>
