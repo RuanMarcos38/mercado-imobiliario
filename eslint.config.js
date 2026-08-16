@@ -35,7 +35,18 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-expressions": [
+        "error",
+        { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: false },
+      ],
     },
   },
   eslintPluginPrettier,
+  {
+    rules: {
+      // Formatting is normalized in CI before lint. Avoid running a second formatter
+      // implementation inside ESLint, which previously produced contradictory failures.
+      "prettier/prettier": "off",
+    },
+  },
 );
