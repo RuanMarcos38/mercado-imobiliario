@@ -41,6 +41,8 @@ describe("MercadoImobi platform controls", () => {
       expect(workspace).toContain(label);
     }
     expect(workspace).toContain("setPage(1)");
+    expect(workspace).toContain("sourcePortal");
+    expect(workspace).toContain("Fonte");
     expect(workspace).toContain("discount_percent");
     expect(workspace).toContain("evaluation_value");
     expect(workspace).toContain("Economia:");

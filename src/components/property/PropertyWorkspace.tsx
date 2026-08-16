@@ -91,6 +91,7 @@ interface Filters {
   neighborhood: string;
   state: string;
   propertyType: string;
+  sourcePortal: string;
   minPrice: string;
   maxPrice: string;
   bedrooms: string;
@@ -106,6 +107,7 @@ const emptyFilters = (market: MarketMode): Filters => ({
   neighborhood: "",
   state: "",
   propertyType: "",
+  sourcePortal: "",
   minPrice: "",
   maxPrice: "",
   bedrooms: "",
@@ -122,6 +124,7 @@ function toInput(filters: Filters): PropertySearchInput {
     neighborhood: filters.neighborhood || undefined,
     state: filters.state || undefined,
     propertyType: filters.propertyType || undefined,
+    sourcePortal: filters.sourcePortal || undefined,
     minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
     maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
     bedrooms: filters.bedrooms ? Number(filters.bedrooms) : undefined,
@@ -465,6 +468,15 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                       ))}
                     </select>
                   </Field>
+                  <Field label="Fonte">
+                    <input
+                      value={filters.sourcePortal}
+                      onChange={(event) =>
+                        setFilters({ ...filters, sourcePortal: event.target.value })
+                      }
+                      placeholder="Ex.: MRV, QuintoAndar, CAIXA"
+                    />
+                  </Field>
                   <Field label="Ordenar por">
                     <select
                       value={filters.sort}
@@ -696,6 +708,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                   neighborhood: criteria.neighborhood ?? "",
                   state: criteria.state ?? "",
                   propertyType: criteria.propertyType ?? "",
+                  sourcePortal: criteria.sourcePortal ?? "",
                   minPrice: criteria.minPrice != null ? String(criteria.minPrice) : "",
                   maxPrice: criteria.maxPrice != null ? String(criteria.maxPrice) : "",
                   bedrooms: criteria.bedrooms != null ? String(criteria.bedrooms) : "",
