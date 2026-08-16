@@ -10,6 +10,8 @@ type SearchHealth = {
   latest_update?: string | null;
 };
 
+const RELEASE = process.env["APP_RELEASE"] || "2026.08.16-search-platform-r2";
+
 async function checkSearchAvailability() {
   try {
     const response = await fetch(`${PUBLIC_SUPABASE_URL}/rest/v1/rpc/search_index_health`, {
@@ -55,6 +57,16 @@ function runtimeHealth() {
   } as const;
 }
 
+function synchronizationHealth(latestUpdate: string | null) {
+  if (!latestUpdate) return { state: "unknown", ageMinutes: null } as const;
+  const ageMs = Date.now() - new Date(latestUpdate).getTime();
+  const ageMinutes = Math.max(0, Math.round(ageMs / 60_000));
+  return {
+    state: ageMinutes <= 90 ? "fresh" : ageMinutes <= 180 ? "delayed" : "stale",
+    ageMinutes,
+  } as const;
+}
+
 export const Route = createFileRoute("/api/public/status")({
   server: {
     handlers: {
@@ -62,11 +74,13 @@ export const Route = createFileRoute("/api/public/status")({
         const search = await checkSearchAvailability();
         const body = {
           status: search.available ? "operational" : "degraded",
+          release: RELEASE,
           timestamp: new Date().toISOString(),
           search: search.available ? "available" : "unavailable",
           indexedProperties: search.count,
           coveredStates: search.states,
           latestUpdate: search.latestUpdate,
+          synchronization: synchronizationHealth(search.latestUpdate),
           runtime: runtimeHealth(),
         };
 
