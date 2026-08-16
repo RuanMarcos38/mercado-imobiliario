@@ -1,0 +1,62 @@
+from pathlib import Path
+
+path = Path("scripts/public_property_discovery.py")
+text = path.read_text(encoding="utf-8")
+
+old = '''        elif isinstance(image, dict) and isinstance(image.get("url"), str):
+            values.append(image["url"])
+    result: list[str] = []'''
+new = '''        elif isinstance(image, dict) and isinstance(image.get("url"), str):
+            values.append(image["url"])
+    for raw in re.findall(r'<(?:img|source)[^>]+(?:src|data-src|srcset)=["\\\']([^"\\\']+)["\\\']', page_text, re.I):
+        value = raw.split(",", 1)[0].strip().split(" ", 1)[0]
+        lowered = value.lower()
+        if any(token in lowered for token in ("logo", "icon", "favicon", "sprite", "avatar", "placeholder")):
+            continue
+        if any(ext in lowered for ext in (".jpg", ".jpeg", ".png", ".webp", "/image", "/images", "/foto", "/fotos")):
+            values.append(value)
+    result: list[str] = []'''
+if old not in text:
+    raise SystemExit("collect_images patch target not found")
+text = text.replace(old, new, 1)
+
+old = '''        ("comercial", "Comercial"),
+    ]'''
+new = '''        ("comercial", "Comercial"),
+        ("empreendimento", "Empreendimento"),
+        ("residencial", "Empreendimento"),
+        ("condominio", "Empreendimento"),
+        ("condomínio", "Empreendimento"),
+    ]'''
+if old not in text:
+    raise SystemExit("property type patch target not found")
+text = text.replace(old, new, 1)
+
+old = '''    plain = clean_text(text) or ""
+
+    bedrooms = extract_int'''
+new = '''    plain = clean_text(text) or ""
+    if not city or not state:
+        location_text = f"{title} {description or ''}"
+        location_match = re.search(r"([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇ][A-Za-zÀ-ÿ .'-]{2,45})\\s*[-/]\\s*([A-Z]{2})\\b", location_text)
+        if location_match:
+            city = city or clean_text(location_match.group(1))
+            state = state or location_match.group(2).upper()
+
+    bedrooms = extract_int'''
+if old not in text:
+    raise SystemExit("location patch target not found")
+text = text.replace(old, new, 1)
+
+old = '''            1 if images else 0,
+            1 if any("realestate" in value.lower() or "apartment" in value.lower() or "house" in value.lower() for value in schema_types) else 0,
+        ]'''
+new = '''            1 if images else 0,
+            1 if likely_property_url(final_url) and bool(description) else 0,
+            1 if any("realestate" in value.lower() or "apartment" in value.lower() or "house" in value.lower() for value in schema_types) else 0,
+        ]'''
+if old not in text:
+    raise SystemExit("evidence patch target not found")
+text = text.replace(old, new, 1)
+
+path.write_text(text, encoding="utf-8")
