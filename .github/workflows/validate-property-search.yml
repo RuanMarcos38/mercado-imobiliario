@@ -44,6 +44,9 @@ jobs:
             exit 1
           fi
 
+      - name: Normalize source formatting
+        run: npx prettier --write .
+
       - name: Lint
         run: npm run lint
 
@@ -99,5 +102,5 @@ jobs:
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git push --force-with-lease origin HEAD:refs/heads/production
