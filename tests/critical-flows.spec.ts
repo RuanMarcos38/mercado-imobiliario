@@ -104,11 +104,13 @@ describe("MercadoImobi product invariants", () => {
     expect(alerts).toContain("property_alert_rules");
     expect(alerts).toContain("property_alert_events");
     expect(importHook).toContain("removed_urls");
-    expect(importHook).toContain('.delete()');
+    expect(importHook).toContain(".delete()");
     expect(importHook).toContain("PROPERTY_IMPORT_WEBHOOK_SECRET");
     expect(discovery).toContain("web_search");
     expect(discovery).not.toMatch(/playwright|puppeteer/i);
-    expect(discovery).toContain("Não tente contornar login, CAPTCHA, bloqueio, paywall ou área privada");
+    expect(discovery).toContain(
+      "Não tente contornar login, CAPTCHA, bloqueio, paywall ou área privada",
+    );
   });
 
   it("keeps AI and WhatsApp secrets server-side", () => {
@@ -122,5 +124,19 @@ describe("MercadoImobi product invariants", () => {
     expect(envExample).not.toContain("VITE_EVOLUTION_API_KEY");
     expect(assistant).toContain('process.env["OPENAI_API_KEY"]');
     expect(autoReply).toContain('process.env["EVOLUTION_API_KEY"]');
+  });
+
+  it("keeps the Lovable template visual primitives and paginates the full property base", () => {
+    const workspace = source("src/components/property/PropertyWorkspace.tsx");
+    const css = source("src/mercadoimobi.css");
+    const search = source("src/lib/property-search.functions.ts");
+    expect(workspace).toContain("max-w-6xl");
+    expect(workspace).toContain("Urbanist");
+    expect(workspace).toContain("Página {page}");
+    expect(css).toContain("LOVABLE_EXACT_TEMPLATE_V2");
+    expect(css).toContain("--gradient-results");
+    expect(css).toContain("JetBrains Mono");
+    expect(search).toContain("offset: z.number()");
+    expect(search).toContain(".range(offset, offset + fetchLimit - 1)");
   });
 });

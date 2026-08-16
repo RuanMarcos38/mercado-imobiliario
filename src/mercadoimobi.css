@@ -86,7 +86,15 @@ html.light-mode body,
 html.dark-mode body {
   background: var(--mi-bg);
   color: var(--mi-text);
-  font-family: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    "Plus Jakarta Sans",
+    "Inter",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
 }
@@ -95,7 +103,9 @@ html.dark-mode body {
   min-height: 100vh;
   background: var(--mi-bg);
   color: var(--mi-text);
-  transition: background-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 .mi-appbar {
@@ -128,7 +138,10 @@ html.dark-mode body {
   align-items: center;
   gap: 0.5rem;
   color: var(--mi-text-muted);
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
 }
 
 .mi-topnav-link {
@@ -222,7 +235,9 @@ html.dark-mode body {
   font-size: 0.78rem;
   font-weight: 650;
   color: var(--mi-text-muted);
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 .mi-sidebar-link:hover,
@@ -246,7 +261,10 @@ html.dark-mode body {
 .mi-panel,
 .mi-kpi-card,
 .mi-filter-panel {
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .mi-kpi-card:hover,
@@ -299,7 +317,10 @@ html.dark-mode body {
   border-radius: 0.58rem;
   color: var(--mi-text-muted);
   background: transparent;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
 }
 
 .mi-icon-button:hover {
@@ -491,5 +512,246 @@ html.dark-mode .theme-toggle-panel button[aria-pressed="true"] {
 
   .mi-shell {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* LOVABLE_EXACT_TEMPLATE_V2 */
+:root,
+html.light-mode {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --mi-bg: oklch(0.985 0.005 95);
+  --mi-surface: oklch(1 0 0);
+  --mi-surface-soft: oklch(0.96 0.005 90);
+  --mi-surface-strong: oklch(0.94 0.005 90);
+  --mi-text: oklch(0.16 0.01 60);
+  --mi-text-muted: oklch(0.5 0.01 70);
+  --mi-text-soft: oklch(0.62 0.01 75);
+  --mi-border: oklch(0.92 0.005 90);
+  --mi-border-soft: oklch(0.94 0.005 90);
+  --mi-hover: oklch(0.96 0.005 90);
+  --mi-accent: oklch(0.55 0.22 262);
+  --mi-accent-strong: oklch(0.48 0.22 262);
+  --mi-accent-soft: color-mix(in oklab, var(--mi-accent) 9%, transparent);
+  --mi-topbar: color-mix(in oklab, var(--mi-bg) 80%, transparent);
+  --mi-chat-canvas: oklch(0.96 0.005 90);
+  --mi-chat-incoming: oklch(1 0 0);
+  --mi-chat-outgoing: color-mix(in oklab, var(--mi-accent) 13%, white);
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.02), 0 8px 24px -16px rgba(18, 18, 17, 0.08);
+  --shadow-lift: 0 1px 0 rgba(0, 0, 0, 0.04), 0 16px 48px -20px rgba(18, 18, 17, 0.16);
+  --gradient-results: radial-gradient(
+    120% 80% at 0% 0%,
+    oklch(0.28 0.08 260) 0%,
+    oklch(0.16 0.04 255) 45%,
+    oklch(0.1 0.02 250) 100%
+  );
+}
+html.dark-mode,
+html.dark {
+  --mi-bg: oklch(0.16 0.01 60);
+  --mi-surface: oklch(0.2 0.01 60);
+  --mi-surface-soft: oklch(0.25 0.01 60);
+  --mi-surface-strong: oklch(0.27 0.01 60);
+  --mi-text: oklch(0.985 0.005 95);
+  --mi-text-muted: oklch(0.7 0.01 70);
+  --mi-text-soft: oklch(0.58 0.01 70);
+  --mi-border: oklch(1 0 0 / 8%);
+  --mi-border-soft: oklch(1 0 0 / 5%);
+  --mi-hover: oklch(0.25 0.01 60);
+  --mi-accent: oklch(0.65 0.22 262);
+  --mi-accent-strong: oklch(0.72 0.2 262);
+  --mi-accent-soft: color-mix(in oklab, var(--mi-accent) 12%, transparent);
+  --mi-topbar: color-mix(in oklab, var(--mi-bg) 80%, transparent);
+  --mi-chat-canvas: oklch(0.17 0.01 60);
+  --mi-chat-incoming: oklch(0.24 0.01 60);
+  --mi-chat-outgoing: color-mix(in oklab, var(--mi-accent) 25%, oklch(0.18 0.01 60));
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 24px -16px rgba(0, 0, 0, 0.55);
+  --shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 48px -20px rgba(0, 0, 0, 0.72);
+}
+html.light-mode body,
+html.dark-mode body {
+  background: var(--mi-bg) !important;
+  color: var(--mi-text) !important;
+  font-family: var(--font-sans) !important;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+.mi-shell {
+  background: var(--mi-bg) !important;
+  color: var(--mi-text) !important;
+  font-family: var(--font-sans);
+}
+.mi-appbar {
+  background: var(--mi-topbar) !important;
+  border-color: var(--mi-border) !important;
+  backdrop-filter: blur(12px);
+}
+.mi-brand-mark {
+  background: transparent !important;
+  border-radius: 0 !important;
+  color: var(--mi-accent) !important;
+}
+.mi-topnav-link {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+.mi-topnav-link-active {
+  color: var(--mi-text) !important;
+  background: transparent !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+.mi-topnav-link-active svg {
+  color: var(--mi-accent) !important;
+}
+.mi-toolbar-button,
+.mi-account-button,
+.mi-icon-button {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.mi-toolbar-button:hover,
+.mi-account-button:hover,
+.mi-icon-button:hover {
+  background: var(--mi-hover) !important;
+}
+.mi-nav-popover,
+.mi-mobile-menu {
+  background: var(--mi-surface) !important;
+  border-color: var(--mi-border) !important;
+  box-shadow: var(--shadow-lift) !important;
+}
+.mi-global-search {
+  background: var(--mi-surface) !important;
+  border-color: var(--mi-border) !important;
+  border-radius: 0.55rem !important;
+}
+.mi-template-header h1,
+.mi-shell h1,
+.mi-shell h2 {
+  font-family:
+    "Urbanist",
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+.mi-template-header h1 {
+  font-weight: 600 !important;
+  letter-spacing: -0.045em !important;
+}
+.mi-shell [class*="uppercase"][class*="tracking-"] {
+  font-family: var(--font-mono);
+}
+.mi-hero {
+  display: none !important;
+}
+.mi-card,
+.mi-panel,
+.mi-kpi-card,
+.mi-filter-panel,
+.mi-property-card {
+  background: var(--mi-surface) !important;
+  color: var(--mi-text) !important;
+  border-color: transparent !important;
+  box-shadow: var(--shadow-card) !important;
+  outline: 1px solid color-mix(in oklab, var(--mi-text) 5%, transparent);
+}
+.mi-kpi-card,
+.mi-filter-panel,
+.mi-property-card {
+  border-radius: 1rem !important;
+}
+.mi-filter-panel {
+  padding: 1.5rem !important;
+}
+.mi-filter-field,
+.mi-input {
+  background: var(--mi-bg) !important;
+  border-color: var(--mi-border) !important;
+}
+.mi-property-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift) !important;
+}
+.mi-results-card {
+  border-radius: 1rem;
+  background: var(--gradient-results);
+  color: white;
+  box-shadow: var(--shadow-lift);
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  --mi-text: #fff;
+  --mi-text-muted: rgba(255, 255, 255, 0.66);
+  --mi-text-soft: rgba(255, 255, 255, 0.42);
+  --mi-border: rgba(255, 255, 255, 0.1);
+  --mi-border-soft: rgba(255, 255, 255, 0.06);
+  --mi-hover: rgba(255, 255, 255, 0.06);
+  --mi-surface: rgba(255, 255, 255, 0.04);
+  --mi-surface-soft: rgba(255, 255, 255, 0.055);
+  --mi-surface-strong: rgba(255, 255, 255, 0.08);
+  --mi-chat-canvas: rgba(0, 0, 0, 0.1);
+  --mi-chat-incoming: rgba(255, 255, 255, 0.08);
+  --mi-chat-outgoing: color-mix(in oklab, var(--mi-accent) 55%, transparent);
+}
+.mi-results-card .mi-icon-button {
+  color: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.mi-shell [class*="bg-[#06101c]"] {
+  background: var(--mi-bg) !important;
+  color: var(--mi-text) !important;
+}
+.mi-shell [class*="max-w-[1500px]"],
+.mi-shell [class*="max-w-[1400px]"] {
+  max-width: 72rem !important;
+}
+.mi-shell [class*="rounded-[26px]"] {
+  border-radius: 1rem !important;
+}
+.mi-shell [class*="bg-white/[0.04]"],
+.mi-shell [class*="bg-white/[0.035]"],
+.mi-shell [class*="bg-white/[0.05]"] {
+  background: var(--mi-surface) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+.mi-shell [class*="bg-black/10"],
+.mi-shell [class*="bg-black/15"],
+.mi-shell [class*="bg-[#081421]"] {
+  background: var(--mi-surface-soft) !important;
+}
+.mi-shell [class*="border-white/10"],
+.mi-shell [class*="border-white/15"] {
+  border-color: var(--mi-border) !important;
+}
+.mi-shell [class*="text-slate-300"],
+.mi-shell [class*="text-slate-400"] {
+  color: var(--mi-text-muted) !important;
+}
+.mi-shell [class*="text-slate-500"],
+.mi-shell [class*="text-slate-600"] {
+  color: var(--mi-text-soft) !important;
+}
+.mi-shell [class*="text-cyan-300"],
+.mi-shell [class*="text-cyan-200"],
+.mi-shell [class*="text-cyan-100"] {
+  color: var(--mi-accent) !important;
+}
+.mi-shell [class*="bg-cyan-300"] {
+  background: var(--mi-text) !important;
+  color: var(--mi-bg) !important;
+}
+.mi-shell [class*="text-[#06101c]"] {
+  color: var(--mi-bg) !important;
+}
+.mi-shell select option {
+  background: var(--mi-surface) !important;
+  color: var(--mi-text) !important;
+}
+@media (max-width: 1023px) {
+  .mi-template-header h1 {
+    font-size: clamp(2.5rem, 9vw, 4rem);
   }
 }

@@ -17,10 +17,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 const themeBootScript = `
 (function () {
   try {
-    var saved = localStorage.getItem('mercadoimobi-theme');
-    var theme = saved === 'light' || saved === 'dark'
-      ? saved
-      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    var saved = localStorage.getItem('mercadoimobi-theme-v2');
+    var theme = saved === 'light' || saved === 'dark' ? saved : 'light';
     var root = document.documentElement;
     root.classList.toggle('dark', theme === 'dark');
     root.classList.toggle('dark-mode', theme === 'dark');
@@ -98,18 +96,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "MercadoImobi | Plataforma Imobiliária" },
       {
         name: "description",
-        content: "Plataforma imobiliária para buscar imóveis reais, acompanhar oportunidades, alertas e atendimento.",
+        content:
+          "Plataforma imobiliária para buscar imóveis reais, acompanhar oportunidades, alertas e atendimento.",
       },
       { name: "author", content: "MercadoImobi" },
       { property: "og:title", content: "MercadoImobi | Plataforma Imobiliária" },
       {
         property: "og:description",
-        content: "Busca de imóveis reais, oportunidades, alertas e atendimento em uma única plataforma.",
+        content:
+          "Busca de imóveis reais, oportunidades, alertas e atendimento em uma única plataforma.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Urbanist:wght@200;300;400;500;600;700;800;900&display=swap",
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: mercadoImobiCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },

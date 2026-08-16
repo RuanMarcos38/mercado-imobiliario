@@ -18,6 +18,7 @@ const searchSchema = z.object({
   verifiedOnly: z.boolean().optional().default(false),
   sort: z.enum(["recent", "price_asc", "price_desc", "area_desc"]).optional().default("recent"),
   limit: z.number().int().min(1).max(60).optional().default(30),
+  offset: z.number().int().min(0).max(100000).optional().default(0),
 });
 
 const liveListingSchema = z.object({
@@ -91,14 +92,15 @@ function normalizeSearchText(value: string | null | undefined): string {
 }
 
 function safePostgrestTerm(value: string): string {
-  return value.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/[,%()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function textVariants(value: string): string[] {
   const original = safePostgrestTerm(value);
-  const normalized = safePostgrestTerm(
-    value.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
-  );
+  const normalized = safePostgrestTerm(value.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   return Array.from(new Set([original, normalized].filter(Boolean)));
 }
 
@@ -136,24 +138,45 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     );
     if (!haystack.includes(neighborhood)) return false;
   }
-  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)) return false;
+  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state))
+    return false;
   if (input.propertyType) {
     const expected = normalizeSearchText(input.propertyType);
     const actual = normalizeSearchText(item.property_type);
     if (!actual.includes(expected) && !expected.includes(actual)) return false;
   }
-  if (typeof input.minPrice === "number" && (item.price == null || item.price < input.minPrice)) return false;
-  if (typeof input.maxPrice === "number" && (item.price == null || item.price > input.maxPrice)) return false;
-  if (typeof input.bedrooms === "number" && input.bedrooms > 0 && (item.bedrooms == null || item.bedrooms < input.bedrooms)) return false;
-  if (typeof input.bathrooms === "number" && input.bathrooms > 0 && (item.bathrooms == null || item.bathrooms < input.bathrooms)) return false;
-  if (typeof input.minArea === "number" && (item.area_sqm == null || item.area_sqm < input.minArea)) return false;
-  if (typeof input.maxArea === "number" && (item.area_sqm == null || item.area_sqm > input.maxArea)) return false;
-  if (input.sourcePortal && !normalizeSearchText(item.source_portal).includes(normalizeSearchText(input.sourcePortal))) return false;
+  if (typeof input.minPrice === "number" && (item.price == null || item.price < input.minPrice))
+    return false;
+  if (typeof input.maxPrice === "number" && (item.price == null || item.price > input.maxPrice))
+    return false;
+  if (
+    typeof input.bedrooms === "number" &&
+    input.bedrooms > 0 &&
+    (item.bedrooms == null || item.bedrooms < input.bedrooms)
+  )
+    return false;
+  if (
+    typeof input.bathrooms === "number" &&
+    input.bathrooms > 0 &&
+    (item.bathrooms == null || item.bathrooms < input.bathrooms)
+  )
+    return false;
+  if (typeof input.minArea === "number" && (item.area_sqm == null || item.area_sqm < input.minArea))
+    return false;
+  if (typeof input.maxArea === "number" && (item.area_sqm == null || item.area_sqm > input.maxArea))
+    return false;
+  if (
+    input.sourcePortal &&
+    !normalizeSearchText(item.source_portal).includes(normalizeSearchText(input.sourcePortal))
+  )
+    return false;
   if (input.verifiedOnly && !item.is_verified) return false;
   return true;
 }
 
-async function fetchConfiguredLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
+async function fetchConfiguredLiveSource(
+  input: PropertySearchInput,
+): Promise<PropertySearchItem[]> {
   const url = process.env["PROPERTY_SEARCH_LIVE_URL"];
   if (!url) return [];
   const token = process.env["PROPERTY_SEARCH_LIVE_TOKEN"];
@@ -213,12 +236,14 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       .from("property_search_index")
       .select(
         "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email",
+        { count: "exact" },
       );
 
     let propertyQuery = context.supabase
       .from("properties")
       .select(
         "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",
+        { count: "exact" },
       );
 
     if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");
@@ -227,11 +252,13 @@ export const searchRealProperties = createServerFn({ method: "POST" })
 
     if (input.city) {
       const variants = textVariants(input.city);
-      const expression = variants.flatMap((term) => [
-        `location_city.ilike.%${term}%`,
-        `location_address.ilike.%${term}%`,
-        `title.ilike.%${term}%`,
-      ]).join(",");
+      const expression = variants
+        .flatMap((term) => [
+          `location_city.ilike.%${term}%`,
+          `location_address.ilike.%${term}%`,
+          `title.ilike.%${term}%`,
+        ])
+        .join(",");
       if (expression) {
         indexQuery = indexQuery.or(expression);
         propertyQuery = propertyQuery.or(expression);
@@ -239,11 +266,13 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
     if (input.neighborhood) {
       const variants = textVariants(input.neighborhood);
-      const expression = variants.flatMap((term) => [
-        `title.ilike.%${term}%`,
-        `description.ilike.%${term}%`,
-        `location_address.ilike.%${term}%`,
-      ]).join(",");
+      const expression = variants
+        .flatMap((term) => [
+          `title.ilike.%${term}%`,
+          `description.ilike.%${term}%`,
+          `location_address.ilike.%${term}%`,
+        ])
+        .join(",");
       if (expression) {
         indexQuery = indexQuery.or(expression);
         propertyQuery = propertyQuery.or(expression);
@@ -256,11 +285,17 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
     if (input.propertyType) {
       indexQuery = indexQuery.ilike("property_type", `%${safePostgrestTerm(input.propertyType)}%`);
-      propertyQuery = propertyQuery.ilike("property_type", `%${safePostgrestTerm(input.propertyType)}%`);
+      propertyQuery = propertyQuery.ilike(
+        "property_type",
+        `%${safePostgrestTerm(input.propertyType)}%`,
+      );
     }
     if (input.sourcePortal) {
       indexQuery = indexQuery.ilike("source_portal", `%${safePostgrestTerm(input.sourcePortal)}%`);
-      propertyQuery = propertyQuery.ilike("source_portal", `%${safePostgrestTerm(input.sourcePortal)}%`);
+      propertyQuery = propertyQuery.ilike(
+        "source_portal",
+        `%${safePostgrestTerm(input.sourcePortal)}%`,
+      );
     }
     if (typeof input.minPrice === "number") {
       indexQuery = indexQuery.gte("price", input.minPrice);
@@ -306,13 +341,16 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
 
     const limit = input.limit ?? 30;
+    const offset = input.offset ?? 0;
     const fetchLimit = Math.min(60, Math.max(limit, limit * 2));
-    indexQuery = indexQuery.limit(fetchLimit);
-    propertyQuery = propertyQuery.limit(fetchLimit);
+    indexQuery = indexQuery.range(offset, offset + fetchLimit - 1);
+    propertyQuery = propertyQuery.range(offset, offset + fetchLimit - 1);
 
     const [indexResult, propertyResult, configuredLiveItems] = await Promise.all([
       indexQuery,
-      input.market === "market" || input.market === "all" ? propertyQuery : Promise.resolve({ data: [], error: null }),
+      input.market === "market" || input.market === "all"
+        ? propertyQuery
+        : Promise.resolve({ data: [], error: null, count: 0 }),
       fetchConfiguredLiveSource(input),
     ]);
 
@@ -367,16 +405,24 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
 
     const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);
-    const latestTimestamp = items
-      .map((item) => item.updated_at)
-      .filter((value): value is string => Boolean(value))
-      .sort()
-      .at(-1) ?? null;
+    const latestTimestamp =
+      items
+        .map((item) => item.updated_at)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
 
-    return { items, total: items.length, latestTimestamp };
+    const total = Math.max(
+      items.length,
+      (indexResult.count ?? 0) + (propertyResult.count ?? 0) + configuredLiveItems.length,
+    );
+    return { items, total, latestTimestamp, offset, limit };
   });
 
-const savedSearchSchema = z.object({ name: z.string().trim().min(1).max(80), criteria: searchSchema });
+const savedSearchSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  criteria: searchSchema,
+});
 
 export const savePropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -407,22 +453,48 @@ export const listSavedPropertySearches = createServerFn({ method: "GET" })
   });
 
 const favoritePropertySchema = z.object({
-  id: z.string().min(1), title: z.string().min(1), description: z.string().nullable(),
-  price: z.number().nullable(), location_address: z.string().nullable(), location_city: z.string().nullable(),
-  location_state: z.string().nullable(), property_type: z.string().nullable(), bedrooms: z.number().nullable(),
-  bathrooms: z.number().nullable(), area_sqm: z.number().nullable(), images: z.array(z.string()).nullable(),
-  is_verified: z.boolean().nullable(), source_portal: z.string().nullable(), source_url: z.string().nullable(),
-  updated_at: z.string().nullable(), listing_market: z.string().nullable(), is_auction: z.boolean(), sale_mode: z.string().nullable(),
-  contact_name: z.string().nullable(), contact_phone: z.string().nullable(), contact_whatsapp: z.string().nullable(), contact_email: z.string().nullable(),
+  id: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  price: z.number().nullable(),
+  location_address: z.string().nullable(),
+  location_city: z.string().nullable(),
+  location_state: z.string().nullable(),
+  property_type: z.string().nullable(),
+  bedrooms: z.number().nullable(),
+  bathrooms: z.number().nullable(),
+  area_sqm: z.number().nullable(),
+  images: z.array(z.string()).nullable(),
+  is_verified: z.boolean().nullable(),
+  source_portal: z.string().nullable(),
+  source_url: z.string().nullable(),
+  updated_at: z.string().nullable(),
+  listing_market: z.string().nullable(),
+  is_auction: z.boolean(),
+  sale_mode: z.string().nullable(),
+  contact_name: z.string().nullable(),
+  contact_phone: z.string().nullable(),
+  contact_whatsapp: z.string().nullable(),
+  contact_email: z.string().nullable(),
 });
 
-const favoriteMutationSchema = z.object({ property: favoritePropertySchema, favorite: z.boolean() });
-function favoriteKey(property: z.infer<typeof favoritePropertySchema>): string { return property.source_url?.trim().toLowerCase() || property.id; }
+const favoriteMutationSchema = z.object({
+  property: favoritePropertySchema,
+  favorite: z.boolean(),
+});
+function favoriteKey(property: z.infer<typeof favoritePropertySchema>): string {
+  return property.source_url?.trim().toLowerCase() || property.id;
+}
 
 export const listFavoriteProperties = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.from("property_favorites").select("property_key,property_snapshot,created_at").eq("user_id", context.userId).order("created_at", { ascending: false }).limit(100);
+    const { data, error } = await context.supabase
+      .from("property_favorites")
+      .select("property_key,property_snapshot,created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
     if (error) throw new Error(error.message);
     return (data ?? []).flatMap((row) => {
       const parsed = favoritePropertySchema.safeParse(row.property_snapshot);
@@ -437,22 +509,43 @@ export const setPropertyFavorite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const propertyKey = favoriteKey(data.property);
     if (!data.favorite) {
-      const { error } = await context.supabase.from("property_favorites").delete().eq("user_id", context.userId).eq("property_key", propertyKey);
+      const { error } = await context.supabase
+        .from("property_favorites")
+        .delete()
+        .eq("user_id", context.userId)
+        .eq("property_key", propertyKey);
       if (error) throw new Error(error.message);
       return { success: true, favorite: false, propertyKey };
     }
     const snapshot = JSON.parse(JSON.stringify(data.property));
-    const { error } = await context.supabase.from("property_favorites").upsert({ user_id: context.userId, property_key: propertyKey, property_snapshot: snapshot, updated_at: new Date().toISOString() }, { onConflict: "user_id,property_key" });
+    const { error } = await context.supabase
+      .from("property_favorites")
+      .upsert(
+        {
+          user_id: context.userId,
+          property_key: propertyKey,
+          property_snapshot: snapshot,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,property_key" },
+      );
     if (error) throw new Error(error.message);
     return { success: true, favorite: true, propertyKey };
   });
 
-const savedSearchUpdateSchema = z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(80) });
+const savedSearchUpdateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(80),
+});
 export const renameSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => savedSearchUpdateSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("search_configurations").update({ name: data.name, updated_at: new Date().toISOString() }).eq("id", data.id).eq("user_id", context.userId);
+    const { error } = await context.supabase
+      .from("search_configurations")
+      .update({ name: data.name, updated_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
@@ -462,7 +555,11 @@ export const deleteSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => savedSearchDeleteSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("search_configurations").delete().eq("id", data.id).eq("user_id", context.userId);
+    const { error } = await context.supabase
+      .from("search_configurations")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });

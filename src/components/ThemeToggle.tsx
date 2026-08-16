@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 export type AppTheme = "light" | "dark";
 
-const STORAGE_KEY = "mercadoimobi-theme";
+const STORAGE_KEY = "mercadoimobi-theme-v2";
 
 function applyTheme(theme: AppTheme) {
   if (typeof document === "undefined") return;
@@ -16,14 +16,14 @@ function applyTheme(theme: AppTheme) {
 }
 
 function initialTheme(): AppTheme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   const saved = window.localStorage.getItem(STORAGE_KEY);
   if (saved === "light" || saved === "dark") return saved;
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return "light";
 }
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const [theme, setTheme] = useState<AppTheme>("dark");
+  const [theme, setTheme] = useState<AppTheme>("light");
 
   useEffect(() => {
     const next = initialTheme();
