@@ -1,0 +1,46 @@
+name: MercadoImobi EasyPanel deploy
+
+on:
+  workflow_run:
+    workflows: ["MercadoImobi mandatory validation"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+      EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
+      DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+    steps:
+      - name: Trigger validated EasyPanel deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
+
+          if [ -z "$URL" ]; then
+            echo "::notice::Nenhum Deployment Trigger URL do EasyPanel foi encontrado nos secrets conhecidos. O código continua validado, mas o deploy automático requer EASYPANEL_DEPLOY_URL (recomendado) ou o Auto Deploy do GitHub habilitado no serviço EasyPanel."
+            exit 0
+          fi
+
+          echo "Iniciando deploy validado no EasyPanel..."
+          if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy-response.txt; then
+            echo "Deploy solicitado ao EasyPanel com sucesso."
+            head -c 500 /tmp/easypanel-deploy-response.txt || true
+            echo
+            exit 0
+          fi
+
+          echo "GET não iniciou o deploy; tentando POST sem expor o token..."
+          curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy-response.txt
+          echo "Deploy solicitado ao EasyPanel com sucesso."
+          head -c 500 /tmp/easypanel-deploy-response.txt || true
+          echo
