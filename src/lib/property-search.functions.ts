@@ -4,14 +4,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const searchSchema = z.object({
   city: z.string().trim().max(120).optional(),
+  neighborhood: z.string().trim().max(120).optional(),
   state: z.string().trim().max(2).optional(),
   propertyType: z.string().trim().max(80).optional(),
   minPrice: z.number().nonnegative().optional(),
   maxPrice: z.number().nonnegative().optional(),
   bedrooms: z.number().int().nonnegative().optional(),
   bathrooms: z.number().int().nonnegative().optional(),
+  minArea: z.number().nonnegative().optional(),
+  maxArea: z.number().nonnegative().optional(),
+  sourcePortal: z.string().trim().max(120).optional(),
   verifiedOnly: z.boolean().optional().default(false),
-  sort: z.enum(["recent", "price_asc", "price_desc"]).optional().default("recent"),
+  sort: z.enum(["recent", "price_asc", "price_desc", "area_desc"]).optional().default("recent"),
   limit: z.number().int().min(1).max(60).optional().default(30),
 });
 
@@ -104,6 +108,9 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
   }
   if (sort === "price_desc") {
     return items.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
+  }
+  if (sort === "area_desc") {
+    return items.sort((a, b) => (b.area_sqm ?? -1) - (a.area_sqm ?? -1));
   }
   return items.sort((a, b) => {
     const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
@@ -198,6 +205,14 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     if (!haystack.includes(city)) return false;
   }
 
+  if (input.neighborhood) {
+    const neighborhood = normalizeSearchText(input.neighborhood);
+    const haystack = normalizeSearchText(
+      [item.title, item.description, item.location_address].filter(Boolean).join(" "),
+    );
+    if (!haystack.includes(neighborhood)) return false;
+  }
+
   if (
     input.state &&
     normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)
@@ -230,6 +245,22 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     (item.bathrooms == null || item.bathrooms < input.bathrooms)
   ) {
     return false;
+  }
+  if (
+    typeof input.minArea === "number" &&
+    (item.area_sqm == null || item.area_sqm < input.minArea)
+  ) {
+    return false;
+  }
+  if (
+    typeof input.maxArea === "number" &&
+    (item.area_sqm == null || item.area_sqm > input.maxArea)
+  ) {
+    return false;
+  }
+  if (input.sourcePortal) {
+    const source = normalizeSearchText(input.sourcePortal);
+    if (!normalizeSearchText(item.source_portal).includes(source)) return false;
   }
   if (input.verifiedOnly && !item.is_verified) return false;
 
@@ -413,6 +444,18 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       indexQuery = indexQuery.eq("property_type", input.propertyType);
       propertyQuery = propertyQuery.eq("property_type", input.propertyType);
     }
+    if (input.neighborhood) {
+      const neighborhood = input.neighborhood.replace(/[(),]/g, " ").trim();
+      if (neighborhood) {
+        const expression = `title.ilike.%${neighborhood}%,description.ilike.%${neighborhood}%,location_address.ilike.%${neighborhood}%`;
+        indexQuery = indexQuery.or(expression);
+        propertyQuery = propertyQuery.or(expression);
+      }
+    }
+    if (input.sourcePortal) {
+      indexQuery = indexQuery.ilike("source_portal", `%${input.sourcePortal}%`);
+      propertyQuery = propertyQuery.ilike("source_portal", `%${input.sourcePortal}%`);
+    }
     if (typeof input.minPrice === "number") {
       indexQuery = indexQuery.gte("price", input.minPrice);
       propertyQuery = propertyQuery.gte("price", input.minPrice);
@@ -429,6 +472,14 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       indexQuery = indexQuery.gte("bathrooms", input.bathrooms);
       propertyQuery = propertyQuery.gte("bathrooms", input.bathrooms);
     }
+    if (typeof input.minArea === "number") {
+      indexQuery = indexQuery.gte("area_sqm", input.minArea);
+      propertyQuery = propertyQuery.gte("area_sqm", input.minArea);
+    }
+    if (typeof input.maxArea === "number") {
+      indexQuery = indexQuery.lte("area_sqm", input.maxArea);
+      propertyQuery = propertyQuery.lte("area_sqm", input.maxArea);
+    }
     if (input.verifiedOnly) {
       indexQuery = indexQuery.eq("is_verified", true);
       propertyQuery = propertyQuery.eq("is_verified", true);
@@ -440,6 +491,9 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     } else if (input.sort === "price_desc") {
       indexQuery = indexQuery.order("price", { ascending: false });
       propertyQuery = propertyQuery.order("price", { ascending: false });
+    } else if (input.sort === "area_desc") {
+      indexQuery = indexQuery.order("area_sqm", { ascending: false, nullsFirst: false });
+      propertyQuery = propertyQuery.order("area_sqm", { ascending: false, nullsFirst: false });
     } else {
       indexQuery = indexQuery.order("scanned_at", { ascending: false });
       propertyQuery = propertyQuery.order("updated_at", { ascending: false });

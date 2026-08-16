@@ -98,24 +98,32 @@ const PROPERTY_TYPES = [
 
 interface FilterState {
   city: string;
+  neighborhood: string;
   state: string;
   propertyType: string;
   minPrice: string;
   maxPrice: string;
   bedrooms: string;
   bathrooms: string;
+  minArea: string;
+  maxArea: string;
+  sourcePortal: string;
   verifiedOnly: boolean;
-  sort: "recent" | "price_asc" | "price_desc";
+  sort: "recent" | "price_asc" | "price_desc" | "area_desc";
 }
 
 const initialFilters: FilterState = {
   city: "",
+  neighborhood: "",
   state: "",
   propertyType: "",
   minPrice: "",
   maxPrice: "",
   bedrooms: "",
   bathrooms: "",
+  minArea: "",
+  maxArea: "",
+  sourcePortal: "",
   verifiedOnly: false,
   sort: "recent",
 };
@@ -182,12 +190,16 @@ function PropertySearchPage() {
 
   const buildInput = (source = filters): PropertySearchInput => ({
     city: source.city || undefined,
+    neighborhood: source.neighborhood || undefined,
     state: source.state || undefined,
     propertyType: source.propertyType || undefined,
     minPrice: source.minPrice ? Number(source.minPrice) : undefined,
     maxPrice: source.maxPrice ? Number(source.maxPrice) : undefined,
     bedrooms: source.bedrooms ? Number(source.bedrooms) : undefined,
     bathrooms: source.bathrooms ? Number(source.bathrooms) : undefined,
+    minArea: source.minArea ? Number(source.minArea) : undefined,
+    maxArea: source.maxArea ? Number(source.maxArea) : undefined,
+    sourcePortal: source.sourcePortal || undefined,
     verifiedOnly: source.verifiedOnly,
     sort: source.sort,
     limit: 36,
@@ -293,12 +305,16 @@ function PropertySearchPage() {
     const source = (criteria ?? {}) as Partial<PropertySearchInput>;
     const next: FilterState = {
       city: source.city ?? "",
+      neighborhood: source.neighborhood ?? "",
       state: source.state ?? "",
       propertyType: source.propertyType ?? "",
       minPrice: typeof source.minPrice === "number" ? String(source.minPrice) : "",
       maxPrice: typeof source.maxPrice === "number" ? String(source.maxPrice) : "",
       bedrooms: typeof source.bedrooms === "number" ? String(source.bedrooms) : "",
       bathrooms: typeof source.bathrooms === "number" ? String(source.bathrooms) : "",
+      minArea: typeof source.minArea === "number" ? String(source.minArea) : "",
+      maxArea: typeof source.maxArea === "number" ? String(source.maxArea) : "",
+      sourcePortal: source.sourcePortal ?? "",
       verifiedOnly: Boolean(source.verifiedOnly),
       sort: source.sort ?? "recent",
     };
@@ -508,7 +524,7 @@ function PropertySearchPage() {
             </div>
 
             <div className="mt-9 rounded-[28px] border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl sm:p-5">
-              <div className="grid gap-3 lg:grid-cols-[1.55fr_.7fr_.8fr_.8fr_auto]">
+              <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_.65fr_.8fr_.8fr_auto]">
                 <SearchField label="Cidade" icon={<MapPin className="h-4 w-4" />}>
                   <input
                     value={filters.city}
@@ -516,6 +532,17 @@ function PropertySearchPage() {
                       setFilters((current) => ({ ...current, city: event.target.value }))
                     }
                     placeholder="Ex.: Joinville"
+                    className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                </SearchField>
+
+                <SearchField label="Bairro">
+                  <input
+                    value={filters.neighborhood}
+                    onChange={(event) =>
+                      setFilters((current) => ({ ...current, neighborhood: event.target.value }))
+                    }
+                    placeholder="Ex.: Centro"
                     className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
                   />
                 </SearchField>
@@ -580,7 +607,7 @@ function PropertySearchPage() {
                 </Button>
               </div>
 
-              <div className="mt-3 grid gap-3 border-t border-white/10 pt-3 sm:grid-cols-2 lg:grid-cols-6">
+              <div className="mt-3 grid gap-3 border-t border-white/10 pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-9">
                 <MiniField
                   label="Preço mínimo"
                   value={filters.minPrice}
@@ -599,6 +626,26 @@ function PropertySearchPage() {
                   options={["1", "2", "3", "4"]}
                   onChange={(value) => setFilters((current) => ({ ...current, bathrooms: value }))}
                 />
+                <MiniField
+                  label="Área mínima"
+                  value={filters.minArea}
+                  type="number"
+                  onChange={(value) => setFilters((current) => ({ ...current, minArea: value }))}
+                />
+                <MiniField
+                  label="Área máxima"
+                  value={filters.maxArea}
+                  type="number"
+                  onChange={(value) => setFilters((current) => ({ ...current, maxArea: value }))}
+                />
+                <MiniSelect
+                  label="Fonte"
+                  value={filters.sourcePortal}
+                  options={[["Imóveis CAIXA", "Imóveis CAIXA"]]}
+                  onChange={(value) =>
+                    setFilters((current) => ({ ...current, sourcePortal: value }))
+                  }
+                />
                 <MiniSelect
                   label="Ordenar"
                   value={filters.sort}
@@ -606,6 +653,7 @@ function PropertySearchPage() {
                     ["recent", "Mais recentes"],
                     ["price_asc", "Menor preço"],
                     ["price_desc", "Maior preço"],
+                    ["area_desc", "Maior área"],
                   ]}
                   onChange={(value) =>
                     setFilters((current) => ({ ...current, sort: value as FilterState["sort"] }))
@@ -622,6 +670,15 @@ function PropertySearchPage() {
                   />
                   Verificados
                 </label>
+                <button
+                  onClick={() => {
+                    setFilters(initialFilters);
+                    void runSearch(initialFilters);
+                  }}
+                  className="flex min-h-12 items-center justify-center rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
+                >
+                  Limpar filtros
+                </button>
                 <button
                   onClick={() => void handleSaveSearch()}
                   className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.05]"
