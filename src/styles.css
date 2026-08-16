@@ -4,20 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -140,5 +126,112 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    transition: background-color 160ms ease, color 160ms ease;
   }
+}
+
+/* The original product was designed in dark mode with several literal Tailwind
+ * colors. These overrides make the existing authenticated workspace genuinely
+ * usable in light mode without changing the visual hierarchy of every screen. */
+html.light-mode body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+html.light-mode [class~="bg-[#06101c]"] {
+  background-color: #f8fafc !important;
+}
+
+html.light-mode [class~="bg-[#07111f]"],
+html.light-mode [class~="bg-[#07111f]/95"],
+html.light-mode [class~="bg-[#0b1727]"],
+html.light-mode [class~="bg-[#102238]"] {
+  background-color: #ffffff !important;
+}
+
+html.light-mode [class~="bg-black/10"],
+html.light-mode [class~="bg-black/15"],
+html.light-mode [class~="bg-black/20"],
+html.light-mode [class~="bg-black/30"],
+html.light-mode [class~="bg-white/[0.035]"],
+html.light-mode [class~="bg-white/[0.04]"],
+html.light-mode [class~="bg-white/[0.045]"],
+html.light-mode [class~="bg-white/[0.05]"],
+html.light-mode [class~="bg-white/[0.06]"] {
+  background-color: #ffffff !important;
+}
+
+html.light-mode [class~="border-white/10"],
+html.light-mode [class~="border-white/15"],
+html.light-mode [class~="border-white/20"] {
+  border-color: #dbe4ee !important;
+}
+
+html.light-mode [class~="ring-white/10"],
+html.light-mode [class~="ring-white/15"] {
+  --tw-ring-color: #dbe4ee !important;
+}
+
+html.light-mode [class~="text-white"],
+html.light-mode [class~="text-slate-100"],
+html.light-mode [class~="text-slate-200"],
+html.light-mode [class~="text-slate-300"] {
+  color: #0f172a !important;
+}
+
+html.light-mode [class~="text-slate-400"] {
+  color: #475569 !important;
+}
+
+html.light-mode [class~="text-slate-500"] {
+  color: #64748b !important;
+}
+
+html.light-mode [class~="text-slate-600"] {
+  color: #64748b !important;
+}
+
+html.light-mode [class~="text-cyan-100"],
+html.light-mode [class~="text-cyan-200"],
+html.light-mode [class~="text-cyan-300"] {
+  color: #0e7490 !important;
+}
+
+html.light-mode [class~="text-emerald-100"],
+html.light-mode [class~="text-emerald-200"] {
+  color: #047857 !important;
+}
+
+html.light-mode [class~="text-amber-100"] {
+  color: #92400e !important;
+}
+
+html.light-mode [class~="text-rose-200"] {
+  color: #be123c !important;
+}
+
+html.light-mode [class~="hover:bg-white/5"]:hover,
+html.light-mode [class~="hover:bg-white/[0.045]"]:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html.light-mode [class~="hover:text-white"]:hover {
+  color: #0f172a !important;
+}
+
+html.light-mode .theme-toggle-panel,
+html.light-mode .theme-toggle-button {
+  background-color: #f8fafc !important;
+  border-color: #dbe4ee !important;
+}
+
+html.light-mode input,
+html.light-mode select,
+html.light-mode textarea {
+  color: #0f172a;
+}
+
+html.light-mode option {
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
