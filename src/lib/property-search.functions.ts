@@ -59,45 +59,32 @@ export interface PropertySearchItem {
   updated_at: string | null;
 }
 
-const CAIXA_STATES = [
-  "AC",
-  "AL",
-  "AM",
-  "AP",
-  "BA",
-  "CE",
-  "DF",
-  "ES",
-  "GO",
-  "MA",
-  "MG",
-  "MS",
-  "MT",
-  "PA",
-  "PB",
-  "PE",
-  "PI",
-  "PR",
-  "RJ",
-  "RN",
-  "RO",
-  "RR",
-  "RS",
-  "SC",
-  "SE",
-  "SP",
-  "TO",
-] as const;
-
-const CAIXA_CACHE_TTL_MS = 15 * 60 * 1000;
-const caixaCache = new Map<string, { expiresAt: number; items: PropertySearchItem[] }>();
-
 function keyFor(item: PropertySearchItem): string {
   if (item.source_url) return item.source_url.trim().toLowerCase();
   return [item.title, item.location_address, item.location_city, item.location_state, item.price]
     .filter(Boolean)
     .join("|")
     .toLowerCase();
+}
+
+function normalizeSearchText(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function safePostgrestTerm(value: string): string {
+  return value.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function textVariants(value: string): string[] {
+  const original = safePostgrestTerm(value);
+  const normalized = safePostgrestTerm(
+    value.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+  );
+  return Array.from(new Set([original, normalized].filter(Boolean)));
 }
 
 function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"]) {
@@ -119,83 +106,6 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
   });
 }
 
-function parseSemicolonLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = "";
-  let quoted = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    if (character === '"') {
-      if (quoted && line[index + 1] === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-      continue;
-    }
-
-    if (character === ";" && !quoted) {
-      fields.push(current.trim());
-      current = "";
-      continue;
-    }
-
-    current += character;
-  }
-
-  fields.push(current.trim());
-  return fields;
-}
-
-function parseLocalizedNumber(value: string | undefined): number | null {
-  if (!value) return null;
-  const clean = value.replace(/[^0-9,.-]/g, "").trim();
-  if (!clean) return null;
-
-  let normalized = clean;
-  if (clean.includes(",") && clean.includes(".")) {
-    normalized = clean.replace(/\./g, "").replace(",", ".");
-  } else if (clean.includes(",")) {
-    normalized = clean.replace(",", ".");
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function parseCaixaGenerationDate(header: string): string | null {
-  const match = header.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if (!match) return null;
-  const [, day, month, year] = match;
-  return new Date(`${year}-${month}-${day}T12:00:00-03:00`).toISOString();
-}
-
-function extractNumber(description: string, expression: RegExp): number | null {
-  const match = description.match(expression);
-  return match?.[1] ? parseLocalizedNumber(match[1]) : null;
-}
-
-function extractArea(description: string): number | null {
-  const privateArea = extractNumber(description, /([\d.,]+)\s+de área privativa/i);
-  if (privateArea && privateArea > 0) return privateArea;
-
-  const totalArea = extractNumber(description, /([\d.,]+)\s+de área total/i);
-  if (totalArea && totalArea > 0) return totalArea;
-
-  const landArea = extractNumber(description, /([\d.,]+)\s+de área do terreno/i);
-  return landArea && landArea > 0 ? landArea : null;
-}
-
-function normalizeSearchText(value: string | null | undefined): string {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
 function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): boolean {
   if (input.city) {
     const city = normalizeSearchText(input.city);
@@ -204,7 +114,6 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     );
     if (!haystack.includes(city)) return false;
   }
-
   if (input.neighborhood) {
     const neighborhood = normalizeSearchText(input.neighborhood);
     const haystack = normalizeSearchText(
@@ -212,168 +121,28 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     );
     if (!haystack.includes(neighborhood)) return false;
   }
-
-  if (
-    input.state &&
-    normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)
-  ) {
+  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state)) {
     return false;
   }
-
   if (input.propertyType) {
-    const expectedType = normalizeSearchText(input.propertyType);
-    const actualType = normalizeSearchText(item.property_type);
-    if (!actualType.includes(expectedType) && !expectedType.includes(actualType)) return false;
+    const expected = normalizeSearchText(input.propertyType);
+    const actual = normalizeSearchText(item.property_type);
+    if (!actual.includes(expected) && !expected.includes(actual)) return false;
   }
-
-  if (typeof input.minPrice === "number" && (item.price == null || item.price < input.minPrice)) {
-    return false;
-  }
-  if (typeof input.maxPrice === "number" && (item.price == null || item.price > input.maxPrice)) {
-    return false;
-  }
-  if (
-    typeof input.bedrooms === "number" &&
-    input.bedrooms > 0 &&
-    (item.bedrooms == null || item.bedrooms < input.bedrooms)
-  ) {
-    return false;
-  }
-  if (
-    typeof input.bathrooms === "number" &&
-    input.bathrooms > 0 &&
-    (item.bathrooms == null || item.bathrooms < input.bathrooms)
-  ) {
-    return false;
-  }
-  if (
-    typeof input.minArea === "number" &&
-    (item.area_sqm == null || item.area_sqm < input.minArea)
-  ) {
-    return false;
-  }
-  if (
-    typeof input.maxArea === "number" &&
-    (item.area_sqm == null || item.area_sqm > input.maxArea)
-  ) {
-    return false;
-  }
-  if (input.sourcePortal) {
-    const source = normalizeSearchText(input.sourcePortal);
-    if (!normalizeSearchText(item.source_portal).includes(source)) return false;
-  }
+  if (typeof input.minPrice === "number" && (item.price == null || item.price < input.minPrice)) return false;
+  if (typeof input.maxPrice === "number" && (item.price == null || item.price > input.maxPrice)) return false;
+  if (typeof input.bedrooms === "number" && input.bedrooms > 0 && (item.bedrooms == null || item.bedrooms < input.bedrooms)) return false;
+  if (typeof input.bathrooms === "number" && input.bathrooms > 0 && (item.bathrooms == null || item.bathrooms < input.bathrooms)) return false;
+  if (typeof input.minArea === "number" && (item.area_sqm == null || item.area_sqm < input.minArea)) return false;
+  if (typeof input.maxArea === "number" && (item.area_sqm == null || item.area_sqm > input.maxArea)) return false;
+  if (input.sourcePortal && !normalizeSearchText(item.source_portal).includes(normalizeSearchText(input.sourcePortal))) return false;
   if (input.verifiedOnly && !item.is_verified) return false;
-
   return true;
 }
 
-async function fetchCaixaState(state: string): Promise<PropertySearchItem[]> {
-  const cached = caixaCache.get(state);
-  if (cached && cached.expiresAt > Date.now()) return cached.items;
-
-  const url = `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${state}.csv`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "text/csv,text/plain;q=0.9,*/*;q=0.5",
-        "User-Agent": "MercadoImobi/1.0 (+property-search)",
-      },
-      signal: AbortSignal.timeout(9000),
-    });
-    if (!response.ok) return [];
-
-    const buffer = await response.arrayBuffer();
-    const text = new TextDecoder("windows-1252").decode(buffer);
-    const lines = text.split(/\r?\n/).filter((line) => line.trim().replace(/;/g, ""));
-    if (lines.length < 3) return [];
-
-    const generatedAt = parseCaixaGenerationDate(lines[0] ?? "");
-    const items: PropertySearchItem[] = [];
-
-    for (const line of lines.slice(2)) {
-      const fields = parseSemicolonLine(line);
-      if (fields.length < 12) continue;
-
-      const [
-        rawId,
-        rawState,
-        city,
-        neighborhood,
-        address,
-        rawPrice,
-        _evaluationValue,
-        _discount,
-        financing,
-        description,
-        saleMode,
-        sourceUrl,
-      ] = fields;
-
-      const id = rawId?.trim();
-      const source = sourceUrl?.trim();
-      if (!id || !source?.startsWith("https://venda-imoveis.caixa.gov.br/")) continue;
-
-      const propertyType = description?.split(",")[0]?.trim() || null;
-      const bedroomsValue = description ? extractNumber(description, /(\d+)\s*qto\(s\)/i) : null;
-      const bathroomsValue = description
-        ? extractNumber(description, /(\d+)\s*(?:banheiro|wc)\(s\)?/i)
-        : null;
-      const area = description ? extractArea(description) : null;
-      const details = [
-        description?.trim(),
-        saleMode ? `Modalidade: ${saleMode.trim()}` : null,
-        financing ? `Financiamento: ${financing.trim()}` : null,
-      ]
-        .filter(Boolean)
-        .join(" • ");
-
-      items.push({
-        id: `caixa-${id}`,
-        title: `${propertyType ?? "Imóvel"} em ${city?.trim() || rawState?.trim() || "Brasil"}${neighborhood?.trim() ? ` — ${neighborhood.trim()}` : ""}`,
-        description: details || null,
-        price: parseLocalizedNumber(rawPrice),
-        location_address: address?.trim() || null,
-        location_city: city?.trim() || null,
-        location_state: rawState?.trim() || state,
-        property_type: propertyType,
-        bedrooms: bedroomsValue == null ? null : Math.trunc(bedroomsValue),
-        bathrooms: bathroomsValue == null ? null : Math.trunc(bathroomsValue),
-        area_sqm: area,
-        images: null,
-        is_verified: true,
-        source_portal: "Imóveis CAIXA",
-        source_url: source,
-        updated_at: generatedAt,
-      });
-    }
-
-    caixaCache.set(state, {
-      expiresAt: Date.now() + CAIXA_CACHE_TTL_MS,
-      items,
-    });
-    return items;
-  } catch {
-    return [];
-  }
-}
-
-async function fetchCaixaLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
-  const requestedState = input.state?.trim().toUpperCase();
-  if (!requestedState || !CAIXA_STATES.includes(requestedState as (typeof CAIXA_STATES)[number])) {
-    return [];
-  }
-
-  const items = await fetchCaixaState(requestedState);
-  return items.filter((item) => matchesSearch(item, input));
-}
-
-async function fetchConfiguredLiveSource(
-  input: PropertySearchInput,
-): Promise<PropertySearchItem[]> {
+async function fetchConfiguredLiveSource(input: PropertySearchInput): Promise<PropertySearchItem[]> {
   const url = process.env["PROPERTY_SEARCH_LIVE_URL"];
   if (!url) return [];
-
   const token = process.env["PROPERTY_SEARCH_LIVE_TOKEN"];
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -383,33 +152,34 @@ async function fetchConfiguredLiveSource(
       method: "POST",
       headers,
       body: JSON.stringify(input),
-      signal: AbortSignal.timeout(9000),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) return [];
-
     const json = await response.json();
     const candidates = Array.isArray(json) ? json : Array.isArray(json?.items) ? json.items : [];
     const parsed = z.array(liveListingSchema).safeParse(candidates);
     if (!parsed.success) return [];
 
-    return parsed.data.map((item, index) => ({
-      id: item.id ?? `live-${index}-${item.source_url}`,
-      title: item.title,
-      description: item.description ?? null,
-      price: item.price ?? null,
-      location_address: item.location_address ?? null,
-      location_city: item.location_city ?? null,
-      location_state: item.location_state ?? null,
-      property_type: item.property_type ?? null,
-      bedrooms: item.bedrooms ?? null,
-      bathrooms: item.bathrooms ?? null,
-      area_sqm: item.area_sqm ?? null,
-      images: item.images ?? null,
-      is_verified: item.is_verified ?? null,
-      source_portal: item.source_portal ?? null,
-      source_url: item.source_url,
-      updated_at: item.updated_at ?? null,
-    }));
+    return parsed.data
+      .map((item, index): PropertySearchItem => ({
+        id: item.id ?? `live-${index}-${item.source_url}`,
+        title: item.title,
+        description: item.description ?? null,
+        price: item.price ?? null,
+        location_address: item.location_address ?? null,
+        location_city: item.location_city ?? null,
+        location_state: item.location_state ?? null,
+        property_type: item.property_type ?? null,
+        bedrooms: item.bedrooms ?? null,
+        bathrooms: item.bathrooms ?? null,
+        area_sqm: item.area_sqm ?? null,
+        images: item.images ?? null,
+        is_verified: item.is_verified ?? null,
+        source_portal: item.source_portal ?? null,
+        source_url: item.source_url,
+        updated_at: item.updated_at ?? null,
+      }))
+      .filter((item) => matchesSearch(item, input));
   } catch {
     return [];
   }
@@ -432,8 +202,32 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       );
 
     if (input.city) {
-      indexQuery = indexQuery.ilike("location_city", `%${input.city}%`);
-      propertyQuery = propertyQuery.ilike("location_city", `%${input.city}%`);
+      const variants = textVariants(input.city);
+      const expression = variants
+        .flatMap((term) => [
+          `location_city.ilike.%${term}%`,
+          `location_address.ilike.%${term}%`,
+          `title.ilike.%${term}%`,
+        ])
+        .join(",");
+      if (expression) {
+        indexQuery = indexQuery.or(expression);
+        propertyQuery = propertyQuery.or(expression);
+      }
+    }
+    if (input.neighborhood) {
+      const variants = textVariants(input.neighborhood);
+      const expression = variants
+        .flatMap((term) => [
+          `title.ilike.%${term}%`,
+          `description.ilike.%${term}%`,
+          `location_address.ilike.%${term}%`,
+        ])
+        .join(",");
+      if (expression) {
+        indexQuery = indexQuery.or(expression);
+        propertyQuery = propertyQuery.or(expression);
+      }
     }
     if (input.state) {
       const state = input.state.toUpperCase();
@@ -441,20 +235,12 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       propertyQuery = propertyQuery.eq("location_state", state);
     }
     if (input.propertyType) {
-      indexQuery = indexQuery.eq("property_type", input.propertyType);
-      propertyQuery = propertyQuery.eq("property_type", input.propertyType);
-    }
-    if (input.neighborhood) {
-      const neighborhood = input.neighborhood.replace(/[(),]/g, " ").trim();
-      if (neighborhood) {
-        const expression = `title.ilike.%${neighborhood}%,description.ilike.%${neighborhood}%,location_address.ilike.%${neighborhood}%`;
-        indexQuery = indexQuery.or(expression);
-        propertyQuery = propertyQuery.or(expression);
-      }
+      indexQuery = indexQuery.ilike("property_type", `%${safePostgrestTerm(input.propertyType)}%`);
+      propertyQuery = propertyQuery.ilike("property_type", `%${safePostgrestTerm(input.propertyType)}%`);
     }
     if (input.sourcePortal) {
-      indexQuery = indexQuery.ilike("source_portal", `%${input.sourcePortal}%`);
-      propertyQuery = propertyQuery.ilike("source_portal", `%${input.sourcePortal}%`);
+      indexQuery = indexQuery.ilike("source_portal", `%${safePostgrestTerm(input.sourcePortal)}%`);
+      propertyQuery = propertyQuery.ilike("source_portal", `%${safePostgrestTerm(input.sourcePortal)}%`);
     }
     if (typeof input.minPrice === "number") {
       indexQuery = indexQuery.gte("price", input.minPrice);
@@ -486,11 +272,11 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
 
     if (input.sort === "price_asc") {
-      indexQuery = indexQuery.order("price", { ascending: true });
-      propertyQuery = propertyQuery.order("price", { ascending: true });
+      indexQuery = indexQuery.order("price", { ascending: true, nullsFirst: false });
+      propertyQuery = propertyQuery.order("price", { ascending: true, nullsFirst: false });
     } else if (input.sort === "price_desc") {
-      indexQuery = indexQuery.order("price", { ascending: false });
-      propertyQuery = propertyQuery.order("price", { ascending: false });
+      indexQuery = indexQuery.order("price", { ascending: false, nullsFirst: false });
+      propertyQuery = propertyQuery.order("price", { ascending: false, nullsFirst: false });
     } else if (input.sort === "area_desc") {
       indexQuery = indexQuery.order("area_sqm", { ascending: false, nullsFirst: false });
       propertyQuery = propertyQuery.order("area_sqm", { ascending: false, nullsFirst: false });
@@ -500,15 +286,19 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     }
 
     const limit = input.limit ?? 30;
-    indexQuery = indexQuery.limit(limit);
-    propertyQuery = propertyQuery.limit(limit);
+    const fetchLimit = Math.min(60, Math.max(limit, limit * 2));
+    indexQuery = indexQuery.limit(fetchLimit);
+    propertyQuery = propertyQuery.limit(fetchLimit);
 
-    const [indexResult, propertyResult, configuredLiveItems, caixaItems] = await Promise.all([
+    const [indexResult, propertyResult, configuredLiveItems] = await Promise.all([
       indexQuery,
       propertyQuery,
       fetchConfiguredLiveSource(input),
-      fetchCaixaLiveSource(input),
     ]);
+
+    if (indexResult.error && propertyResult.error && configuredLiveItems.length === 0) {
+      throw new Error("SEARCH_UNAVAILABLE");
+    }
 
     const indexed: PropertySearchItem[] = (indexResult.data ?? []).map((item) => ({
       id: item.id,
@@ -534,17 +324,9 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       updated_at: item.updated_at,
     }));
 
-    if (
-      indexResult.error &&
-      propertyResult.error &&
-      configuredLiveItems.length === 0 &&
-      caixaItems.length === 0
-    ) {
-      throw new Error("SEARCH_UNAVAILABLE");
-    }
-
     const deduped = new Map<string, PropertySearchItem>();
-    for (const item of [...configuredLiveItems, ...caixaItems, ...indexed, ...saved]) {
+    for (const item of [...configuredLiveItems, ...indexed, ...saved]) {
+      if (!matchesSearch(item, input)) continue;
       const key = keyFor(item);
       if (!key || deduped.has(key)) continue;
       deduped.set(key, item);
@@ -589,7 +371,7 @@ export const listSavedPropertySearches = createServerFn({ method: "GET" })
       .select("id,name,criteria,created_at")
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
-      .limit(12);
+      .limit(50);
     if (error) throw new Error(error.message);
     return data ?? [];
   });
