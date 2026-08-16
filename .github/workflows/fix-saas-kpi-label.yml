@@ -1,0 +1,37 @@
+name: Fix SaaS KPI label
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-saas-kpi-label.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Correct KPI wording
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("src/components/property/PropertyWorkspace.tsx")
+          text = path.read_text(encoding="utf-8")
+          old = 'label="Novos anúncios" value={formatInteger(stats?.new_last_24h)} helper="Últimas 24 horas"'
+          new = 'label="Atualizados 24h" value={formatInteger(stats?.new_last_24h)} helper="Imóveis sincronizados"'
+          if old not in text:
+              raise SystemExit("KPI target not found")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+      - name: Commit correction
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/property/PropertyWorkspace.tsx
+          git commit -m "Use accurate dashboard synchronization KPI"
+          git push origin HEAD:main
