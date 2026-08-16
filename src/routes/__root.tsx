@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
+import mercadoImobiCss from "../mercadoimobi.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const themeBootScript = `
@@ -94,25 +95,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MercadoImobi | Casa Conectada" },
+      { title: "MercadoImobi | Plataforma Imobiliária" },
       {
         name: "description",
-        content: "Plataforma imobiliária com busca, atendimento, segurança por conta e conexões de imóveis.",
+        content: "Plataforma imobiliária para buscar imóveis reais, acompanhar oportunidades, alertas e atendimento.",
       },
       { name: "author", content: "MercadoImobi" },
-      { property: "og:title", content: "MercadoImobi | Casa Conectada" },
+      { property: "og:title", content: "MercadoImobi | Plataforma Imobiliária" },
       {
         property: "og:description",
-        content: "Plataforma imobiliária com busca, atendimento e conexões de imóveis.",
+        content: "Busca de imóveis reais, oportunidades, alertas e atendimento em uma única plataforma.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: mercadoImobiCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
