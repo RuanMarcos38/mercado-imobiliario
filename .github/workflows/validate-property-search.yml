@@ -104,3 +104,35 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git push --force-with-lease origin HEAD:refs/heads/production
+
+      - name: Diagnose deployed EasyPanel runtime
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          BASE_URL="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
+          rm -f /tmp/live-status.json
+          for attempt in $(seq 1 12); do
+            echo "Live diagnostic attempt $attempt/12"
+            if curl -fsS --connect-timeout 8 --max-time 15 "$BASE_URL/api/public/status" -o /tmp/live-status.json; then
+              cat /tmp/live-status.json
+              node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/live-status.json', 'utf8'));
+          console.log(`Production status: ${status.status ?? 'unknown'}`);
+          console.log(`Search: ${status.search ?? 'unknown'}`);
+          console.log(`Indexed properties: ${status.indexedProperties ?? 'unknown'}`);
+          console.log(`AI runtime: ${status.runtime?.ai ?? 'unknown'}`);
+          console.log(`WhatsApp runtime: ${status.runtime?.whatsapp ?? 'unknown'}`);
+          console.log(`WhatsApp webhook: ${status.runtime?.whatsappWebhook ?? 'unknown'}`);
+          console.log(`Property import: ${status.runtime?.propertyImport ?? 'unknown'}`);
+          if (status.runtime?.ai !== 'configured') console.log('::warning::IA ainda não confirmada no runtime publicado.');
+          if (status.runtime?.whatsapp !== 'configured') console.log('::warning::Evolution API ainda não confirmada no runtime publicado.');
+          NODE
+              exit 0
+            fi
+            sleep 12
+          done
+          echo "::warning::O domínio de produção não respondeu ao diagnóstico após a promoção. Verifique DNS, serviço EasyPanel, branch production e domínio/SSL."
+          exit 1
