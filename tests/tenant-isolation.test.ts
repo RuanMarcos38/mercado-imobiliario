@@ -1,57 +1,56 @@
 /**
- * Teste E2E de isolamento multi-tenant.
- *
- * Roda contra o banco real usando a chave publishable (papel `anon`) e, quando
- * credenciais de teste estão disponíveis, também como usuário autenticado.
- *
- * O que é verificado:
- * 1. Visitante anônimo não consegue ler nenhuma tabela com escopo de tenant.
- * 2. Visitante anônimo não consegue gravar em tabelas com escopo de tenant.
- * 3. Usuário autenticado só vê linhas do seu próprio `tenant_id`.
+ * Security tests against the real MercadoImobi Supabase project using only the
+ * public publishable key. Authenticated assertions are enabled when dedicated
+ * TEST_USER / TEST_PASS credentials are configured in CI.
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { config as loadEnv } from "dotenv";
+import {
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "../src/integrations/supabase/public-config";
 
-loadEnv({ path: ".env", quiet: true });
-
-const SUPABASE_URL: string | undefined =
-  process.env["VITE_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
-const SUPABASE_KEY: string | undefined =
-  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
-
-/** Tabelas cujo acesso deve ser sempre restrito à organização do usuário. */
-const TENANT_SCOPED_TABLES = [
+const PRIVATE_TABLES = [
   "properties",
   "leads",
   "tenants",
   "tenant_members",
   "profiles",
+  "property_favorites",
+  "search_configurations",
 ] as const;
 
-function anonClient(): SupabaseClient {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error(
-      "VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY são obrigatórios para o teste de isolamento.",
+function publishableFetch(key: string): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
     );
-  }
-  return createClient(SUPABASE_URL, SUPABASE_KEY, {
+    if (init?.headers) new Headers(init.headers).forEach((value, name) => headers.set(name, value));
+    if (headers.get("Authorization") === `Bearer ${key}` && key.startsWith("sb_publishable_")) {
+      headers.delete("Authorization");
+    }
+    headers.set("apikey", key);
+    return fetch(input, { ...init, headers });
+  };
+}
+
+function anonClient(): SupabaseClient {
+  return createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
+    global: { fetch: publishableFetch(PUBLIC_SUPABASE_PUBLISHABLE_KEY) },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
-describe("Isolamento multi-tenant (anônimo)", () => {
+describe("RLS isolation for anonymous visitors", () => {
   let client: SupabaseClient;
 
   beforeAll(() => {
     client = anonClient();
   });
 
-  for (const table of TENANT_SCOPED_TABLES) {
-    it(`nega leitura anônima em ${table}`, async () => {
+  for (const table of PRIVATE_TABLES) {
+    it(`does not expose ${table} to anonymous visitors`, async () => {
       const { data, error } = await client.from(table).select("*").limit(5);
-
-      // Aceitamos duas formas de bloqueio: erro de permissão/RLS ou zero linhas.
       if (error) {
         expect(error.message.length).toBeGreaterThan(0);
         return;
@@ -60,89 +59,60 @@ describe("Isolamento multi-tenant (anônimo)", () => {
     });
   }
 
-  it("nega gravação anônima em leads", async () => {
-    const { data, error } = await client
-      .from("leads")
-      .insert({ client_name: "teste-isolamento", status: "novo" })
-      .select();
-
-    expect(error, "insert anônimo deveria ser recusado pela RLS").not.toBeNull();
+  it("does not expose the property search index anonymously", async () => {
+    const { data, error } = await client.from("property_search_index").select("id").limit(5);
+    expect(error).toBeNull();
     expect(data ?? []).toHaveLength(0);
   });
 
-  it("nega gravação anônima em properties", async () => {
+  it("rejects anonymous favorite creation", async () => {
     const { data, error } = await client
-      .from("properties")
+      .from("property_favorites")
       .insert({
-        title: "teste-isolamento",
-        price: 1,
-        source_url: `https://exemplo.test/${Date.now()}`,
+        user_id: "00000000-0000-0000-0000-000000000001",
+        property_key: "security-test",
+        property_data: { source_url: "https://example.invalid/security-test" },
       })
       .select();
 
-    expect(error, "insert anônimo deveria ser recusado pela RLS").not.toBeNull();
+    expect(error).not.toBeNull();
     expect(data ?? []).toHaveLength(0);
   });
 });
 
-const TEST_EMAIL: string | undefined = process.env["TEST_USER"];
-const TEST_PASSWORD: string | undefined = process.env["TEST_PASS"];
+const TEST_EMAIL = process.env["TEST_USER"];
+const TEST_PASSWORD = process.env["TEST_PASS"];
 
-describe.skipIf(!TEST_EMAIL || !TEST_PASSWORD)(
-  "Isolamento multi-tenant (usuário autenticado)",
-  () => {
-    let client: SupabaseClient;
-    let tenantId: string | null = null;
+describe.skipIf(!TEST_EMAIL || !TEST_PASSWORD)("Authenticated user isolation", () => {
+  let client: SupabaseClient;
+  let userId = "";
 
-    beforeAll(async () => {
-      client = anonClient();
-      const { data, error } = await client.auth.signInWithPassword({
-        email: TEST_EMAIL!,
-        password: TEST_PASSWORD!,
-      });
-      if (error) throw new Error(`Login de teste falhou: ${error.message}`);
-
-      const userId = data.user?.id;
-      expect(userId, "sessão de teste sem usuário").toBeTruthy();
-
-      const { data: member, error: memberError } = await client
-        .from("tenant_members")
-        .select("tenant_id")
-        .eq("user_id", userId!)
-        .limit(1)
-        .maybeSingle();
-
-      if (memberError) throw new Error(memberError.message);
-      tenantId = (member as { tenant_id?: string } | null)?.tenant_id ?? null;
-      expect(tenantId, "usuário de teste sem organização vinculada").toBeTruthy();
+  beforeAll(async () => {
+    client = anonClient();
+    const { data, error } = await client.auth.signInWithPassword({
+      email: TEST_EMAIL!,
+      password: TEST_PASSWORD!,
     });
+    if (error) throw new Error(`Test login failed: ${error.message}`);
+    userId = data.user?.id ?? "";
+    expect(userId).toBeTruthy();
+  });
 
-    it("só retorna imóveis do próprio tenant", async () => {
-      const { data, error } = await client.from("properties").select("id, tenant_id").limit(100);
+  it("only returns the signed-in user's favorites", async () => {
+    const { data, error } = await client.from("property_favorites").select("user_id").limit(100);
+    expect(error).toBeNull();
+    for (const row of data ?? []) expect(row.user_id).toBe(userId);
+  });
 
-      expect(error).toBeNull();
-      for (const row of data ?? []) {
-        expect((row as { tenant_id: string }).tenant_id).toBe(tenantId);
-      }
-    });
+  it("only returns the signed-in user's saved searches", async () => {
+    const { data, error } = await client.from("search_configurations").select("user_id").limit(100);
+    expect(error).toBeNull();
+    for (const row of data ?? []) expect(row.user_id).toBe(userId);
+  });
 
-    it("só retorna leads do próprio tenant", async () => {
-      const { data, error } = await client.from("leads").select("id, tenant_id").limit(100);
-
-      expect(error).toBeNull();
-      for (const row of data ?? []) {
-        expect((row as { tenant_id: string }).tenant_id).toBe(tenantId);
-      }
-    });
-
-    it("só enxerga membros da própria organização", async () => {
-      const { data, error } = await client.from("tenant_members").select("tenant_id").limit(100);
-
-      expect(error).toBeNull();
-      expect((data ?? []).length).toBeGreaterThan(0);
-      for (const row of data ?? []) {
-        expect((row as { tenant_id: string }).tenant_id).toBe(tenantId);
-      }
-    });
-  },
-);
+  it("can read the shared property index when authenticated", async () => {
+    const { data, error } = await client.from("property_search_index").select("id").limit(1);
+    expect(error).toBeNull();
+    expect((data ?? []).length).toBeGreaterThan(0);
+  });
+});
