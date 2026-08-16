@@ -1,0 +1,85 @@
+name: MercadoImobi live production diagnostic
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check production DNS, HTTPS and backend status
+        id: live
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
+          echo "Testing $BASE_URL/api/public/status"
+          success=0
+          for attempt in $(seq 1 20); do
+            if curl -fsS --connect-timeout 10 --max-time 20 "$BASE_URL/api/public/status" -o /tmp/mercadoimobi-status.json; then
+              success=1
+              break
+            fi
+            echo "Attempt $attempt/20 failed; retrying in 15 seconds..."
+            sleep 15
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "Production domain/backend is not reachable."
+            exit 1
+          fi
+          cat /tmp/mercadoimobi-status.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/mercadoimobi-status.json', 'utf8'));
+          if (status.status !== 'operational') throw new Error(`status=${status.status}`);
+          if (status.search !== 'available') throw new Error(`search=${status.search}`);
+          if (!Number.isFinite(status.indexedProperties) || status.indexedProperties < 1000) {
+            throw new Error(`indexedProperties=${status.indexedProperties}`);
+          }
+          console.log(`AI runtime: ${status.runtime?.ai ?? 'unknown'}`);
+          console.log(`WhatsApp runtime: ${status.runtime?.whatsapp ?? 'unknown'}`);
+          console.log(`WhatsApp webhook: ${status.runtime?.whatsappWebhook ?? 'unknown'}`);
+          console.log(`Property import: ${status.runtime?.propertyImport ?? 'unknown'}`);
+          if (status.runtime?.ai !== 'configured') console.log('::warning::OPENAI_API_KEY is not configured in the deployed runtime.');
+          if (status.runtime?.whatsapp !== 'configured') console.log('::warning::Evolution API runtime variables are not fully configured in the deployed runtime.');
+          if (status.runtime?.whatsappWebhook !== 'protected') console.log('::warning::WHATSAPP_WEBHOOK_SECRET is not configured in the deployed runtime.');
+          NODE
+
+      - name: Live OpenAI chatbot call when GitHub secret is available
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5.6' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const response = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: process.env.OPENAI_MODEL || 'gpt-5.6',
+              instructions: 'Você está em um teste técnico do chatbot MercadoImobi. Responda somente: CHATBOT_OK',
+              input: 'Teste de saúde do atendimento.',
+              store: false,
+            }),
+          });
+          if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}: ${await response.text()}`);
+          const payload = await response.json();
+          const text = (payload.output ?? []).flatMap(x => x.content ?? []).filter(x => x.type === 'output_text').map(x => x.text ?? '').join('\n').trim();
+          console.log(`Model response: ${text}`);
+          if (!text.includes('CHATBOT_OK')) throw new Error('Unexpected chatbot test response');
+          NODE
+
+      - name: Note when OpenAI live secret is unavailable in Actions
+        if: ${{ secrets.OPENAI_API_KEY == '' }}
+        run: echo "::notice::GitHub Actions has no OPENAI_API_KEY secret, so the external OpenAI call was not executed here. Production runtime configuration is reported by /api/public/status."
