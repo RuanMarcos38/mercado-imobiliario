@@ -3,7 +3,7 @@ name: Snapshot CAIXA properties
 on:
   workflow_dispatch:
   schedule:
-    - cron: "30 9 * * *"
+    - cron: "15 * * * *"
   push:
     paths:
       - ".github/workflows/snapshot-caixa-properties.yml"
@@ -102,6 +102,7 @@ jobs:
               bedrooms = extract(r"(\d+)\s*qto\(s\)", description)
               bathrooms = extract(r"(\d+)\s*(?:banheiro|wc)\(s\)?", description)
               details = " • ".join(part for part in [description, f"Modalidade: {sale_mode}" if sale_mode else None, f"Financiamento: {financing}" if financing else None] if part)
+              image_url = f"https://venda-imoveis.caixa.gov.br/fotos/F{raw_id}21.jpg"
 
               items.append({
                   "title": f"{property_type or 'Imóvel'} em {city or raw_state or 'Brasil'}" + (f" — {neighborhood}" if neighborhood else ""),
@@ -114,6 +115,7 @@ jobs:
                   "bedrooms": int(bedrooms) if bedrooms is not None else None,
                   "bathrooms": int(bathrooms) if bathrooms is not None else None,
                   "area_sqm": area(description),
+                  "images": [image_url],
                   "source_url": source_url,
                   "source_portal": "Imóveis CAIXA",
                   "is_verified": True,
