@@ -3,7 +3,7 @@ import { useState } from "react";
 import {
   Bell,
   Bot,
-  Building2,
+  ChevronDown,
   Gavel,
   LayoutDashboard,
   LogOut,
@@ -13,6 +13,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  TrendingUp,
   UserRound,
   Workflow,
   X,
@@ -54,10 +55,27 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
+const primaryItems = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/buscar", label: "Buscar imóveis", icon: Search },
+  { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel },
+  { to: "/alertas", label: "Alertas", icon: Bell },
+] as const;
+
+const toolItems = [
+  { to: "/atendimento", label: "Atendimento", icon: MessageCircle },
+  { to: "/fluxos", label: "Fluxos", icon: Workflow },
+  { to: "/assistente", label: "Assistente IA", icon: Bot },
+  { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
+  { to: "/settings/security", label: "Minha conta", icon: UserRound },
+] as const;
+
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
 
   const signOut = async () => {
@@ -74,128 +92,247 @@ function AuthenticatedLayout() {
     });
   };
 
-  const items = [
-    { to: "/buscar", label: "Buscar imóveis", icon: Search },
-    { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel },
-    { to: "/alertas", label: "Alertas", icon: Bell },
-    { to: "/atendimento", label: "Atendimento", icon: MessageCircle },
-    { to: "/fluxos", label: "Fluxos", icon: Workflow },
-    { to: "/assistente", label: "Assistente IA", icon: Bot },
-    { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
-    { to: "/settings/security", label: "Minha conta", icon: UserRound },
-  ] as const;
-
-  const sidebar = (
-    <aside className="mi-sidebar flex h-full w-[224px] flex-col border-r">
-      <div className="flex h-[72px] items-center gap-3 border-b border-[var(--mi-border)] px-5">
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/20">
-          <Building2 className="h-5 w-5" />
-        </span>
-        <div className="leading-tight">
-          <div className="text-[17px] font-black tracking-tight text-[var(--mi-text)]">
-            Mercado<span className="text-blue-600">Imobi</span>
-          </div>
-          <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--mi-text-soft)]">
-            Plataforma imobiliária
-          </div>
-        </div>
-      </div>
-
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
-        <div className="mb-5">
-          <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Imóveis</p>
-          <SidebarStatic active={location.pathname === "/dashboard"} icon={LayoutDashboard} label="Dashboard" to="/dashboard" onClick={() => setMobileOpen(false)} />
-          {items.slice(0, 3).map((item) => (
-            <SidebarLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
-          ))}
-        </div>
-
-        <div className="mb-5">
-          <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Relacionamento</p>
-          {items.slice(3, 6).map((item) => (
-            <SidebarLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
-          ))}
-        </div>
-
-        <div>
-          <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Gestão</p>
-          {items.slice(6).map((item) => (
-            <SidebarLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
-          ))}
-          <Link to="/settings/security" onClick={() => setMobileOpen(false)} className="mi-sidebar-link">
-            <Settings className="h-4 w-4" /> Configurações
+  return (
+    <div className="mi-shell min-h-screen">
+      <nav className="mi-appbar sticky top-0 z-50 border-b">
+        <div className="mx-auto flex h-14 max-w-[1720px] items-center gap-3 px-3 sm:px-5 lg:px-6">
+          <Link to="/dashboard" className="mi-brand flex shrink-0 items-center gap-2.5" aria-label="MercadoImobi">
+            <span className="mi-brand-mark grid h-9 w-9 place-items-center">
+              <TrendingUp className="h-5 w-5" strokeWidth={2.5} />
+            </span>
+            <span className="hidden flex-col leading-none sm:flex">
+              <span className="text-[15px] font-black tracking-[-0.025em] text-[var(--mi-text)]">
+                MercadoImobi<span className="text-[var(--mi-accent)]">.</span>
+              </span>
+              <span className="mt-[3px] text-[8px] font-bold uppercase tracking-[0.22em] text-[var(--mi-text-soft)]">
+                Plataforma imobiliária
+              </span>
+            </span>
           </Link>
+
+          <span className="hidden h-4 w-px bg-[var(--mi-border)] lg:block" />
+
+          <div className="hidden items-center gap-1 lg:flex">
+            {primaryItems.map((item) => (
+              <TopNavLink key={item.to} item={item} pathname={location.pathname} />
+            ))}
+          </div>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              runGlobalSearch();
+            }}
+            className="mi-global-search ml-auto hidden h-9 min-w-0 max-w-[430px] flex-1 items-center gap-2 rounded-lg border px-3 xl:flex"
+          >
+            <Search className="h-3.5 w-3.5 shrink-0 text-[var(--mi-text-soft)]" />
+            <input
+              value={globalSearch}
+              onChange={(event) => setGlobalSearch(event.target.value)}
+              placeholder="Buscar cidade, bairro ou imóvel..."
+              className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]"
+            />
+            <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[8px] font-bold text-[var(--mi-text-soft)]">
+              Enter
+            </span>
+          </form>
+
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:ml-0">
+            <Link to="/atendimento" className="mi-icon-button hidden sm:grid" title="Atendimento">
+              <MessageCircle className="h-4 w-4" />
+            </Link>
+            <Link to="/alertas" className="mi-icon-button relative hidden sm:grid" title="Alertas">
+              <Bell className="h-4 w-4" />
+            </Link>
+            <ThemeToggle compact />
+
+            <div className="relative hidden lg:block">
+              <button
+                onClick={() => {
+                  setToolsOpen((value) => !value);
+                  setAccountOpen(false);
+                }}
+                className={`mi-toolbar-button ${toolsOpen ? "mi-toolbar-button-active" : ""}`}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span className="hidden 2xl:inline">Ferramentas</span>
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {toolsOpen && (
+                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border p-1.5 shadow-xl">
+                  {toolItems.slice(0, 4).map((item) => (
+                    <PopoverLink key={item.to} item={item} pathname={location.pathname} onClick={() => setToolsOpen(false)} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative hidden sm:block">
+              <button
+                onClick={() => {
+                  setAccountOpen((value) => !value);
+                  setToolsOpen(false);
+                }}
+                className="mi-account-button flex h-9 items-center gap-2 rounded-lg px-2 transition"
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--mi-text)] text-[9px] font-black text-[var(--mi-bg)]">
+                  MI
+                </span>
+                <span className="hidden text-left 2xl:block">
+                  <span className="block text-[10px] font-black text-[var(--mi-text)]">Minha conta</span>
+                  <span className="block text-[8px] text-[var(--mi-text-soft)]">MercadoImobi</span>
+                </span>
+                <ChevronDown className="hidden h-3 w-3 text-[var(--mi-text-soft)] 2xl:block" />
+              </button>
+              {accountOpen && (
+                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border p-1.5 shadow-xl">
+                  <PopoverLink
+                    item={{ to: "/settings/security", label: "Minha conta", icon: UserRound }}
+                    pathname={location.pathname}
+                    onClick={() => setAccountOpen(false)}
+                  />
+                  <Link
+                    to="/settings/security"
+                    onClick={() => setAccountOpen(false)}
+                    className="mi-popover-link"
+                  >
+                    <Settings className="h-4 w-4" /> Configurações
+                  </Link>
+                  <div className="my-1 h-px bg-[var(--mi-border)]" />
+                  <button onClick={() => void signOut()} className="mi-popover-link w-full text-rose-600">
+                    <LogOut className="h-4 w-4" /> Sair
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setMobileOpen(true)} className="mi-icon-button lg:hidden" aria-label="Abrir menu">
+              <Menu className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </nav>
 
-      <div className="border-t border-[var(--mi-border)] p-3">
-        <div className="mi-plan-card mb-3 rounded-2xl border p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-black text-[var(--mi-text)]">MercadoImobi</p>
-              <p className="mt-1 text-[10px] leading-4 text-[var(--mi-text-muted)]">Busca, alertas e atendimento em um único ambiente.</p>
-            </div>
-            <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
-          </div>
-        </div>
-        <div className="mb-2 px-1 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">Aparência</div>
-        <ThemeToggle />
-        <button onClick={() => void signOut()} className="mt-2 flex h-10 w-full items-center gap-3 rounded-xl px-3 text-xs font-semibold text-[var(--mi-text-muted)] transition hover:bg-rose-500/10 hover:text-rose-600">
-          <LogOut className="h-4 w-4" /> Sair
-        </button>
-      </div>
-    </aside>
-  );
-
-  return (
-    <div className="mi-shell min-h-screen">
-      <div className="fixed inset-y-0 left-0 z-50 hidden lg:block">{sidebar}</div>
-
-      <header className="mi-topbar sticky top-0 z-40 hidden h-[64px] items-center justify-between gap-5 border-b px-6 lg:ml-[224px] lg:flex">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            runGlobalSearch();
-          }}
-          className="mi-global-search flex h-10 w-full max-w-2xl items-center gap-2 rounded-xl border px-3"
-        >
-          <Search className="h-4 w-4 text-[var(--mi-text-soft)]" />
-          <input value={globalSearch} onChange={(event) => setGlobalSearch(event.target.value)} placeholder="Buscar imóveis, cidades, bairros ou referências..." className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]" />
-          <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--mi-text-soft)]">Enter</span>
-        </form>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <ThemeToggle compact />
-          <Link to="/alertas" className="mi-icon-button relative" title="Alertas"><Bell className="h-4 w-4" /></Link>
-          <Link to="/settings/security" className="flex h-10 items-center gap-2 rounded-xl px-2.5 transition hover:bg-[var(--mi-hover)]">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-xs font-black text-white">MI</span>
-            <span className="hidden text-left xl:block"><span className="block text-[11px] font-black text-[var(--mi-text)]">Minha conta</span><span className="block text-[9px] text-[var(--mi-text-muted)]">MercadoImobi</span></span>
-          </Link>
-        </div>
-      </header>
-
-      <div className="mi-topbar sticky top-0 z-40 flex h-14 items-center justify-between border-b px-4 lg:hidden">
-        <div className="flex items-center gap-2 font-black text-[var(--mi-text)]"><Building2 className="h-5 w-5 text-blue-600" /> Mercado<span className="-ml-2 text-blue-600">Imobi</span></div>
-        <div className="flex items-center gap-2"><ThemeToggle compact /><button onClick={() => setMobileOpen(true)} className="mi-icon-button"><Menu className="h-4 w-4" /></button></div>
-      </div>
-
       {mobileOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)}>
-          <div className="h-full w-[260px] max-w-[88vw]" onClick={(event) => event.stopPropagation()}><div className="relative h-full">{sidebar}<button onClick={() => setMobileOpen(false)} className="mi-icon-button absolute right-3 top-3"><X className="h-4 w-4" /></button></div></div>
+        <div className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)}>
+          <div
+            className="mi-mobile-menu ml-auto flex h-full w-[310px] max-w-[88vw] flex-col border-l p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--mi-border)] pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="mi-brand-mark grid h-9 w-9 place-items-center">
+                  <TrendingUp className="h-5 w-5" strokeWidth={2.5} />
+                </span>
+                <div>
+                  <p className="text-sm font-black tracking-tight">MercadoImobi<span className="text-[var(--mi-accent)]">.</span></p>
+                  <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Plataforma imobiliária</p>
+                </div>
+              </div>
+              <button onClick={() => setMobileOpen(false)} className="mi-icon-button">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                runGlobalSearch();
+                setMobileOpen(false);
+              }}
+              className="mi-global-search mt-4 flex h-10 items-center gap-2 rounded-lg border px-3"
+            >
+              <Search className="h-4 w-4 text-[var(--mi-text-soft)]" />
+              <input
+                value={globalSearch}
+                onChange={(event) => setGlobalSearch(event.target.value)}
+                placeholder="Buscar imóveis..."
+                className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+              />
+            </form>
+
+            <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+              <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Navegação</p>
+              {[...primaryItems, ...toolItems].map((item) => (
+                <MobileNavLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+              ))}
+              <Link to="/settings/security" onClick={() => setMobileOpen(false)} className="mi-mobile-link">
+                <Settings className="h-4 w-4" /> Configurações
+              </Link>
+            </div>
+
+            <div className="border-t border-[var(--mi-border)] pt-4">
+              <ThemeToggle />
+              <button onClick={() => void signOut()} className="mi-mobile-link mt-2 w-full text-rose-600">
+                <LogOut className="h-4 w-4" /> Sair
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="min-h-[calc(100vh-64px)] lg:ml-[224px]"><Outlet /></div>
+      <main className="mi-app-content min-h-[calc(100vh-56px)]">
+        <Outlet />
+      </main>
     </div>
   );
 }
 
-function SidebarStatic({ active, icon: Icon, label, to, onClick }: { active: boolean; icon: React.ComponentType<{ className?: string }>; label: string; to: string; onClick: () => void }) {
-  return <Link to={to} onClick={onClick} className={`mi-sidebar-link ${active ? "mi-sidebar-link-active" : ""}`}><Icon className="h-4 w-4" /> {label}</Link>;
-}
-
-function SidebarLink({ item, pathname, onClick }: { item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }; pathname: string; onClick: () => void }) {
+function TopNavLink({
+  item,
+  pathname,
+}: {
+  item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+  pathname: string;
+}) {
   const Icon = item.icon;
   const active = pathname === item.to;
-  return <Link to={item.to} onClick={onClick} className={`mi-sidebar-link ${active ? "mi-sidebar-link-active" : ""}`}><Icon className="h-4 w-4" /> {item.label}</Link>;
+  return (
+    <Link to={item.to} className={`mi-topnav-link ${active ? "mi-topnav-link-active" : ""}`}>
+      <Icon className="h-3.5 w-3.5" />
+      <span>{item.label}</span>
+    </Link>
+  );
+}
+
+function PopoverLink({
+  item,
+  pathname,
+  onClick,
+}: {
+  item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+  pathname: string;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.to}
+      onClick={onClick}
+      className={`mi-popover-link ${pathname === item.to ? "mi-popover-link-active" : ""}`}
+    >
+      <Icon className="h-4 w-4" /> {item.label}
+    </Link>
+  );
+}
+
+function MobileNavLink({
+  item,
+  pathname,
+  onClick,
+}: {
+  item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+  pathname: string;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.to}
+      onClick={onClick}
+      className={`mi-mobile-link ${pathname === item.to ? "mi-mobile-link-active" : ""}`}
+    >
+      <Icon className="h-4 w-4" /> {item.label}
+    </Link>
+  );
 }
