@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { Rocket, Search, ChevronRight, ChevronLeft, Sparkles, Heart, ExternalLink } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Rocket,
+  Search,
+  ChevronRight,
+  ChevronLeft,
+  Sparkles,
+  Heart,
+  ExternalLink,
+} from "lucide-react";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";

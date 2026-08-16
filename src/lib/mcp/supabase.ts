@@ -38,8 +38,9 @@ function supabasePublishableKey(): string {
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         const keys = parsed as Record<string, unknown>;
         const key = [keys["default"], ...Object.values(keys)]
-          .find((value): value is string =>
-            typeof value === "string" && value.trim().startsWith("sb_publishable_"),
+          .find(
+            (value): value is string =>
+              typeof value === "string" && value.trim().startsWith("sb_publishable_"),
           )
           ?.trim();
         if (key) return key;
