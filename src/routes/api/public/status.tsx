@@ -37,6 +37,24 @@ async function checkSearchAvailability() {
   }
 }
 
+function runtimeHealth() {
+  const aiConfigured = Boolean(process.env["OPENAI_API_KEY"]);
+  const whatsappConfigured = Boolean(
+    process.env["EVOLUTION_API_URL"] &&
+      process.env["EVOLUTION_API_KEY"] &&
+      process.env["EVOLUTION_INSTANCE"],
+  );
+  const whatsappWebhookProtected = Boolean(process.env["WHATSAPP_WEBHOOK_SECRET"]);
+  const propertyImportConfigured = Boolean(process.env["PROPERTY_IMPORT_WEBHOOK_SECRET"]);
+
+  return {
+    ai: aiConfigured ? "configured" : "not_configured",
+    whatsapp: whatsappConfigured ? "configured" : "not_configured",
+    whatsappWebhook: whatsappWebhookProtected ? "protected" : "not_configured",
+    propertyImport: propertyImportConfigured ? "configured" : "not_configured",
+  } as const;
+}
+
 export const Route = createFileRoute("/api/public/status")({
   server: {
     handlers: {
@@ -49,6 +67,7 @@ export const Route = createFileRoute("/api/public/status")({
           indexedProperties: search.count,
           coveredStates: search.states,
           latestUpdate: search.latestUpdate,
+          runtime: runtimeHealth(),
         };
 
         return new Response(JSON.stringify(body), {
