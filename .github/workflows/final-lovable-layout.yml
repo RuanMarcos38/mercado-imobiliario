@@ -1,0 +1,58 @@
+name: Final Lovable layout pass
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/final-lovable-layout.yml"]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply final layout pass
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'src/components/property/PropertyWorkspace.tsx';
+          let s = fs.readFileSync(path, 'utf8');
+          s = s.replace('import { DashboardAtendimentoPanel } from "@/components/property/DashboardAtendimentoPanel";', 'import { PropertySearchSummaryPanel } from "@/components/property/PropertySearchSummaryPanel";');
+          s = s.replace('const next = emptyFilters(filters.market);\n    setFilters(next);', 'const next = emptyFilters(filters.market);\n    setPage(1);\n    setFilters(next);');
+          s = s.replace('className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5"', 'className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"');
+          s = s.replace('            <DashboardAtendimentoPanel />', `            <PropertySearchSummaryPanel
+              total={Number(searchQuery.data?.total ?? totalForMarket ?? 0)}
+              opportunities={Number(stats?.opportunities ?? 0)}
+              activeSources={Number(stats?.active_sources ?? 0)}
+              auctions={Number(stats?.auction_properties ?? 0)}
+              marketProperties={Number(stats?.market_properties ?? 0)}
+              caixaProperties={Number(stats?.caixa_properties ?? 0)}
+              marketLabel={applied.market === "auction" ? "Leilões CAIXA" : applied.market === "caixa" ? "CAIXA" : applied.market === "market" ? "Mercado" : "Todos"}
+            />`);
+          s = s.replace('                setFilters(next);\n                setApplied(next);\n                setSavedOpen(false);', '                setPage(1);\n                setFilters(next);\n                setApplied(next);\n                setSavedOpen(false);');
+          fs.writeFileSync(path, s);
+
+          const searchPath = 'src/lib/property-search.functions.ts';
+          let q = fs.readFileSync(searchPath, 'utf8');
+          q = q.replace('const fetchLimit = Math.min(60, Math.max(limit, limit * 2));', 'const fetchLimit = Math.min(60, limit);');
+          q = q.replace(`    const total = Math.max(
+      items.length,
+      (indexResult.count ?? 0) + (propertyResult.count ?? 0) + configuredLiveItems.length,
+    );`, `    const indexedTotal = indexResult.count ?? 0;
+    const legacyTotal = propertyResult.count ?? 0;
+    const total = Math.max(
+      items.length,
+      indexedTotal + configuredLiveItems.length,
+      legacyTotal + configuredLiveItems.length,
+    );`);
+          fs.writeFileSync(searchPath, q);
+          NODE
+          npx prettier --write src/components/property/PropertyWorkspace.tsx src/components/property/PropertySearchSummaryPanel.tsx src/lib/property-search.functions.ts
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/property/PropertyWorkspace.tsx src/components/property/PropertySearchSummaryPanel.tsx src/lib/property-search.functions.ts
+          git commit -m "Align main property workspace to Lovable results layout"
+          git push origin HEAD:main
