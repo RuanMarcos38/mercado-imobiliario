@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,16 +6,17 @@ import {
   ArrowLeft,
   Building2,
   CheckCheck,
+  ExternalLink,
   Link2,
   MessageCircle,
-  MoreVertical,
   Paperclip,
   RefreshCw,
   Search,
   Send,
-  UserRound,
+  Sparkles,
   Wifi,
   WifiOff,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,19 +32,18 @@ import {
 } from "@/lib/whatsapp.functions";
 import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
+import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
 
 export const Route = createFileRoute("/_authenticated/atendimento")({
   component: AtendimentoPage,
-  head: () => ({
-    title: "Atendimento | MercadoImobi",
-    meta: [
-      {
-        name: "description",
-        content: "Central de conversas do MercadoImobi para atendimento imobiliário pelo WhatsApp.",
-      },
-    ],
-  }),
+  head: () => ({ title: "Conversas | MercadoImobi" }),
 });
+
+type PropertyContext = {
+  id?: string;
+  title?: string;
+  url?: string | null;
+};
 
 function AtendimentoPage() {
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
@@ -54,14 +54,18 @@ function AtendimentoPage() {
   const markReadFn = useServerFn(markWhatsAppConversationRead);
   const sendFn = useServerFn(sendWhatsAppText);
   const startFn = useServerFn(startWhatsAppConversation);
+  const draftFn = useServerFn(generateConversationDraft);
+  const aiStatusFn = useServerFn(getAiRuntimeStatus);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const connection = useQuery({
@@ -69,13 +73,12 @@ function AtendimentoPage() {
     queryFn: () => statusFn(),
     refetchInterval: 30_000,
   });
-
+  const aiStatus = useQuery({ queryKey: ["ai-runtime-status"], queryFn: () => aiStatusFn() });
   const conversations = useQuery({
     queryKey: ["whatsapp-conversations"],
     queryFn: () => conversationsFn(),
     refetchInterval: 30_000,
   });
-
   const messages = useQuery({
     queryKey: ["whatsapp-messages", selectedId],
     queryFn: () => messagesFn({ data: { conversationId: selectedId! } }),
@@ -84,8 +87,25 @@ function AtendimentoPage() {
   });
 
   useEffect(() => {
+    const storedConversation = sessionStorage.getItem("mercadoimobi:selectedConversation");
+    if (storedConversation) {
+      setSelectedId(storedConversation);
+      sessionStorage.removeItem("mercadoimobi:selectedConversation");
+    }
+    const storedProperty = sessionStorage.getItem("mercadoimobi:propertyContext");
+    if (storedProperty) {
+      try {
+        setPropertyContext(JSON.parse(storedProperty) as PropertyContext);
+      } catch {
+        setPropertyContext(null);
+      }
+      sessionStorage.removeItem("mercadoimobi:propertyContext");
+    }
+  }, []);
+
+  useEffect(() => {
     const channel = supabase
-      .channel("mercadoimobi-atendimento")
+      .channel("mercadoimobi-atendimento-live")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_conversations" },
@@ -100,7 +120,6 @@ function AtendimentoPage() {
         },
       )
       .subscribe();
-
     return () => {
       void supabase.removeChannel(channel);
     };
@@ -112,8 +131,7 @@ function AtendimentoPage() {
   }, [selectedId]);
 
   useEffect(() => {
-    const target = scrollRef.current;
-    if (target) target.scrollTop = target.scrollHeight;
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages.data?.length, selectedId]);
 
   const selected = (conversations.data ?? []).find((item) => item.id === selectedId) ?? null;
@@ -133,7 +151,7 @@ function AtendimentoPage() {
     try {
       const prepared = await prepareFn();
       if (!prepared.configured) {
-        toast.info("A conexão do WhatsApp ainda precisa ser ativada pelo administrador.");
+        toast.info("A conexão do WhatsApp ainda precisa ser ativada no servidor.");
         return;
       }
       const qr = await qrFn();
@@ -147,13 +165,14 @@ function AtendimentoPage() {
   };
 
   const startConversation = async () => {
-    const phone = window.prompt("Número do WhatsApp com DDD e DDI (ex.: 5547999999999):");
+    const phone = window.prompt("Número do WhatsApp com DDI e DDD (ex.: 5547999999999):");
     if (!phone?.trim()) return;
     const name = window.prompt("Nome do contato (opcional):") ?? "";
     try {
       const result = await startFn({ data: { phone, contactName: name || undefined } });
       await conversations.refetch();
       setSelectedId(result.id);
+      setPropertyContext(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível abrir a conversa.");
     }
@@ -171,240 +190,125 @@ function AtendimentoPage() {
       await sendFn({ data: { conversationId: selectedId, text: outgoing } });
       setText("");
       await Promise.all([messages.refetch(), conversations.refetch()]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha no envio.";
-      toast.error(
-        message.includes("WHATSAPP_NOT_CONFIGURED")
-          ? "Conecte seu WhatsApp antes de enviar mensagens."
-          : "A mensagem não foi enviada. Tente novamente.",
-      );
+    } catch {
+      toast.error("A mensagem não foi enviada. Verifique a conexão e tente novamente.");
     } finally {
       setSending(false);
     }
   };
 
+  const draftReply = async () => {
+    if (!selectedId) return;
+    if (!aiStatus.data?.configured) {
+      toast.info("A inteligência artificial ainda não está conectada no servidor.");
+      return;
+    }
+    setDrafting(true);
+    try {
+      const result = await draftFn({ data: { conversationId: selectedId } });
+      setText(result.text);
+      toast.success("Sugestão criada. Revise antes de enviar.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast.error(
+        message.includes("AI_DISABLED")
+          ? "Ative o Assistente IA antes de gerar sugestões."
+          : "Não foi possível gerar uma sugestão agora.",
+      );
+    } finally {
+      setDrafting(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#06101c] text-white">
-      <header className="border-b border-white/10 bg-[#07111f]/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-4">
-            <Link
-              to="/dashboard"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-slate-300 transition hover:bg-white/5 hover:text-white"
-              title="Voltar para imóveis"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <Link to="/dashboard" className="flex items-center gap-2 font-bold tracking-tight">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-300/20">
-                <Building2 className="h-5 w-5" />
-              </span>
-              <span>
-                Mercado<span className="text-cyan-300">Imobi</span>
-              </span>
-              <span className="hidden text-sm font-medium text-slate-500 sm:inline">/ Atendimento</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-2">
-            <ConnectionPill connected={Boolean(connection.data?.connected)} loading={connection.isLoading} />
-            <Link
-              to="/settings/security"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-slate-300 hover:bg-white/5"
-              title="Minha conta"
-            >
-              <UserRound className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto h-[calc(100vh-64px)] max-w-[1600px] p-0 sm:p-4 lg:p-6">
-        <div className="grid h-full overflow-hidden border-white/10 bg-[#091626] shadow-2xl sm:rounded-[28px] sm:border lg:grid-cols-[370px_1fr]">
-          <aside className={`${selectedId ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-r border-white/10 bg-[#081421]`}>
-            <div className="border-b border-white/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">Central</p>
-                  <h1 className="mt-1 text-xl font-black">Conversas</h1>
-                </div>
-                <Button
-                  onClick={() => void startConversation()}
-                  className="rounded-xl bg-cyan-300 font-bold text-[#06101c] hover:bg-cyan-200"
-                  size="sm"
-                >
-                  <MessageCircle className="mr-2 h-4 w-4" /> Nova
-                </Button>
+    <div className="h-screen min-h-[720px] bg-[#06101c] p-0 text-white lg:h-screen lg:p-4">
+      <div className="mx-auto grid h-full max-w-[1600px] overflow-hidden border-white/10 bg-[#091626] shadow-2xl lg:grid-cols-[360px_1fr] lg:rounded-[28px] lg:border">
+        <aside className={`${selectedId ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-r border-white/10 bg-[#081421]`}>
+          <div className="border-b border-white/10 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">Atendimento</p>
+                <h1 className="mt-1 text-xl font-black">Conversas</h1>
               </div>
-
-              <div className="mt-4 flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-black/15 px-3 text-slate-400 focus-within:border-cyan-300/30">
-                <Search className="h-4 w-4" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar conversa"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-600"
-                />
-                <button
-                  onClick={() => void conversations.refetch()}
-                  className="rounded-lg p-1.5 hover:bg-white/5 hover:text-white"
-                  title="Atualizar conversas"
-                >
-                  <RefreshCw className={`h-4 w-4 ${conversations.isFetching ? "animate-spin" : ""}`} />
-                </button>
-              </div>
-
-              {!connection.isLoading && !connection.data?.connected && (
-                <button
-                  onClick={() => void connect()}
-                  className="mt-3 flex w-full items-center justify-between rounded-xl border border-amber-300/15 bg-amber-300/[0.05] px-3 py-2.5 text-left"
-                >
-                  <span>
-                    <span className="block text-xs font-bold text-amber-100">Conecte seu WhatsApp</span>
-                    <span className="mt-0.5 block text-[11px] text-slate-400">Para enviar e receber mensagens.</span>
-                  </span>
-                  <Link2 className="h-4 w-4 text-amber-200" />
-                </button>
-              )}
+              <ConnectionPill connected={Boolean(connection.data?.connected)} loading={connection.isLoading} />
             </div>
+            <div className="mt-4 flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-black/15 px-3 text-slate-400 focus-within:border-cyan-300/30">
+              <Search className="h-4 w-4" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar conversa" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
+              <button onClick={() => void conversations.refetch()} title="Atualizar"><RefreshCw className={`h-4 w-4 ${conversations.isFetching ? "animate-spin" : ""}`} /></button>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={() => void startConversation()} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 text-xs font-bold text-slate-200 hover:bg-white/5"><MessageCircle className="h-4 w-4" /> Nova conversa</button>
+              <button onClick={() => void connect()} className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-xs font-bold ${connection.data?.connected ? "border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200" : "border-amber-300/15 bg-amber-300/[0.04] text-amber-100"}`}><Link2 className="h-4 w-4" /> {connection.data?.connected ? "Conectado" : "Conectar"}</button>
+            </div>
+          </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {filtered.map((conversation) => (
-                <ConversationRow
-                  key={conversation.id}
-                  conversation={conversation}
-                  selected={conversation.id === selectedId}
-                  onClick={() => setSelectedId(conversation.id)}
-                />
-              ))}
-              {!conversations.isLoading && filtered.length === 0 && (
-                <div className="px-6 py-12 text-center text-sm text-slate-500">
-                  <MessageCircle className="mx-auto mb-3 h-8 w-8 opacity-50" />
-                  Nenhuma conversa encontrada.
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {filtered.map((conversation) => (
+              <ConversationRow key={conversation.id} conversation={conversation} selected={conversation.id === selectedId} onClick={() => { setSelectedId(conversation.id); setPropertyContext(null); }} />
+            ))}
+            {!conversations.isLoading && filtered.length === 0 && <div className="px-6 py-12 text-center text-sm text-slate-500"><MessageCircle className="mx-auto mb-3 h-8 w-8 opacity-50" />Nenhuma conversa encontrada.</div>}
+          </div>
+        </aside>
+
+        <section className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 flex-col bg-[#07111f]`}>
+          {!selected ? (
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+              <div className="grid h-20 w-20 place-items-center rounded-3xl bg-cyan-300/[0.07] text-cyan-200 ring-1 ring-cyan-300/15"><MessageCircle className="h-9 w-9" /></div>
+              <h2 className="mt-6 text-2xl font-black">Central de Atendimento</h2>
+              <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">Selecione uma conversa ou abra o WhatsApp de um imóvel para iniciar o atendimento com o contexto da oportunidade.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex min-h-16 items-center justify-between border-b border-white/10 px-3 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <button onClick={() => setSelectedId(null)} className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-slate-300 lg:hidden"><ArrowLeft className="h-4 w-4" /></button>
+                  <Avatar conversation={selected} />
+                  <div className="min-w-0"><p className="truncate font-bold">{selected.contact_name || formatPhone(selected.phone_e164)}</p><p className="truncate text-xs text-slate-500">{formatPhone(selected.phone_e164)}</p></div>
+                </div>
+                <button onClick={() => void messages.refetch()} className="grid h-9 w-9 place-items-center rounded-xl text-slate-400 hover:bg-white/5" title="Atualizar conversa"><RefreshCw className={`h-4 w-4 ${messages.isFetching ? "animate-spin" : ""}`} /></button>
+              </div>
+
+              {propertyContext?.title && (
+                <div className="border-b border-cyan-300/10 bg-cyan-300/[0.035] px-4 py-3 sm:px-6">
+                  <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 rounded-xl border border-cyan-300/10 bg-[#091a2c] px-3 py-2.5">
+                    <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-300">Imóvel relacionado</p><p className="mt-0.5 truncate text-sm font-bold text-slate-100">{propertyContext.title}</p></div>
+                    <div className="flex items-center gap-1">{propertyContext.url && <a href={propertyContext.url} target="_blank" rel="noreferrer" className="grid h-9 w-9 place-items-center rounded-lg text-cyan-200 hover:bg-white/5" title="Abrir anúncio"><ExternalLink className="h-4 w-4" /></a>}<button onClick={() => setPropertyContext(null)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white/5"><X className="h-4 w-4" /></button></div>
+                  </div>
                 </div>
               )}
-            </div>
-          </aside>
 
-          <section className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 flex-col bg-[#07111f]`}>
-            {!selected ? (
-              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                <div className="grid h-20 w-20 place-items-center rounded-3xl bg-cyan-300/[0.07] text-cyan-200 ring-1 ring-cyan-300/15">
-                  <MessageCircle className="h-9 w-9" />
+              <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(34,211,238,.045),_transparent_35%)] px-4 py-6 sm:px-8">
+                <div className="mx-auto max-w-4xl space-y-2">
+                  {(messages.data ?? []).map((message) => <MessageBubble key={message.id} message={message} />)}
+                  {!messages.isLoading && (messages.data?.length ?? 0) === 0 && <div className="py-16 text-center text-sm text-slate-500">Ainda não há mensagens nesta conversa.</div>}
                 </div>
-                <h2 className="mt-6 text-2xl font-black">Atendimento MercadoImobi</h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                  Selecione uma conversa para visualizar o histórico e continuar o atendimento em um único lugar.
-                </p>
               </div>
-            ) : (
-              <>
-                <div className="flex h-16 items-center justify-between border-b border-white/10 px-3 sm:px-5">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <button
-                      onClick={() => setSelectedId(null)}
-                      className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-slate-300 lg:hidden"
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                    </button>
-                    <Avatar conversation={selected} />
-                    <div className="min-w-0">
-                      <p className="truncate font-bold">{selected.contact_name || formatPhone(selected.phone_e164)}</p>
-                      <p className="truncate text-xs text-slate-500">{formatPhone(selected.phone_e164)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => void messages.refetch()}
-                      className="grid h-9 w-9 place-items-center rounded-xl text-slate-400 hover:bg-white/5 hover:text-white"
-                      title="Atualizar conversa"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${messages.isFetching ? "animate-spin" : ""}`} />
-                    </button>
-                    <button
-                      disabled
-                      className="grid h-9 w-9 place-items-center rounded-xl text-slate-600"
-                      title="Mais opções serão habilitadas quando disponíveis"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
 
-                <div
-                  ref={scrollRef}
-                  className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(34,211,238,.045),_transparent_35%)] px-4 py-6 sm:px-8"
-                >
-                  <div className="mx-auto max-w-4xl space-y-2">
-                    {(messages.data ?? []).map((message) => (
-                      <MessageBubble key={message.id} message={message} />
-                    ))}
-                    {!messages.isLoading && (messages.data?.length ?? 0) === 0 && (
-                      <div className="py-16 text-center text-sm text-slate-500">
-                        Ainda não há mensagens nesta conversa.
-                      </div>
-                    )}
+              <div className="border-t border-white/10 bg-[#091625] p-3 sm:p-4">
+                <div className="mx-auto max-w-4xl">
+                  <div className="mb-2 flex justify-end">
+                    <button onClick={() => void draftReply()} disabled={drafting || !aiStatus.data?.configured} className="inline-flex h-8 items-center gap-2 rounded-lg border border-cyan-300/15 bg-cyan-300/[0.04] px-3 text-[11px] font-bold text-cyan-100 disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {drafting ? "Criando sugestão..." : "Sugerir resposta com IA"}</button>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button disabled className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 text-slate-600" title="Anexos serão habilitados quando o canal suportar envio de mídia"><Paperclip className="h-4 w-4" /></button>
+                    <textarea value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder={connection.data?.connected ? "Digite uma mensagem" : "Conecte seu WhatsApp para enviar"} disabled={!connection.data?.connected} className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/30 disabled:opacity-50" />
+                    <button onClick={() => void send()} disabled={!text.trim() || sending || !connection.data?.connected} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan-300 text-[#06101c] hover:bg-cyan-200 disabled:bg-white/5 disabled:text-slate-600"><Send className="h-4 w-4" /></button>
                   </div>
                 </div>
-
-                <div className="border-t border-white/10 bg-[#091625] p-3 sm:p-4">
-                  <div className="mx-auto flex max-w-4xl items-end gap-2">
-                    <button
-                      disabled
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 text-slate-600"
-                      title="Envio de arquivos será habilitado quando o canal suportar mídia"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                    </button>
-                    <textarea
-                      value={text}
-                      onChange={(event) => setText(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          void send();
-                        }
-                      }}
-                      rows={1}
-                      placeholder={connection.data?.connected ? "Digite uma mensagem" : "Conecte seu WhatsApp para enviar"}
-                      disabled={!connection.data?.connected}
-                      className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/30 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                    <button
-                      onClick={() => void send()}
-                      disabled={!text.trim() || sending || !connection.data?.connected}
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan-300 text-[#06101c] transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-600"
-                      title="Enviar mensagem"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-        </div>
-      </main>
+              </div>
+            </>
+          )}
+        </section>
+      </div>
 
       {showQr && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-md" onClick={() => setShowQr(false)}>
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4 backdrop-blur-md" onClick={() => setShowQr(false)}>
           <div className="w-full max-w-sm rounded-[28px] border border-white/10 bg-[#0b1727] p-6 text-center shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-xl font-black">Conectar WhatsApp</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Abra o WhatsApp no celular e use a opção de conectar um dispositivo.</p>
-            {qrBase64 ? (
-              <img
-                src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`}
-                alt="Código para conectar WhatsApp"
-                className="mx-auto mt-5 aspect-square w-64 rounded-2xl bg-white p-3"
-              />
-            ) : qrCode ? (
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs break-all text-slate-300">{qrCode}</div>
-            ) : (
-              <p className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4 text-sm text-amber-100">A conexão foi iniciada. Atualize em alguns instantes para verificar o status.</p>
-            )}
-            <div className="mt-5 flex gap-2">
-              <Button variant="outline" className="flex-1 border-white/10 bg-transparent text-white hover:bg-white/5" onClick={() => setShowQr(false)}>Fechar</Button>
-              <Button className="flex-1 bg-cyan-300 font-bold text-[#06101c] hover:bg-cyan-200" onClick={() => void connection.refetch()}>Verificar conexão</Button>
-            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-400">No WhatsApp do celular, abra a opção para conectar um dispositivo.</p>
+            {qrBase64 ? <img src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`} alt="Código para conectar WhatsApp" className="mx-auto mt-5 aspect-square w-64 rounded-2xl bg-white p-3" /> : qrCode ? <div className="mt-5 break-all rounded-2xl border border-white/10 bg-black/20 p-4 text-xs text-slate-300">{qrCode}</div> : <p className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4 text-sm text-amber-100">A conexão foi iniciada. Atualize o status em alguns instantes.</p>}
+            <Button className="mt-5 w-full bg-cyan-300 font-black text-[#06101c] hover:bg-cyan-200" onClick={() => setShowQr(false)}>Fechar</Button>
           </div>
         </div>
       )}
@@ -413,59 +317,21 @@ function AtendimentoPage() {
 }
 
 function ConnectionPill({ connected, loading }: { connected: boolean; loading: boolean }) {
-  return (
-    <span className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold sm:inline-flex ${connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200" : "border-white/10 bg-white/[0.03] text-slate-400"}`}>
-      {connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-      {loading ? "Verificando" : connected ? "WhatsApp conectado" : "WhatsApp desconectado"}
-    </span>
-  );
+  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black ${connected ? "border-emerald-300/15 bg-emerald-300/[0.05] text-emerald-200" : "border-white/10 bg-white/[0.03] text-slate-500"}`}>{connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}{loading ? "VERIFICANDO" : connected ? "ONLINE" : "OFFLINE"}</span>;
 }
 
 function ConversationRow({ conversation, selected, onClick }: { conversation: WhatsAppConversation; selected: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className={`flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3 text-left transition ${selected ? "bg-cyan-300/[0.08]" : "hover:bg-white/[0.035]"}`}>
-      <Avatar conversation={conversation} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-sm font-bold text-slate-100">{conversation.contact_name || formatPhone(conversation.phone_e164)}</p>
-          <span className="shrink-0 text-[10px] text-slate-600">{formatTime(conversation.last_message_at)}</span>
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          <p className="min-w-0 flex-1 truncate text-xs text-slate-500">{conversation.last_message || "Nova conversa"}</p>
-          {conversation.unread_count > 0 && (
-            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-cyan-300 px-1 text-[10px] font-black text-[#06101c]">{conversation.unread_count > 99 ? "99+" : conversation.unread_count}</span>
-          )}
-        </div>
-      </div>
-    </button>
-  );
+  return <button onClick={onClick} className={`flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3 text-left transition ${selected ? "bg-cyan-300/[0.08]" : "hover:bg-white/[0.035]"}`}><Avatar conversation={conversation} /><div className="min-w-0 flex-1"><div className="flex items-baseline justify-between gap-2"><p className="truncate text-sm font-bold text-slate-100">{conversation.contact_name || formatPhone(conversation.phone_e164)}</p><span className="shrink-0 text-[10px] text-slate-600">{formatTime(conversation.last_message_at)}</span></div><div className="mt-1 flex items-center gap-2"><p className="min-w-0 flex-1 truncate text-xs text-slate-500">{conversation.last_message || "Nova conversa"}</p>{conversation.unread_count > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-cyan-300 px-1 text-[10px] font-black text-[#06101c]">{conversation.unread_count > 99 ? "99+" : conversation.unread_count}</span>}</div></div></button>;
 }
 
 function Avatar({ conversation }: { conversation: WhatsAppConversation }) {
   const initials = (conversation.contact_name || conversation.phone_e164).slice(0, 2).toUpperCase();
-  return conversation.avatar_url ? (
-    <img src={conversation.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
-  ) : (
-    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-300/20 to-blue-500/10 text-xs font-black text-cyan-100 ring-1 ring-white/10">{initials}</span>
-  );
+  return conversation.avatar_url ? <img src={conversation.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-300/20 to-blue-500/10 text-xs font-black text-cyan-100 ring-1 ring-white/10">{initials}</span>;
 }
 
 function MessageBubble({ message }: { message: { id: string; direction: "inbound" | "outbound"; body: string | null; media_url: string | null; message_type: string; status: string; sent_at: string } }) {
   const outgoing = message.direction === "outbound";
-  return (
-    <div className={`flex ${outgoing ? "justify-end" : "justify-start"}`}>
-      <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm shadow-lg sm:max-w-[68%] ${outgoing ? "rounded-br-md bg-cyan-300 text-[#06101c]" : "rounded-bl-md border border-white/10 bg-[#102236] text-slate-100"}`}>
-        {message.media_url && (
-          <a href={message.media_url} target="_blank" rel="noreferrer" className={`mb-1 block text-xs font-semibold underline ${outgoing ? "text-[#06101c]" : "text-cyan-200"}`}>Abrir {message.message_type === "text" ? "arquivo" : message.message_type}</a>
-        )}
-        <p className="whitespace-pre-wrap break-words">{message.body || (message.media_url ? "Mídia" : "Mensagem")}</p>
-        <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${outgoing ? "text-[#143342]" : "text-slate-500"}`}>
-          {formatTime(message.sent_at)}
-          {outgoing && <CheckCheck className="h-3 w-3" />}
-        </div>
-      </div>
-    </div>
-  );
+  return <div className={`flex ${outgoing ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm shadow-lg sm:max-w-[68%] ${outgoing ? "rounded-br-md bg-cyan-300 text-[#06101c]" : "rounded-bl-md border border-white/10 bg-[#102236] text-slate-100"}`}>{message.media_url && <a href={message.media_url} target="_blank" rel="noreferrer" className={`mb-1 block text-xs font-semibold underline ${outgoing ? "text-[#06101c]" : "text-cyan-200"}`}>Abrir mídia</a>}<p className="whitespace-pre-wrap break-words">{message.body || (message.media_url ? "Mídia" : "Mensagem")}</p><div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${outgoing ? "text-[#143342]" : "text-slate-500"}`}>{formatTime(message.sent_at)}{outgoing && <CheckCheck className="h-3 w-3" />}</div></div></div>;
 }
 
 function formatPhone(value: string) {
@@ -474,14 +340,12 @@ function formatPhone(value: string) {
   if (digits.length === 12 && digits.startsWith("55")) return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
   return `+${digits}`;
 }
-
 function formatTime(value: string | null) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const now = new Date();
-  if (date.toDateString() === now.toDateString()) {
-    return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
-  }
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(date);
+  return date.toDateString() === now.toDateString()
+    ? new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date)
+    : new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(date);
 }
