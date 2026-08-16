@@ -45,6 +45,8 @@ const liveListingSchema = z.object({
   contact_phone: z.string().nullable().optional(),
   contact_whatsapp: z.string().nullable().optional(),
   contact_email: z.string().nullable().optional(),
+  discount_percent: z.number().nullable().optional(),
+  evaluation_value: z.number().nullable().optional(),
 });
 
 export type PropertySearchInput = z.infer<typeof searchSchema>;
@@ -73,6 +75,8 @@ export interface PropertySearchItem {
   contact_phone: string | null;
   contact_whatsapp: string | null;
   contact_email: string | null;
+  discount_percent: number | null;
+  evaluation_value: number | null;
 }
 
 function keyFor(item: PropertySearchItem): string {
@@ -221,6 +225,8 @@ async function fetchConfiguredLiveSource(
         contact_phone: item.contact_phone ?? null,
         contact_whatsapp: item.contact_whatsapp ?? null,
         contact_email: item.contact_email ?? null,
+        discount_percent: item.discount_percent ?? null,
+        evaluation_value: item.evaluation_value ?? null,
       }))
       .filter((item) => matchesSearch(item, input));
   } catch {
@@ -235,7 +241,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     let indexQuery = context.supabase
       .from("property_search_index")
       .select(
-        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email",
+        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata",
         { count: "exact" },
       );
 
@@ -336,6 +342,9 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       indexQuery = indexQuery.order("area_sqm", { ascending: false, nullsFirst: false });
       propertyQuery = propertyQuery.order("area_sqm", { ascending: false, nullsFirst: false });
     } else {
+      if (input.market === "all") {
+        indexQuery = indexQuery.order("listing_market", { ascending: false });
+      }
       indexQuery = indexQuery.order("scanned_at", { ascending: false });
       propertyQuery = propertyQuery.order("updated_at", { ascending: false });
     }
@@ -382,6 +391,12 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       contact_phone: item.contact_phone,
       contact_whatsapp: item.contact_whatsapp,
       contact_email: item.contact_email,
+      discount_percent: Number.isFinite(Number(item.metadata?.discount_percent))
+        ? Number(item.metadata?.discount_percent)
+        : null,
+      evaluation_value: Number.isFinite(Number(item.metadata?.evaluation_value))
+        ? Number(item.metadata?.evaluation_value)
+        : null,
     }));
 
     const saved: PropertySearchItem[] = (propertyResult.data ?? []).map((item) => ({
@@ -394,6 +409,8 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       contact_phone: null,
       contact_whatsapp: null,
       contact_email: null,
+      discount_percent: null,
+      evaluation_value: null,
     }));
 
     const deduped = new Map<string, PropertySearchItem>();
@@ -476,6 +493,8 @@ const favoritePropertySchema = z.object({
   contact_phone: z.string().nullable(),
   contact_whatsapp: z.string().nullable(),
   contact_email: z.string().nullable(),
+  discount_percent: z.number().nullable().optional(),
+  evaluation_value: z.number().nullable().optional(),
 });
 
 const favoriteMutationSchema = z.object({
@@ -518,17 +537,15 @@ export const setPropertyFavorite = createServerFn({ method: "POST" })
       return { success: true, favorite: false, propertyKey };
     }
     const snapshot = JSON.parse(JSON.stringify(data.property));
-    const { error } = await context.supabase
-      .from("property_favorites")
-      .upsert(
-        {
-          user_id: context.userId,
-          property_key: propertyKey,
-          property_snapshot: snapshot,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,property_key" },
-      );
+    const { error } = await context.supabase.from("property_favorites").upsert(
+      {
+        user_id: context.userId,
+        property_key: propertyKey,
+        property_snapshot: snapshot,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,property_key" },
+    );
     if (error) throw new Error(error.message);
     return { success: true, favorite: true, propertyKey };
   });

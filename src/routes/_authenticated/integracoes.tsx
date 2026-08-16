@@ -105,7 +105,9 @@ function IntegrationsPage() {
       });
       setFeedUrl("");
       await Promise.all([sources.refetch(), summary.refetch()]);
-      toast.success(`${result.imported.toLocaleString("pt-BR")} imóveis sincronizados com sucesso.`);
+      toast.success(
+        `${result.imported.toLocaleString("pt-BR")} imóveis sincronizados com sucesso.`,
+      );
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -160,15 +162,15 @@ function IntegrationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#06101c] p-4 text-white sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[var(--mi-bg)] p-4 text-[var(--mi-text)] sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1500px]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
               Fontes de imóveis
             </p>
             <h1 className="mt-2 text-3xl font-black">Portais, construtoras e imobiliárias</h1>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
               A descoberta pública monitora páginas abertas e sitemaps automaticamente, sem login ou
               contorno de bloqueios. Integrações oficiais continuam disponíveis como opção adicional
               quando você quiser conectar um inventário autorizado.
@@ -177,7 +179,7 @@ function IntegrationsPage() {
           <Button
             onClick={() => void refreshSources()}
             variant="outline"
-            className="h-11 rounded-xl border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.07]"
+            className="h-11 rounded-xl border-[var(--mi-border)] bg-[var(--mi-surface)] text-[var(--mi-text)] hover:bg-white/[0.07]"
           >
             <RefreshCw
               className={`mr-2 h-4 w-4 ${sources.isFetching || health.isFetching ? "animate-spin" : ""}`}
@@ -220,15 +222,15 @@ function IntegrationsPage() {
         </div>
 
         <div className="mt-7 grid gap-6 xl:grid-cols-[1fr_430px]">
-          <section className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+          <section className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">
                   Cobertura monitorada
                 </p>
                 <h2 className="mt-1 text-xl font-black">Status real das fontes</h2>
               </div>
-              <Radar className="h-5 w-5 text-cyan-300" />
+              <Radar className="h-5 w-5 text-blue-600" />
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -245,12 +247,12 @@ function IntegrationsPage() {
           </section>
 
           <div className="space-y-6">
-            <section className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+            <section className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
               <div className="flex items-center gap-2">
-                <Link2 className="h-5 w-5 text-cyan-300" />
+                <Link2 className="h-5 w-5 text-blue-600" />
                 <h2 className="font-black">Integração oficial opcional</h2>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
+              <p className="mt-2 text-xs leading-5 text-[var(--mi-text-soft)]">
                 A descoberta pública funciona sem esta etapa. Use este campo somente quando uma
                 imobiliária, construtora ou parceiro fornecer um XML/JSON autorizado.
               </p>
@@ -285,23 +287,23 @@ function IntegrationsPage() {
                 </Field>
                 <Button
                   onClick={() => void registerFeed()}
-                  className="h-11 w-full rounded-xl bg-cyan-300 font-black text-[#06101c] hover:bg-cyan-200"
+                  className="h-11 w-full rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
                 >
                   <Plug className="mr-2 h-4 w-4" /> Validar e conectar
                 </Button>
               </div>
-              <div className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] p-3 text-xs leading-5 text-slate-400">
-                <strong className="text-cyan-100">Opcional:</strong> feeds oficiais aumentam a
+              <div className="mt-4 rounded-xl border border-blue-500/20 bg-blue-600/[0.05] p-3 text-xs leading-5 text-[var(--mi-text-muted)]">
+                <strong className="text-blue-600">Opcional:</strong> feeds oficiais aumentam a
                 cobertura e podem trazer campos que não aparecem publicamente.
               </div>
             </section>
 
-            <section className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+            <section className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
               <div className="flex items-center gap-2">
-                <Search className="h-5 w-5 text-cyan-300" />
+                <Search className="h-5 w-5 text-blue-600" />
                 <h2 className="font-black">Descobrir novas imobiliárias</h2>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
+              <p className="mt-2 text-xs leading-5 text-[var(--mi-text-soft)]">
                 Os portais e construtoras cadastrados já são monitorados automaticamente. Esta busca
                 ampliada encontra novos sites públicos por região quando o recurso de inteligência
                 estiver disponível.
@@ -326,45 +328,51 @@ function IntegrationsPage() {
               <Button
                 onClick={() => void discover()}
                 disabled={discovering || !discoveryStatus.data?.configured}
-                className="mt-3 h-11 w-full rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] font-bold text-cyan-100 hover:bg-cyan-300/[0.12]"
+                className="mt-3 h-11 w-full rounded-xl border border-blue-500/20 bg-blue-600/[0.07] font-bold text-blue-600 hover:bg-blue-600/[0.12]"
               >
                 <Globe2 className="mr-2 h-4 w-4" />
                 {discovering ? "Pesquisando..." : "Pesquisar novas fontes"}
               </Button>
               {!discoveryStatus.isLoading && !discoveryStatus.data?.configured && (
-                <p className="mt-3 text-xs leading-5 text-slate-400">
-                  A descoberta automática por sitemap continua ativa. A pesquisa ampliada por região é
-                  um recurso complementar.
+                <p className="mt-3 text-xs leading-5 text-[var(--mi-text-muted)]">
+                  A descoberta automática por sitemap continua ativa. A pesquisa ampliada por região
+                  é um recurso complementar.
                 </p>
               )}
             </section>
           </div>
         </div>
 
-        <section className="mt-6 rounded-[26px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+        <section className="mt-6 rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 sm:p-6">
           <div className="flex items-center gap-2">
-            <Globe2 className="h-5 w-5 text-cyan-300" />
+            <Globe2 className="h-5 w-5 text-blue-600" />
             <h2 className="font-black">Novas fontes encontradas</h2>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {(domains.data ?? []).slice(0, 30).map((domain: any) => (
-              <div key={domain.id} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+              <div
+                key={domain.id}
+                className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-bold">{domain.business_name || domain.domain}</p>
-                    <p className="mt-1 truncate text-xs text-slate-500">{domain.domain}</p>
+                    <p className="mt-1 truncate text-xs text-[var(--mi-text-soft)]">
+                      {domain.domain}
+                    </p>
                   </div>
-                  <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-[10px] font-black text-cyan-100">
+                  <span className="rounded-full bg-blue-600/10 px-2 py-1 text-[10px] font-black text-blue-600">
                     DESCOBERTA PÚBLICA
                   </span>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">
-                  {[domain.city, domain.state].filter(Boolean).join(" - ") || "Cobertura a verificar"}
+                <p className="mt-3 text-xs text-[var(--mi-text-soft)]">
+                  {[domain.city, domain.state].filter(Boolean).join(" - ") ||
+                    "Cobertura a verificar"}
                 </p>
               </div>
             ))}
             {!domains.isLoading && (domains.data?.length ?? 0) === 0 && (
-              <div className="col-span-full rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-slate-500">
+              <div className="col-span-full rounded-2xl border border-dashed border-[var(--mi-border)] p-8 text-center text-sm text-[var(--mi-text-soft)]">
                 A descoberta automática dos portais cadastrados já está ativa. Novas imobiliárias
                 aparecerão aqui quando forem encontradas pela busca ampliada.
               </div>
@@ -386,10 +394,10 @@ function SummaryCard({
   value: number | string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <div className="flex items-center gap-2 text-cyan-300">
+    <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-4">
+      <div className="flex items-center gap-2 text-blue-600">
         {icon}
-        <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
           {label}
         </span>
       </div>
@@ -425,11 +433,11 @@ function SourceCard({
     source.last_public_discovery_at;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+    <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-bold">{source.name}</p>
-          <p className="mt-1 truncate text-xs text-slate-500">
+          <p className="mt-1 truncate text-xs text-[var(--mi-text-soft)]">
             {source.website_domain || "Descoberta por região e fontes públicas"}
           </p>
         </div>
@@ -438,8 +446,8 @@ function SourceCard({
             dataActive
               ? "bg-emerald-300/10 text-emerald-200"
               : publicEnabled
-                ? "bg-cyan-300/10 text-cyan-100"
-                : "bg-slate-300/10 text-slate-300"
+                ? "bg-blue-600/10 text-blue-600"
+                : "bg-slate-300/10 text-[var(--mi-text-muted)]"
           }`}
         >
           {dataActive ? "ATIVO" : publicEnabled ? "DESCOBERTA PÚBLICA" : "INTEGRAÇÃO OPCIONAL"}
@@ -448,12 +456,12 @@ function SourceCard({
 
       <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold">
         {publicEnabled && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-cyan-300/10 px-2 py-1 text-cyan-100">
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2 py-1 text-blue-600">
             <Radar className="h-3 w-3" /> Descoberta pública
           </span>
         )}
         {source.official_integration_optional && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-1 text-slate-400">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-1 text-[var(--mi-text-muted)]">
             <Plug className="h-3 w-3" /> Integração opcional
           </span>
         )}
@@ -468,24 +476,24 @@ function SourceCard({
           </span>
         )}
         {online == null && !publicEnabled && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-1 text-slate-500">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-1 text-[var(--mi-text-soft)]">
             <Globe2 className="h-3 w-3" /> Sem site público
           </span>
         )}
         {source.supports_updates && (
-          <span className="inline-flex items-center gap-1 text-slate-500">
+          <span className="inline-flex items-center gap-1 text-[var(--mi-text-soft)]">
             <CheckCircle2 className="h-3 w-3" /> Atualizações
           </span>
         )}
         {source.supports_contacts && (
-          <span className="inline-flex items-center gap-1 text-slate-500">
+          <span className="inline-flex items-center gap-1 text-[var(--mi-text-soft)]">
             <ShieldCheck className="h-3 w-3" /> Contatos quando públicos
           </span>
         )}
       </div>
 
       {publicEnabled && (
-        <div className="mt-3 rounded-xl border border-cyan-300/10 bg-cyan-300/[0.035] px-3 py-2 text-[10px] text-slate-400">
+        <div className="mt-3 rounded-xl border border-blue-500/15 bg-blue-600/[0.035] px-3 py-2 text-[10px] text-[var(--mi-text-muted)]">
           {publicCount > 0
             ? `${publicCount.toLocaleString("pt-BR")} anúncios públicos monitorados.`
             : source.public_discovery_status === "blocked"
@@ -494,10 +502,10 @@ function SourceCard({
         </div>
       )}
 
-      <p className="mt-3 text-xs leading-5 text-slate-500">{source.notes}</p>
+      <p className="mt-3 text-xs leading-5 text-[var(--mi-text-soft)]">{source.notes}</p>
 
       {latestSuccess && (
-        <p className="mt-3 text-[10px] font-semibold text-slate-500">
+        <p className="mt-3 text-[10px] font-semibold text-[var(--mi-text-soft)]">
           Última verificação: {formatDate(latestSuccess)}
         </p>
       )}
@@ -505,12 +513,12 @@ function SourceCard({
       {connections.map((connection: any) => (
         <div
           key={connection.id}
-          className="mt-3 rounded-xl border border-white/10 bg-white/[0.035] p-3"
+          className="mt-3 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-3"
         >
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-xs font-bold">{connection.name}</p>
-              <p className="mt-1 text-[10px] text-slate-500">
+              <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
                 {connection.status === "connected"
                   ? "Integração oficial funcionando"
                   : connection.status === "error"
@@ -523,7 +531,7 @@ function SourceCard({
                 type="button"
                 onClick={() => void onSync(connection.id)}
                 disabled={syncingConnection === connection.id}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-300/15 bg-cyan-300/[0.06] px-2.5 text-[10px] font-black text-cyan-100 disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-500/20 bg-blue-600/[0.06] px-2.5 text-[10px] font-black text-blue-600 disabled:opacity-50"
               >
                 <RefreshCw
                   className={`h-3 w-3 ${syncingConnection === connection.id ? "animate-spin" : ""}`}
@@ -544,10 +552,10 @@ function SourceCard({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">
         {label}
       </span>
-      <div className="flex min-h-11 items-center rounded-xl border border-white/10 bg-black/10 px-3 [&_input]:w-full [&_input]:bg-transparent [&_input]:text-sm [&_input]:text-white [&_input]:outline-none [&_input]:placeholder:text-slate-600 [&_select]:w-full [&_select]:bg-transparent [&_select]:text-sm [&_select]:text-white [&_select]:outline-none [&_option]:bg-[#0b1727]">
+      <div className="flex min-h-11 items-center rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 [&_input]:w-full [&_input]:bg-transparent [&_input]:text-sm [&_input]:text-[var(--mi-text)] [&_input]:outline-none [&_input]:placeholder:text-slate-600 [&_select]:w-full [&_select]:bg-transparent [&_select]:text-sm [&_select]:text-[var(--mi-text)] [&_select]:outline-none [&_option]:bg-[var(--mi-surface)]">
         {children}
       </div>
     </label>
@@ -557,7 +565,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "data indisponível";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
 }

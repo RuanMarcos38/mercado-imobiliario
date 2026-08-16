@@ -228,6 +228,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
   const results = searchQuery.data?.items ?? [];
   const comparedKeys = useMemo(() => new Set(compare.map(propertyKey)), [compare]);
   const opportunityKeys = useMemo(() => calculateOpportunityKeys(results), [results]);
+  const bestValueKeys = useMemo(() => calculateBestValueKeys(results), [results]);
   const stats = statsQuery.data;
 
   const totalForMarket =
@@ -248,6 +249,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
 
   const clear = () => {
     const next = emptyFilters(filters.market);
+    setPage(1);
     setFilters(next);
     setApplied(next);
   };
@@ -575,11 +577,19 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                     <h2 className="mt-1 text-xl font-black text-[var(--mi-text)]">
                       {searchQuery.isLoading
                         ? "Carregando imóveis..."
-                        : `${formatInteger(totalForMarket)} imóveis na base selecionada`}
+                        : `${formatInteger(searchQuery.data?.total ?? totalForMarket)} imóveis encontrados`}
                     </h2>
                     <p className="mt-1 text-[11px] text-[var(--mi-text-muted)]">
                       A busca consulta toda a base. Até 48 imóveis são carregados por vez para
                       manter a navegação rápida.
+                      {applied.market === "all" && stats && (
+                        <>
+                          {" "}
+                          {formatInteger(stats.market_properties)} de Mercado +{" "}
+                          {formatInteger(stats.caixa_properties)} CAIXA, incluindo{" "}
+                          {formatInteger(stats.auction_properties)} leilões.
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -617,6 +627,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                         favorite={favoriteKeys.has(propertyKey(property))}
                         comparing={comparedKeys.has(propertyKey(property))}
                         opportunity={opportunityKeys.has(propertyKey(property))}
+                        bestValue={bestValueKeys.has(propertyKey(property))}
                         onFavorite={() => void toggleFavorite(property)}
                         onCompare={() => toggleCompare(property)}
                         onOpen={() => setSelected(property)}
@@ -694,6 +705,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                   sort: criteria.sort ?? "recent",
                   market: criteria.market ?? "all",
                 } as Filters;
+                setPage(1);
                 setFilters(next);
                 setApplied(next);
                 setSavedOpen(false);
@@ -831,6 +843,7 @@ function PropertyCard({
   favorite,
   comparing,
   opportunity,
+  bestValue,
   onFavorite,
   onCompare,
   onOpen,
@@ -840,6 +853,7 @@ function PropertyCard({
   favorite: boolean;
   comparing: boolean;
   opportunity: boolean;
+  bestValue: boolean;
   onFavorite: () => void;
   onCompare: () => void;
   onOpen: () => void;
@@ -851,17 +865,25 @@ function PropertyCard({
         <PropertyImage property={property} />
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
           <div className="flex flex-wrap gap-1.5">
-            {property.is_auction ? (
+            {property.is_auction && (
               <Badge className="border-0 bg-rose-600 text-[10px] text-white">
                 <Gavel className="mr-1 h-3 w-3" /> Leilão CAIXA
+              </Badge>
+            )}
+            {property.discount_percent != null && property.discount_percent >= 10 ? (
+              <Badge className="border-0 bg-emerald-600 text-[10px] text-white">
+                <Tag className="mr-1 h-3 w-3" /> Oportunidade · -
+                {formatPercent(property.discount_percent)}
               </Badge>
             ) : opportunity ? (
               <Badge className="border-0 bg-emerald-600 text-[10px] text-white">
                 <Tag className="mr-1 h-3 w-3" /> Preço atrativo
               </Badge>
-            ) : (
-              <Badge className="border-0 bg-blue-600 text-[10px] text-white">Novo anúncio</Badge>
-            )}
+            ) : bestValue ? (
+              <Badge className="border-0 bg-blue-600 text-[10px] text-white">Menor valor</Badge>
+            ) : property.listing_market !== "caixa" ? (
+              <Badge className="border-0 bg-blue-600 text-[10px] text-white">Mercado</Badge>
+            ) : null}
             {property.listing_market === "caixa" && !property.is_auction && (
               <Badge className="border-0 bg-slate-900/75 text-[10px] text-white backdrop-blur">
                 CAIXA
@@ -896,6 +918,18 @@ function PropertyCard({
             <p className="mt-0.5 text-xl font-black tracking-tight text-[var(--mi-text)]">
               {formatPrice(property.price)}
             </p>
+            {property.evaluation_value != null &&
+              property.price != null &&
+              property.evaluation_value > property.price && (
+                <>
+                  <p className="mt-1 text-[10px] text-[var(--mi-text-soft)] line-through">
+                    Avaliação: {formatPrice(property.evaluation_value)}
+                  </p>
+                  <p className="mt-0.5 text-[10px] font-bold text-emerald-600">
+                    Economia: {formatPrice(property.evaluation_value - property.price)}
+                  </p>
+                </>
+              )}
           </div>
           {property.source_portal && (
             <span className="rounded-lg bg-blue-500/10 px-2 py-1 text-[9px] font-black text-blue-600">
@@ -1117,6 +1151,16 @@ function PropertyModal({
             label="Área"
             value={property.area_sqm != null ? `${property.area_sqm} m²` : "Não informada"}
           />
+          {property.evaluation_value != null &&
+            property.evaluation_value > (property.price ?? 0) && (
+              <Detail label="Avaliação da fonte" value={formatPrice(property.evaluation_value)} />
+            )}
+          {property.discount_percent != null && property.discount_percent > 0 && (
+            <Detail
+              label="Desconto informado"
+              value={`${formatPercent(property.discount_percent)}%`}
+            />
+          )}
         </div>
         {property.description && (
           <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-[var(--mi-text-muted)]">
@@ -1238,6 +1282,11 @@ function CompareLine({ label, value }: { label: string; value: string }) {
 }
 
 function calculateOpportunityKeys(items: PropertySearchItem[]) {
+  const official = new Set(
+    items
+      .filter((item) => item.discount_percent != null && item.discount_percent >= 10)
+      .map((item) => propertyKey(item)),
+  );
   const comparable = items
     .filter(
       (item) =>
@@ -1250,14 +1299,25 @@ function calculateOpportunityKeys(items: PropertySearchItem[]) {
     .map((item) => ({ key: propertyKey(item), value: item.price! / item.area_sqm! }))
     .sort((a, b) => a.value - b.value);
 
-  if (comparable.length < 5) return new Set<string>();
+  if (comparable.length < 5) return official;
   const middle = Math.floor(comparable.length / 2);
   const median =
     comparable.length % 2 === 0
       ? (comparable[middle - 1]!.value + comparable[middle]!.value) / 2
       : comparable[middle]!.value;
   const threshold = median * 0.85;
-  return new Set(comparable.filter((item) => item.value <= threshold).map((item) => item.key));
+  for (const item of comparable.filter((entry) => entry.value <= threshold)) official.add(item.key);
+  return official;
+}
+
+function calculateBestValueKeys(items: PropertySearchItem[]) {
+  return new Set(
+    items
+      .filter((item) => item.price != null && item.price > 0)
+      .sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER))
+      .slice(0, 3)
+      .map((item) => propertyKey(item)),
+  );
 }
 
 function formatPrice(value: number | null) {
@@ -1268,6 +1328,10 @@ function formatPrice(value: number | null) {
         currency: "BRL",
         maximumFractionDigits: 0,
       }).format(value);
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value);
 }
 
 function formatInteger(value: number | undefined) {
