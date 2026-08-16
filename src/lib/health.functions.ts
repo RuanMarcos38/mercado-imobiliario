@@ -2,21 +2,25 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 
 export const getSystemHealth = createServerFn({ method: "GET" }).handler(async () => {
-  const { data: properties, count: propCount } = await supabase
-    .from("properties")
-    .select("*", { count: "exact", head: true });
+  const { data, error } = await supabase.rpc("search_index_health");
 
-  const { count: leadCount } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true });
+  if (error) {
+    throw new Error("Não foi possível verificar a disponibilidade da pesquisa.");
+  }
+
+  const health = (data ?? {}) as {
+    count?: number;
+    states?: number;
+    latest_update?: string | null;
+  };
 
   return {
-    status: "healthy",
+    status: (health.count ?? 0) > 0 ? "healthy" : "degraded",
     timestamp: new Date().toISOString(),
-    metrics: {
-      total_properties: propCount || 0,
-      total_leads: leadCount || 0,
-      scanners_active: true,
+    search: {
+      indexed_properties: health.count ?? 0,
+      covered_states: health.states ?? 0,
+      latest_update: health.latest_update ?? null,
     },
   };
 });
