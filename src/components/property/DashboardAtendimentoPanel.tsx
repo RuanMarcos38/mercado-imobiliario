@@ -77,7 +77,7 @@ export function DashboardAtendimentoPanel() {
   };
 
   return (
-    <aside className="mi-card mi-chat-panel hidden min-h-[680px] flex-col overflow-hidden 2xl:flex">
+    <aside className="mi-card mi-chat-panel hidden min-h-[680px] flex-col overflow-hidden xl:flex">
       <div className="mi-chat-header flex items-center justify-between border-b px-4 py-4">
         <div>
           <div className="flex items-center gap-2">

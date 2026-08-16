@@ -322,7 +322,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
   return (
     <div className="mi-theme-safe min-h-full bg-[var(--mi-bg)] text-[var(--mi-text)]">
       <div className="mx-auto max-w-[1760px] px-4 py-5 sm:px-5 xl:px-6">
-        <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           <main className="min-w-0">
             <section className="mi-hero relative overflow-hidden rounded-[22px] border border-white/10 px-6 py-7 text-white sm:px-8 sm:py-8">
               <div className="mi-hero-grid absolute inset-0 opacity-70" />
@@ -330,7 +330,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
               <div className="absolute -right-2 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full border border-cyan-300/20" />
               <div className="relative z-10 max-w-3xl">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">MercadoImobi</p>
-                <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Encontre as melhores oportunidades</h1>
+                <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Encontre imóveis com <span className="text-[var(--mi-accent)]">mais potencial</span></h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50/80">
                   Dados reais, imóveis de múltiplas fontes e decisões imobiliárias mais rápidas em um único ambiente.
                 </p>
