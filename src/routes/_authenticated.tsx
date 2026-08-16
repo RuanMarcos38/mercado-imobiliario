@@ -65,9 +65,9 @@ function AuthenticatedLayout() {
     { to: "/leiloes", label: "CAIXA / Leilões", icon: Gavel },
     { to: "/alertas", label: "Alertas de imóveis", icon: Bell },
     { to: "/atendimento", label: "Conversas", icon: MessageCircle },
-    { to: "/atendimento/fluxos", label: "Fluxos", icon: Workflow },
-    { to: "/atendimento/assistente", label: "Assistente IA", icon: Bot },
-    { to: "/atendimento/integracoes", label: "Integrações", icon: Plug },
+    { to: "/fluxos", label: "Fluxos", icon: Workflow },
+    { to: "/assistente", label: "Assistente IA", icon: Bot },
+    { to: "/integracoes", label: "Integrações", icon: Plug },
     { to: "/settings/security", label: "Minha conta", icon: UserRound },
   ] as const;
 
@@ -95,10 +95,7 @@ function AuthenticatedLayout() {
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <button
-          onClick={() => void signOut()}
-          className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-400 transition hover:bg-rose-400/[0.07] hover:text-rose-200"
-        >
+        <button onClick={() => void signOut()} className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-400 transition hover:bg-rose-400/[0.07] hover:text-rose-200">
           <LogOut className="h-4 w-4" /> Sair
         </button>
       </div>
@@ -126,15 +123,10 @@ function AuthenticatedLayout() {
 
 function SidebarLink({ item, pathname, onClick }: { item: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }; pathname: string; onClick: () => void }) {
   const Icon = item.icon;
-  const active = pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(`${item.to}/`));
+  const active = pathname === item.to;
   return (
-    <Link
-      to={item.to}
-      onClick={onClick}
-      className={`mb-1 flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition ${active ? "bg-cyan-300/[0.10] text-cyan-100 ring-1 ring-cyan-300/15" : "text-slate-400 hover:bg-white/[0.045] hover:text-white"}`}
-    >
-      <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : ""}`} />
-      {item.label}
+    <Link to={item.to} onClick={onClick} className={`mb-1 flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition ${active ? "bg-cyan-300/[0.10] text-cyan-100 ring-1 ring-cyan-300/15" : "text-slate-400 hover:bg-white/[0.045] hover:text-white"}`}>
+      <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : ""}`} />{item.label}
     </Link>
   );
 }
