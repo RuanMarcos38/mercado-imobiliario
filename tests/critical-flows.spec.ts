@@ -89,7 +89,8 @@ describe("MercadoImobi product invariants", () => {
     expect(importHook).toContain('.delete()');
     expect(importHook).toContain("PROPERTY_IMPORT_WEBHOOK_SECRET");
     expect(discovery).toContain("web_search");
-    expect(discovery).not.toMatch(/captcha|playwright|puppeteer/i);
+    expect(discovery).not.toMatch(/playwright|puppeteer/i);
+    expect(discovery).toContain("Não tente contornar login, CAPTCHA, bloqueio, paywall ou área privada");
   });
 
   it("keeps AI and WhatsApp secrets server-side", () => {
