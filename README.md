@@ -1,29 +1,57 @@
-# Welcome to your Lovable project
+# MercadoImobi
 
-This project was built with [Lovable](https://lovable.dev).
+MercadoImobi é uma plataforma de pesquisa imobiliária para clientes e corretores encontrarem, filtrarem, compararem e salvarem imóveis reais em uma experiência simples e organizada.
 
-## Build with Lovable
+## Funcionalidades principais
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- pesquisa por cidade, bairro, estado e tipo de imóvel;
+- filtros de preço, quartos, banheiros e área;
+- filtro por fonte e imóveis verificados;
+- ordenação por atualização, preço e área;
+- comparação de imóveis;
+- favoritos persistentes por usuário;
+- pesquisas salvas, com opção de renomear e excluir;
+- visualização detalhada antes de abrir a fonte original;
+- autenticação, recuperação de senha e verificação em duas etapas;
+- suporte a contas de clientes e corretores;
+- integração com fontes imobiliárias autorizadas.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## Dados imobiliários
 
-## Development
+A integração ativa utiliza os anúncios oficiais de Imóveis CAIXA. A aplicação normaliza os registros, mantém um índice nacional e preserva a URL original de cada imóvel.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Novas fontes devem utilizar apenas APIs, feeds ou integrações oficialmente autorizadas. Não devem ser adicionados imóveis, preços ou disponibilidade fictícios.
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+## Desenvolvimento
+
+Requisitos: Node.js 22+ e npm.
+
+```bash
+npm install
 npm run dev
 ```
 
-## Built with
+Validação de produção:
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
+## Produção
+
+A aplicação possui build Node compatível com Docker e EasyPanel.
+
+```bash
+npm run build
+npm run start
+```
+
+Porta padrão: `3000`.
+
+As credenciais e configurações privadas devem ser cadastradas no ambiente de hospedagem e nunca commitadas no repositório. Consulte `.env.example` e `DEPLOY_EASYPANEL.md`.
+
+## Domínio previsto
+
+`https://mercadoimobi.rdmconsultoriaimobiliaria.com.br`
