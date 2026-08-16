@@ -105,34 +105,57 @@ jobs:
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git push --force-with-lease origin HEAD:refs/heads/production
 
-      - name: Diagnose deployed EasyPanel runtime
+      - name: Diagnose public routing and EasyPanel
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
+        env:
+          EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
         shell: bash
         run: |
           set -uo pipefail
-          BASE_URL="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          rm -f /tmp/live-status.json
-          for attempt in $(seq 1 12); do
-            echo "Live diagnostic attempt $attempt/12"
-            if curl -fsS --connect-timeout 8 --max-time 15 "$BASE_URL/api/public/status" -o /tmp/live-status.json; then
-              cat /tmp/live-status.json
-              node - <<'NODE'
-          const fs = require('fs');
-          const status = JSON.parse(fs.readFileSync('/tmp/live-status.json', 'utf8'));
-          console.log(`Production status: ${status.status ?? 'unknown'}`);
-          console.log(`Search: ${status.search ?? 'unknown'}`);
-          console.log(`Indexed properties: ${status.indexedProperties ?? 'unknown'}`);
-          console.log(`AI runtime: ${status.runtime?.ai ?? 'unknown'}`);
-          console.log(`WhatsApp runtime: ${status.runtime?.whatsapp ?? 'unknown'}`);
-          console.log(`WhatsApp webhook: ${status.runtime?.whatsappWebhook ?? 'unknown'}`);
-          console.log(`Property import: ${status.runtime?.propertyImport ?? 'unknown'}`);
-          if (status.runtime?.ai !== 'configured') console.log('::warning::IA ainda não confirmada no runtime publicado.');
-          if (status.runtime?.whatsapp !== 'configured') console.log('::warning::Evolution API ainda não confirmada no runtime publicado.');
-          NODE
-              exit 0
+          CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
+          EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
+          EASY="${EASY%/}"
+
+          inspect() {
+            local label="$1" base="$2" body="/tmp/${1}.body"
+            echo "===== $label: $base ====="
+            if ! curl -sS --connect-timeout 8 --max-time 15 "$base/api/public/status" -o "$body"; then
+              echo "::warning::$label não respondeu."
+              return 2
             fi
-            sleep 12
-          done
-          echo "::warning::O domínio de produção não respondeu ao diagnóstico após a promoção. Verifique DNS, serviço EasyPanel, branch production e domínio/SSL."
-          exit 1
+            if grep -qi 'mercado-imobiliario-r2r\.lovable\.app' "$body"; then
+              echo "::warning::$label está servindo o redirect antigo Hostinger -> Lovable."
+              return 3
+            fi
+            if node - "$body" <<'NODE'
+          const fs=require('fs');
+          const file=process.argv[2];
+          const p=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(p.status!=='operational') process.exit(2);
+          console.log(`release=${p.release||'sem-marcador'}`);
+          console.log(`indexed=${p.indexedProperties||0}`);
+          console.log(`sync=${p.synchronization?.state||'unknown'} age=${p.synchronization?.ageMinutes??'n/a'}min`);
+          console.log(`ai=${p.runtime?.ai||'unknown'} whatsapp=${p.runtime?.whatsapp||'unknown'}`);
+          NODE
+            then
+              echo "$label está servindo o backend MercadoImobi."
+              return 0
+            fi
+            echo "::warning::$label respondeu, mas não é o backend MercadoImobi esperado."
+            head -c 500 "$body" || true
+            echo
+            return 4
+          }
+
+          custom_rc=0; easy_rc=0
+          inspect custom "$CUSTOM" || custom_rc=$?
+          inspect easypanel "$EASY" || easy_rc=$?
+          echo "custom_result=$custom_rc easypanel_result=$easy_rc"
+          if [ "$custom_rc" -eq 3 ]; then
+            echo "::warning::O domínio definitivo ainda está preso no arquivo estático antigo da Hostinger e não entrega o app atualizado do GitHub."
+          fi
+          if [ "$easy_rc" -eq 0 ] && [ "$custom_rc" -ne 0 ]; then
+            echo "::warning::O app novo está no EasyPanel; falta apenas encaminhar o domínio definitivo para esse serviço e remover o redirect antigo."
+          fi
+          exit 0
