@@ -1,3 +1,5 @@
+import { whatsappParameters } from "@/lib/platform-parameters.server";
+
 type DbClient = any;
 
 export type EvolutionGatewayConfig = {
@@ -24,7 +26,7 @@ export async function evolutionRequest(
       apikey: config.apiKey,
       ...(init?.headers ?? {}),
     },
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(whatsappParameters().evolutionTimeoutMs),
   });
 }
 
