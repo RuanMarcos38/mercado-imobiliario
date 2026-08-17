@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "@/integrations/supabase/public-config";
 
 const userTypeSchema = z.enum([
   "cliente",
@@ -66,6 +70,7 @@ export interface AccountAccessState {
 type AdminContext = {
   supabase: any;
   userId: string;
+  accessToken: string;
 };
 
 async function requirePlatformAdmin(context: AdminContext) {
@@ -84,25 +89,30 @@ async function invokePlatformAdmin<T>(
   action: "list" | "create" | "update",
   data?: unknown,
 ): Promise<T> {
-  const response = await context.supabase.functions.invoke("platform-admin", {
-    body: { action, data },
+  const url = `${PUBLIC_SUPABASE_URL}/functions/v1/platform-admin`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${context.accessToken}`,
+    },
+    body: JSON.stringify({ action, data }),
   });
 
-  if (response.error) {
-    const contextBody = (response.error as any)?.context;
-    let detail = "";
-    try {
-      if (typeof contextBody?.json === "function") {
-        const body = await contextBody.json();
-        detail = String(body?.error ?? "");
-      }
-    } catch {
-      detail = "";
-    }
-    throw new Error(detail || response.error.message || "Falha na administração de usuários.");
+  let payload: any = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
   }
 
-  const payload = response.data as any;
+  if (!response.ok) {
+    throw new Error(
+      String(payload?.error || `Falha na administração de usuários (${response.status}).`),
+    );
+  }
+
   if (payload?.error) throw new Error(String(payload.error));
   return payload as T;
 }
@@ -151,8 +161,11 @@ export const getAccountAccessState = createServerFn({ method: "GET" })
 export const listPlatformUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<PlatformUser[]> => {
-    await requirePlatformAdmin(context);
-    const result = await invokePlatformAdmin<{ users: PlatformUser[] }>(context, "list");
+    await requirePlatformAdmin(context as AdminContext);
+    const result = await invokePlatformAdmin<{ users: PlatformUser[] }>(
+      context as AdminContext,
+      "list",
+    );
     return result.users ?? [];
   });
 
@@ -160,14 +173,18 @@ export const createPlatformUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => createUserSchema.parse(data))
   .handler(async ({ data, context }) => {
-    await requirePlatformAdmin(context);
-    return invokePlatformAdmin<{ success: boolean; userId: string }>(context, "create", data);
+    await requirePlatformAdmin(context as AdminContext);
+    return invokePlatformAdmin<{ success: boolean; userId: string }>(
+      context as AdminContext,
+      "create",
+      data,
+    );
   });
 
 export const updatePlatformUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => updateUserSchema.parse(data))
   .handler(async ({ data, context }) => {
-    await requirePlatformAdmin(context);
-    return invokePlatformAdmin<{ success: boolean }>(context, "update", data);
+    await requirePlatformAdmin(context as AdminContext);
+    return invokePlatformAdmin<{ success: boolean }>(context as AdminContext, "update", data);
   });
