@@ -3,7 +3,7 @@ name: Snapshot CAIXA properties
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 * * * *"
+    - cron: "*/15 * * * *"
   push:
     paths:
       - ".github/workflows/snapshot-caixa-properties.yml"
