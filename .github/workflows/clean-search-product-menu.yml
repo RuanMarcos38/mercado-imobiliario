@@ -1,0 +1,63 @@
+name: Clean MercadoImobi product menu
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/clean-search-product-menu.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Keep search product menu focused
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('src/routes/_authenticated.tsx')
+          text = path.read_text()
+          for line in [
+              '  LayoutGrid,\n',
+              '  Mail,\n',
+              '  PhoneCall,\n',
+              '  Share2,\n',
+          ]:
+              text = text.replace(line, '')
+          for line in [
+              '  { to: "/crm", label: "CRM / Oportunidades", icon: LayoutGrid },\n',
+              '  { to: "/midias-sociais", label: "Facebook e Instagram", icon: Share2 },\n',
+              '  { to: "/email-cca", label: "E-mail / CCA", icon: Mail },\n',
+              '  { to: "/discador", label: "Discador", icon: PhoneCall },\n',
+          ]:
+              text = text.replace(line, '')
+          path.write_text(text)
+
+          test_path = Path('tests/platform-buttons.test.ts')
+          tests = test_path.read_text()
+          marker = '  it("keeps dashboard and property search focused on the complete inventory", () => {'
+          block = '''  it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {\n    expect(authenticatedLayout).not.toContain('label: "CRM / Oportunidades"');\n    expect(authenticatedLayout).not.toContain('label: "Facebook e Instagram"');\n    expect(authenticatedLayout).not.toContain('label: "E-mail / CCA"');\n    expect(authenticatedLayout).not.toContain('label: "Discador"');\n    expect(authenticatedLayout).toContain('label: "Atendimento WhatsApp"');\n    expect(authenticatedLayout).toContain('label: "Fluxos"');\n    expect(authenticatedLayout).toContain('label: "Assistente IA"');\n    expect(authenticatedLayout).toContain('label: "Diagnóstico"');\n    expect(authenticatedLayout).toContain('label: "Fontes de imóveis"');\n  });\n\n'''
+          if block not in tests:
+              if marker not in tests:
+                  raise SystemExit('test insertion marker not found')
+              tests = tests.replace(marker, block + marker)
+          test_path.write_text(tests)
+          PY
+          npx prettier --write src/routes/_authenticated.tsx tests/platform-buttons.test.ts
+          npm test -- --runInBand >/tmp/menu-test.log 2>&1 || { cat /tmp/menu-test.log; exit 1; }
+      - name: Commit clean product menu
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/clean-search-product-menu.yml
+          git add src/routes/_authenticated.tsx tests/platform-buttons.test.ts
+          git commit -m "Keep MercadoImobi navigation focused on property search"
+          git push origin HEAD:main
