@@ -1,6 +1,7 @@
 name: Apply realtime property guardrails
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -23,7 +24,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Patch search guardrails and schedules
+      - name: Apply source guardrails
         shell: python
         run: |
           from pathlib import Path
@@ -64,22 +65,11 @@ jobs:
 
           search.write_text(text)
 
-          schedules = {
-              '.github/workflows/public-property-discovery.yml': '    - cron: "5 * * * *"',
-              '.github/workflows/sync-authorized-property-feeds.yml': '    - cron: "35 * * * *"',
-              '.github/workflows/snapshot-caixa-properties.yml': '    - cron: "15 * * * *"',
-          }
-          for filename, old in schedules.items():
-              path = Path(filename)
-              source = path.read_text()
-              source = source.replace(old, '    - cron: "*/15 * * * *"')
-              path.write_text(source)
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Format
-        run: npx prettier --write src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts .github/workflows/public-property-discovery.yml .github/workflows/sync-authorized-property-feeds.yml .github/workflows/snapshot-caixa-properties.yml
+        run: npx prettier --write src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts
 
       - name: Lint
         run: npm run lint
@@ -90,13 +80,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Commit validated realtime guardrails
+      - name: Commit validated source guardrails
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts .github/workflows/public-property-discovery.yml .github/workflows/sync-authorized-property-feeds.yml .github/workflows/snapshot-caixa-properties.yml supabase/migrations/20260817190000_enforce_fresh_real_estate_only_index.sql
+          git add src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts supabase/migrations/20260817190000_enforce_fresh_real_estate_only_index.sql
           git diff --cached --quiet && exit 0
           git commit -m "feat: enforce fresh real-estate-only listings"
           git push origin HEAD:main
