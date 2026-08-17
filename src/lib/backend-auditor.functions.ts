@@ -135,11 +135,19 @@ function deterministicReport(checks: BackendAuditCheck[]) {
   if (!failed.length && !warnings.length && !missing.length) {
     return `Auditoria concluída: ${checks.length}/${checks.length} verificações aprovadas. Backend validado em 100% dos testes executados, sem pendências detectadas neste ciclo.`;
   }
-  const blockers = failed.slice(0, 4).map((item) => item.label).join(", ");
-  const pending = [...warnings, ...missing].slice(0, 5).map((item) => item.label).join(", ");
+  const blockers = failed
+    .slice(0, 4)
+    .map((item) => item.label)
+    .join(", ");
+  const pending = [...warnings, ...missing]
+    .slice(0, 5)
+    .map((item) => item.label)
+    .join(", ");
   return [
     `Auditoria concluída com ${percent}% das verificações aprovadas (${passed.length}/${checks.length}).`,
-    failed.length ? `Falhas que exigem correção: ${blockers}.` : "Nenhuma falha crítica foi detectada.",
+    failed.length
+      ? `Falhas que exigem correção: ${blockers}.`
+      : "Nenhuma falha crítica foi detectada.",
     pending ? `Itens pendentes ou não totalmente verificáveis: ${pending}.` : "",
     "O sistema só deve ser considerado 100% quando todas as verificações estiverem aprovadas.",
   ]
@@ -210,14 +218,17 @@ async function testPublicApplication() {
         };
       }
       const payload = await response.json().catch(() => null);
-      const status = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+      const status =
+        payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
       const indexed = Number(status?.["indexedProperties"] ?? 0);
       const states = Number(status?.["coveredStates"] ?? 0);
       const ok =
         status?.["status"] === "operational" &&
         status?.["search"] === "available" &&
-        Number.isFinite(indexed) && indexed >= 1000 &&
-        Number.isFinite(states) && states >= 27;
+        Number.isFinite(indexed) &&
+        indexed >= 1000 &&
+        Number.isFinite(states) &&
+        states >= 27;
       return {
         key: "public-app",
         label: "Aplicação pública / roteamento",
@@ -262,6 +273,36 @@ async function testAuthRuntime(db: any, userId: string) {
   });
 }
 
+async function testJoinvilleSourceDiversity(db: any) {
+  return timed(async () => {
+    const result = await db.rpc("property_region_search_health", {
+      p_city: "Joinville",
+      p_state: "SC",
+    });
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    const market = Number(row?.market ?? 0);
+    const caixa = Number(row?.caixa ?? 0);
+    const sources = Number(row?.sources ?? 0);
+    const marketSources = Array.isArray(row?.market_sources)
+      ? row.market_sources.filter(Boolean).map(String)
+      : [];
+    const ok = !result.error && market >= 3 && marketSources.length >= 2;
+    return {
+      key: "search-joinville-diversity",
+      label: "Teste IA de pesquisa — Joinville",
+      category: "Busca imobiliária",
+      critical: true,
+      configured: true,
+      status: ok ? ("pass" as const) : ("fail" as const),
+      detail: result.error
+        ? `Falha no teste regional: ${result.error.message}`
+        : ok
+          ? `Joinville retornou ${market} imóveis de mercado em ${marketSources.length} fontes (${marketSources.join(", ")}) + ${caixa} CAIXA.`
+          : `Joinville ainda não possui diversidade suficiente: mercado=${market}, fontes de mercado=${marketSources.length}, CAIXA=${caixa}, fontes totais=${sources}.`,
+    };
+  });
+}
+
 async function testStorage() {
   return timed(async () => {
     const bucket = documentParameters().ccaBucket;
@@ -273,7 +314,8 @@ async function testStorage() {
         critical: false,
         configured: false,
         status: "not_configured" as const,
-        detail: "Verificação administrativa do Storage requer SUPABASE_SERVICE_ROLE_KEY no runtime do servidor; o backend principal continua usando a sessão autenticada com RLS.",
+        detail:
+          "Verificação administrativa do Storage requer SUPABASE_SERVICE_ROLE_KEY no runtime do servidor; o backend principal continua usando a sessão autenticada com RLS.",
       };
     }
 
@@ -290,7 +332,12 @@ async function testStorage() {
         detail: `Bucket privado ${bucket} disponível.`,
       };
     }
-    if (result.error && !String(result.error.message ?? "").toLowerCase().includes("not found")) {
+    if (
+      result.error &&
+      !String(result.error.message ?? "")
+        .toLowerCase()
+        .includes("not found")
+    ) {
       return {
         key: "storage-cca",
         label: "Storage privado de documentos",
@@ -308,7 +355,8 @@ async function testStorage() {
       critical: false,
       configured: true,
       status: "warn" as const,
-      detail: "Bucket ainda não existe. O backend o cria automaticamente no primeiro upload de documento.",
+      detail:
+        "Bucket ainda não existe. O backend o cria automaticamente no primeiro upload de documento.",
     };
   });
 }
@@ -339,16 +387,17 @@ async function testOpenAi() {
       critical: false,
       configured: true,
       status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok ? `Resposta sintética recebida usando ${aiParameters().model}.` : "A OpenAI está configurada, mas o teste sintético não retornou resposta válida.",
+      detail: ok
+        ? `Resposta sintética recebida usando ${aiParameters().model}.`
+        : "A OpenAI está configurada, mas o teste sintético não retornou resposta válida.",
     };
   });
 }
 
 async function testWhatsApp(db: any, tenantId: string) {
   return timed(async () => {
-    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } = await import(
-      "@/lib/evolution-instance.server"
-    );
+    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } =
+      await import("@/lib/evolution-instance.server");
     const gateway = evolutionGatewayConfig();
     const instance = await getTenantEvolutionInstance(db, tenantId);
     if (!gateway || !instance) {
@@ -368,7 +417,9 @@ async function testWhatsApp(db: any, tenantId: string) {
       { method: "GET" },
     );
     const payload = await response.json().catch(() => ({}));
-    const raw = String(payload?.instance?.state ?? payload?.state ?? payload?.status ?? "").toLowerCase();
+    const raw = String(
+      payload?.instance?.state ?? payload?.state ?? payload?.status ?? "",
+    ).toLowerCase();
     const ok = response.ok && ["open", "connected", "online"].includes(raw);
     return {
       key: "whatsapp-live",
@@ -377,7 +428,9 @@ async function testWhatsApp(db: any, tenantId: string) {
       critical: false,
       configured: true,
       status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok ? `Instância ${instance} online e autenticada.` : `Instância ${instance}: ${raw || `HTTP ${response.status}`}.`,
+      detail: ok
+        ? `Instância ${instance} online e autenticada.`
+        : `Instância ${instance}: ${raw || `HTTP ${response.status}`}.`,
     };
   });
 }
@@ -392,11 +445,12 @@ async function testMeta(tenantId: string, userId: string) {
       category: "Comunicação",
       critical: false,
       configured: result.configured && result.connected !== false,
-      status: !result.configured || !result.connected
-        ? ("not_configured" as const)
-        : result.ok
-          ? ("pass" as const)
-          : ("fail" as const),
+      status:
+        !result.configured || !result.connected
+          ? ("not_configured" as const)
+          : result.ok
+            ? ("pass" as const)
+            : ("fail" as const),
       detail: result.ok
         ? "Token Meta da conta validado com sucesso."
         : result.connected
@@ -442,9 +496,10 @@ async function testEmail() {
         critical: false,
         configured: true,
         status: "fail" as const,
-        detail: error instanceof Error
-          ? `Falha de autenticação SMTP: ${error.message.slice(0, 180)}`
-          : "Falha de autenticação do provedor de e-mail.",
+        detail:
+          error instanceof Error
+            ? `Falha de autenticação SMTP: ${error.message.slice(0, 180)}`
+            : "Falha de autenticação do provedor de e-mail.",
       };
     }
   });
@@ -460,8 +515,16 @@ async function testTwilio() {
       category: "Comunicação",
       critical: false,
       configured: result.configured,
-      status: !result.configured ? ("not_configured" as const) : result.ok ? ("pass" as const) : ("fail" as const),
-      detail: result.ok ? "Conta Twilio autenticada; discador apto para iniciar chamadas." : result.configured ? `Twilio HTTP ${result.status ?? "falhou"}.` : "Credenciais Twilio não configuradas.",
+      status: !result.configured
+        ? ("not_configured" as const)
+        : result.ok
+          ? ("pass" as const)
+          : ("fail" as const),
+      detail: result.ok
+        ? "Conta Twilio autenticada; discador apto para iniciar chamadas."
+        : result.configured
+          ? `Twilio HTTP ${result.status ?? "falhou"}.`
+          : "Credenciais Twilio não configuradas.",
     };
   });
 }
@@ -492,7 +555,9 @@ async function testStripe() {
       critical: false,
       configured: true,
       status: response.ok ? ("pass" as const) : ("fail" as const),
-      detail: response.ok ? "Conta Stripe autenticada e backend de cobrança acessível." : `Stripe HTTP ${response.status}.`,
+      detail: response.ok
+        ? "Conta Stripe autenticada e backend de cobrança acessível."
+        : `Stripe HTTP ${response.status}.`,
     };
   });
 }
@@ -519,7 +584,11 @@ async function testGoogleMaps() {
       signal: AbortSignal.timeout(externalServiceParameters().diagnosticTimeoutMs),
     });
     const payload = await response.json().catch(() => ({}));
-    const ok = response.ok && payload?.status === "OK" && Array.isArray(payload?.results) && payload.results.length > 0;
+    const ok =
+      response.ok &&
+      payload?.status === "OK" &&
+      Array.isArray(payload?.results) &&
+      payload.results.length > 0;
     return {
       key: "google-maps-live",
       label: "Google Maps / Geocoding",
@@ -527,7 +596,9 @@ async function testGoogleMaps() {
       critical: false,
       configured: true,
       status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok ? "Geocoding API respondeu com coordenadas válidas." : `Google Maps: ${String(payload?.status ?? `HTTP ${response.status}`)}${payload?.error_message ? ` — ${String(payload.error_message).slice(0, 160)}` : ""}.`,
+      detail: ok
+        ? "Geocoding API respondeu com coordenadas válidas."
+        : `Google Maps: ${String(payload?.status ?? `HTTP ${response.status}`)}${payload?.error_message ? ` — ${String(payload.error_message).slice(0, 160)}` : ""}.`,
     };
   });
 }
@@ -547,7 +618,9 @@ async function testIbge() {
       critical: false,
       configured: true,
       status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok ? `API do IBGE respondeu com ${payload.length} municípios de SC.` : `IBGE HTTP ${response.status}.`,
+      detail: ok
+        ? `API do IBGE respondeu com ${payload.length} municípios de SC.`
+        : `IBGE HTTP ${response.status}.`,
     };
   });
 }
@@ -555,11 +628,8 @@ async function testIbge() {
 async function testLeadWebhook(tenantId: string) {
   return timed(async () => {
     try {
-      const {
-        createLeadWebhookSignature,
-        createLeadWebhookUrl,
-        verifyLeadWebhookSignature,
-      } = await import("@/lib/lead-operations.server");
+      const { createLeadWebhookSignature, createLeadWebhookUrl, verifyLeadWebhookSignature } =
+        await import("@/lib/lead-operations.server");
       const signature = createLeadWebhookSignature(tenantId, "meta");
       const valid = verifyLeadWebhookSignature(tenantId, "meta", signature);
       const invalidCrossSource = verifyLeadWebhookSignature(tenantId, "google", signature);
@@ -572,10 +642,13 @@ async function testLeadWebhook(tenantId: string) {
         critical: true,
         configured: ok,
         status: ok ? ("pass" as const) : ("fail" as const),
-        detail: ok ? "Assinatura, isolamento por origem e URL de ingestão validados." : "A assinatura do webhook de leads não passou na validação interna.",
+        detail: ok
+          ? "Assinatura, isolamento por origem e URL de ingestão validados."
+          : "A assinatura do webhook de leads não passou na validação interna.",
       };
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Falha no teste de assinatura do webhook.";
+      const detail =
+        error instanceof Error ? error.message : "Falha no teste de assinatura do webhook.";
       const missingSecret = detail.includes("LEAD_WEBHOOK_SECRET_MISSING");
       return {
         key: "lead-webhook",
@@ -604,7 +677,8 @@ async function testCcaConnector() {
         critical: false,
         configured: false,
         status: "not_configured" as const,
-        detail: "CCA_INTEGRATION_URL não configurada; o dossiê continua disponível para envio por e-mail.",
+        detail:
+          "CCA_INTEGRATION_URL não configurada; o dossiê continua disponível para envio por e-mail.",
       };
     }
     if (!healthUrl) {
@@ -615,7 +689,8 @@ async function testCcaConnector() {
         critical: false,
         configured: true,
         status: "warn" as const,
-        detail: "Endpoint CCA configurado, mas sem CCA_HEALTHCHECK_URL. Não é seguro disparar um dossiê real durante o autoteste.",
+        detail:
+          "Endpoint CCA configurado, mas sem CCA_HEALTHCHECK_URL. Não é seguro disparar um dossiê real durante o autoteste.",
       };
     }
     const token = process.env["CCA_INTEGRATION_TOKEN"]?.trim();
@@ -631,7 +706,9 @@ async function testCcaConnector() {
       critical: false,
       configured: true,
       status: response.ok ? ("pass" as const) : ("fail" as const),
-      detail: response.ok ? `Healthcheck CCA respondeu HTTP ${response.status}.` : `Healthcheck CCA respondeu HTTP ${response.status}.`,
+      detail: response.ok
+        ? `Healthcheck CCA respondeu HTTP ${response.status}.`
+        : `Healthcheck CCA respondeu HTTP ${response.status}.`,
     };
   });
 }
@@ -673,8 +750,11 @@ export const runBackendAudit = createServerFn({ method: "POST" })
         status: tenantId ? ("pass" as const) : ("fail" as const),
         detail: tenantId ? "Tenant do usuário resolvido pelo backend." : "Tenant não resolvido.",
       })),
-      ...tables.map(([table, label, critical]) => testDatabaseTable(db, table, label, critical ?? true)),
+      ...tables.map(([table, label, critical]) =>
+        testDatabaseTable(db, table, label, critical ?? true),
+      ),
       testSearchHealth(db),
+      testJoinvilleSourceDiversity(db),
       testStorage(),
       testLeadWebhook(tenantId),
       testPublicApplication(),
@@ -698,7 +778,9 @@ export const runBackendAudit = createServerFn({ method: "POST" })
     const failed = checks.filter((item) => item.status === "fail").length;
     const notConfigured = checks.filter((item) => item.status === "not_configured").length;
     const verificationPercent = checks.length ? Math.round((passed / checks.length) * 100) : 0;
-    const coreReady = checks.filter((item) => item.critical).every((item) => item.status === "pass");
+    const coreReady = checks
+      .filter((item) => item.critical)
+      .every((item) => item.status === "pass");
     const productionReady = coreReady && failed === 0;
     const backend100 = checks.length > 0 && checks.every((item) => item.status === "pass");
     const fallback = deterministicReport(checks);
@@ -713,15 +795,17 @@ export const runBackendAudit = createServerFn({ method: "POST" })
             coreReady,
             productionReady,
             backend100,
-            checks: checks.map(({ key, label, category, critical, configured, status, detail }) => ({
-              key,
-              label,
-              category,
-              critical,
-              configured,
-              status,
-              detail,
-            })),
+            checks: checks.map(
+              ({ key, label, category, critical, configured, status, detail }) => ({
+                key,
+                label,
+                category,
+                critical,
+                configured,
+                status,
+                detail,
+              }),
+            ),
           }),
           [
             "Você é o Auditor Técnico do backend do MercadoImobi.",
@@ -761,7 +845,9 @@ export const askBackendAuditAssistant = createServerFn({ method: "POST" })
     await requirePlatformAdmin(context);
     const fallback = deterministicReport(data.checks);
     if (!process.env["OPENAI_API_KEY"]?.trim()) {
-      return { text: `${fallback} A IA do auditor não está configurada para responder perguntas adicionais.` };
+      return {
+        text: `${fallback} A IA do auditor não está configurada para responder perguntas adicionais.`,
+      };
     }
     const text = await openAiText(
       JSON.stringify({ question: data.question, checkedAt: data.checkedAt, checks: data.checks }),

@@ -18,7 +18,7 @@ const searchSchema = z.object({
   market: z.enum(["all", "market", "caixa", "auction"]).optional().default("all"),
   verifiedOnly: z.boolean().optional().default(false),
   sort: z.enum(["recent", "price_asc", "price_desc", "area_desc"]).optional().default("recent"),
-  limit: z.number().int().min(1).max(60).optional().default(30),
+  limit: z.number().int().min(1).max(100).optional().default(100),
   offset: z.number().int().min(0).max(100000).optional().default(0),
 });
 

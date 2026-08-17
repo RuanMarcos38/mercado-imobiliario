@@ -85,6 +85,7 @@ const PROPERTY_TYPES = [
 
 type MarketMode = "all" | "market" | "caixa" | "auction";
 type SortValue = "recent" | "price_asc" | "price_desc" | "area_desc";
+const PAGE_SIZE = 100;
 
 interface Filters {
   city: string;
@@ -133,7 +134,7 @@ function toInput(filters: Filters): PropertySearchInput {
     maxArea: filters.maxArea ? Number(filters.maxArea) : undefined,
     market: filters.market,
     sort: filters.sort,
-    limit: 48,
+    limit: PAGE_SIZE,
   };
 }
 
@@ -165,7 +166,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
 
   const searchQuery = useQuery({
     queryKey: ["properties", applied, page],
-    queryFn: () => searchFn({ data: { ...toInput(applied), offset: (page - 1) * 48 } }),
+    queryFn: () => searchFn({ data: { ...toInput(applied), offset: (page - 1) * PAGE_SIZE } }),
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
@@ -592,8 +593,8 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                         : `${formatInteger(searchQuery.data?.total ?? totalForMarket)} imóveis encontrados`}
                     </h2>
                     <p className="mt-1 text-[11px] text-[var(--mi-text-muted)]">
-                      A busca consulta toda a base. Até 48 imóveis são carregados por vez para
-                      manter a navegação rápida.
+                      A busca consulta toda a base. Até {PAGE_SIZE} imóveis são carregados por
+                      página, com fontes de mercado priorizadas antes da CAIXA.
                       {applied.market === "all" && stats && (
                         <>
                           {" "}
@@ -650,7 +651,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                 )}
                 {!searchQuery.isLoading &&
                   !searchQuery.isError &&
-                  (searchQuery.data?.total ?? 0) > 48 && (
+                  (searchQuery.data?.total ?? 0) > PAGE_SIZE && (
                     <div className="mt-6 flex items-center justify-between rounded-2xl bg-card px-4 py-3 ring-1 ring-black/5 shadow-card">
                       <button
                         type="button"
@@ -662,12 +663,12 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                       </button>
                       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                         Página {page} de{" "}
-                        {Math.max(1, Math.ceil((searchQuery.data?.total ?? 0) / 48))}
+                        {Math.max(1, Math.ceil((searchQuery.data?.total ?? 0) / PAGE_SIZE))}
                       </span>
                       <button
                         type="button"
                         onClick={() => setPage((current) => current + 1)}
-                        disabled={page >= Math.ceil((searchQuery.data?.total ?? 0) / 48)}
+                        disabled={page >= Math.ceil((searchQuery.data?.total ?? 0) / PAGE_SIZE)}
                         className="rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Próxima
