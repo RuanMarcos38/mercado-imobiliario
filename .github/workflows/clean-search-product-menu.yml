@@ -42,8 +42,8 @@ jobs:
 
           test_path = Path('tests/platform-buttons.test.ts')
           tests = test_path.read_text()
-          marker = '  it("keeps dashboard and property search focused on the complete inventory", () => {'
-          block = '''  it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {\n    expect(authenticatedLayout).not.toContain('label: "CRM / Oportunidades"');\n    expect(authenticatedLayout).not.toContain('label: "Facebook e Instagram"');\n    expect(authenticatedLayout).not.toContain('label: "E-mail / CCA"');\n    expect(authenticatedLayout).not.toContain('label: "Discador"');\n    expect(authenticatedLayout).toContain('label: "Atendimento WhatsApp"');\n    expect(authenticatedLayout).toContain('label: "Fluxos"');\n    expect(authenticatedLayout).toContain('label: "Assistente IA"');\n    expect(authenticatedLayout).toContain('label: "Diagnóstico"');\n    expect(authenticatedLayout).toContain('label: "Fontes de imóveis"');\n  });\n\n'''
+          marker = '  it("keeps dashboard and search on all properties, while auctions remain separate", () => {'
+          block = '''  it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {\n    const layout = source("src/routes/_authenticated.tsx");\n    expect(layout).not.toContain('label: "CRM / Oportunidades"');\n    expect(layout).not.toContain('label: "Facebook e Instagram"');\n    expect(layout).not.toContain('label: "E-mail / CCA"');\n    expect(layout).not.toContain('label: "Discador"');\n    expect(layout).toContain('label: "Atendimento WhatsApp"');\n    expect(layout).toContain('label: "Fluxos"');\n    expect(layout).toContain('label: "Assistente IA"');\n    expect(layout).toContain('label: "Diagnóstico"');\n    expect(layout).toContain('label: "Fontes de imóveis"');\n  });\n\n'''
           if block not in tests:
               if marker not in tests:
                   raise SystemExit('test insertion marker not found')
@@ -51,7 +51,7 @@ jobs:
           test_path.write_text(tests)
           PY
           npx prettier --write src/routes/_authenticated.tsx tests/platform-buttons.test.ts
-          npm test -- --runInBand >/tmp/menu-test.log 2>&1 || { cat /tmp/menu-test.log; exit 1; }
+          npm test
       - name: Commit clean product menu
         shell: bash
         run: |
