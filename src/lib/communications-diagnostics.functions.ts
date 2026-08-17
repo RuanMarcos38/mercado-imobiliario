@@ -3,7 +3,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
 import {
   aiParameters,
-  externalServiceParameters,
   integrationReadiness,
   platformParameterDefinitions,
 } from "@/lib/platform-parameters.server";
@@ -103,38 +102,27 @@ async function testWhatsApp(db: any, tenantId: string): Promise<DiagnosticItem> 
 }
 
 async function testEmail(): Promise<DiagnosticItem> {
-  const apiKey = process.env["RESEND_API_KEY"]?.trim();
-  const from = process.env["EMAIL_FROM"]?.trim();
-  if (!apiKey || !from)
-    return {
-      key: "email",
-      label: "E-mail / CCA",
-      configured: false,
-      ok: false,
-      detail: "RESEND_API_KEY ou EMAIL_FROM ausentes.",
-    };
-  const timeout = externalServiceParameters().diagnosticTimeoutMs;
   try {
-    const response = await fetch("https://api.resend.com/domains", {
-      headers: { Authorization: `Bearer ${apiKey}`, "User-Agent": "MercadoImobi/1.0" },
-      signal: AbortSignal.timeout(timeout),
-    });
+    const { verifyEmailRuntime } = await import("@/lib/smtp-email.server");
+    const result = await verifyEmailRuntime();
     return {
       key: "email",
       label: "E-mail / CCA",
-      configured: true,
-      ok: response.ok,
-      detail: response.ok
-        ? `Provedor autenticado. Remetente: ${from}`
-        : `Resend HTTP ${response.status}.`,
+      configured: result.configured,
+      ok: result.ok,
+      detail: !result.configured
+        ? "SMTP Hostinger ou Resend ainda não configurados."
+        : result.ok
+          ? `Provedor ${result.provider === "smtp-hostinger" ? "SMTP Hostinger" : "Resend"} autenticado. Remetente: ${result.from}`
+          : `O provedor de e-mail está configurado, mas a autenticação falhou.`,
     };
-  } catch {
+  } catch (error) {
     return {
       key: "email",
       label: "E-mail / CCA",
       configured: true,
       ok: false,
-      detail: "Falha ao consultar o provedor de e-mail.",
+      detail: error instanceof Error ? `Falha no provedor de e-mail: ${error.message.slice(0, 180)}` : "Falha ao consultar o provedor de e-mail.",
     };
   }
 }
