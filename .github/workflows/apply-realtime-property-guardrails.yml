@@ -1,0 +1,102 @@
+name: Apply realtime property guardrails
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-realtime-property-guardrails.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch search guardrails and schedules
+        shell: python
+        run: |
+          from pathlib import Path
+
+          search = Path('src/lib/property-search.functions.ts')
+          text = search.read_text()
+
+          import_line = 'import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";\n'
+          quality_import = 'import { isFreshRealEstateListing } from "@/lib/property-listing-quality";\n'
+          if quality_import not in text:
+              text = text.replace(import_line, import_line + quality_import, 1)
+
+          old_select = 'source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata'
+          new_select = 'source_portal,source_url,scanned_at,last_seen_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata'
+          if old_select in text:
+              text = text.replace(old_select, new_select, 1)
+
+          marker = '''    let propertyQuery = context.supabase\n      .from("properties")\n      .select(\n        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",\n        { count: "exact" },\n      );\n'''
+          replacement = marker + '''\n    const freshnessCutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();\n    indexQuery = indexQuery.gte("last_seen_at", freshnessCutoff);\n    propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);\n'''
+          if 'const freshnessCutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();' not in text:
+              if marker not in text:
+                  raise SystemExit('propertyQuery marker not found')
+              text = text.replace(marker, replacement, 1)
+
+          text = text.replace('updated_at: item.scanned_at,', 'updated_at: item.last_seen_at ?? item.scanned_at,', 1)
+
+          old_live = '.filter((item) => matchesSearch(item, input));'
+          new_live = '.filter((item) => isFreshRealEstateListing(item) && matchesSearch(item, input));'
+          if old_live in text:
+              text = text.replace(old_live, new_live, 1)
+
+          dedupe_marker = '''    for (const item of [...configuredLiveItems, ...indexed, ...saved]) {\n      if (!matchesSearch(item, input)) continue;\n'''
+          dedupe_replacement = '''    for (const item of [...configuredLiveItems, ...indexed, ...saved]) {\n      if (!isFreshRealEstateListing(item)) continue;\n      if (!matchesSearch(item, input)) continue;\n'''
+          if 'if (!isFreshRealEstateListing(item)) continue;' not in text:
+              if dedupe_marker not in text:
+                  raise SystemExit('dedupe marker not found')
+              text = text.replace(dedupe_marker, dedupe_replacement, 1)
+
+          search.write_text(text)
+
+          schedules = {
+              '.github/workflows/public-property-discovery.yml': '    - cron: "5 * * * *"',
+              '.github/workflows/sync-authorized-property-feeds.yml': '    - cron: "35 * * * *"',
+              '.github/workflows/snapshot-caixa-properties.yml': '    - cron: "15 * * * *"',
+          }
+          for filename, old in schedules.items():
+              path = Path(filename)
+              source = path.read_text()
+              source = source.replace(old, '    - cron: "*/15 * * * *"')
+              path.write_text(source)
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Format
+        run: npx prettier --write src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts .github/workflows/public-property-discovery.yml .github/workflows/sync-authorized-property-feeds.yml .github/workflows/snapshot-caixa-properties.yml
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test -- --passWithNoTests
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit validated realtime guardrails
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts .github/workflows/public-property-discovery.yml .github/workflows/sync-authorized-property-feeds.yml .github/workflows/snapshot-caixa-properties.yml supabase/migrations/20260817190000_enforce_fresh_real_estate_only_index.sql
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: enforce fresh real-estate-only listings"
+          git push origin HEAD:main
