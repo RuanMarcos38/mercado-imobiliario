@@ -293,7 +293,10 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
     inserted += 1;
     if (!item.fromMe) inbound += 1;
 
-    if (!item.fromMe && item.body) {
+    const receivedAt = new Date(item.sentAt).getTime();
+    const ageMs = Date.now() - receivedAt;
+    const isFreshInbound = Number.isFinite(receivedAt) && ageMs >= -60_000 && ageMs <= 3 * 60_000;
+    if (!item.fromMe && item.body && isFreshInbound) {
       try {
         const { maybeAutoReply } = await import("@/lib/whatsapp-auto-reply.server");
         await maybeAutoReply({
@@ -301,6 +304,7 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
           conversationId: conversation.id,
           phone: String(conversation.phone_e164 ?? item.phone),
           inboundText: item.body,
+          inboundSentAt: item.sentAt,
         });
       } catch {
         // Recovery sync must never fail because the optional AI auto-reply failed.
