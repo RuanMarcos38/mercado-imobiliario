@@ -612,6 +612,17 @@ def parse_listing(url: str, domain: str, code: str, name: str, rules: list[str])
     )
 
 
+def should_prioritize_price_refresh(item: dict[str, Any], source_code: str) -> bool:
+    """Immediately revisit cached QuintoAndar sale cards that still carry truncated prices."""
+    if source_code != "quintoandar":
+        return False
+    price = number(item.get("price"))
+    if price is None or price <= 0 or price >= 10_000:
+        return False
+    title = str(item.get("title") or "").lower()
+    return any(term in title for term in ("compre", "comprar", "compra"))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--code", required=True)
@@ -666,6 +677,14 @@ def main() -> int:
         next_cursor = (cursor + len(selected)) % len(candidates)
     else:
         next_cursor = 0
+
+    priority_urls = [
+        url
+        for url, item in previous_items.items()
+        if url not in selected and should_prioritize_price_refresh(item, code)
+    ][:20]
+    if priority_urls:
+        selected = list(dict.fromkeys(priority_urls + selected))
 
     items = dict(previous_items)
     removed_urls: set[str] = set()
