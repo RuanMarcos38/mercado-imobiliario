@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: 8
       matrix:
         include:
           - code: zap
@@ -58,6 +58,33 @@ jobs:
           - code: inicio
             name: Início Empreendimentos
             domain: inicioempreendimentos.com.br
+          - code: cyrela
+            name: Cyrela
+            domain: cyrela.com.br
+          - code: cury
+            name: Cury Construtora
+            domain: curyconstrutora.com.br
+          - code: tenda
+            name: Construtora Tenda
+            domain: tenda.com.br
+          - code: eztec
+            name: EZTEC
+            domain: eztec.com.br
+          - code: planoeplano
+            name: Plano&Plano
+            domain: planoeplano.com.br
+          - code: mouradubeux
+            name: Moura Dubeux
+            domain: mouradubeux.com.br
+          - code: even
+            name: Even
+            domain: even.com.br
+          - code: ayoshii
+            name: A.Yoshii
+            domain: ayoshii.com.br
+          - code: direcional
+            name: Grupo Direcional
+            domain: grupodirecional.com
     steps:
       - name: Checkout
         uses: actions/checkout@v4
