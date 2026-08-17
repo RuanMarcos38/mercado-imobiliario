@@ -4,9 +4,12 @@ import {
   Bell,
   Bot,
   ChevronDown,
+  CreditCard,
   Gavel,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
+  MapPin,
   Menu,
   MessageCircle,
   Plug,
@@ -15,6 +18,7 @@ import {
   Sparkles,
   TrendingUp,
   UserRound,
+  Users,
   Workflow,
   X,
 } from "lucide-react";
@@ -50,7 +54,39 @@ export const Route = createFileRoute("/_authenticated")({
       console.warn("Não foi possível carregar a organização da conta neste momento.");
     }
 
-    return { session, user: session.user, roles: userRoles, tenant };
+    let profileActive = true;
+    let subscriptionStatus: string | null = null;
+    try {
+      const [{ data: profile }, { data: subscription }] = await Promise.all([
+        supabase.from("profiles").select("is_active").eq("id", session.user.id).maybeSingle(),
+        supabase
+          .from("subscriptions")
+          .select("status")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      profileActive = profile?.is_active !== false;
+      subscriptionStatus = subscription?.status ? String(subscription.status) : null;
+    } catch {
+      // Preserve current access if billing tables are temporarily unavailable.
+    }
+
+    const isPlatformAdmin = userRoles.includes("admin");
+    const billingBlocked = ["past_due", "canceled", "unpaid"].includes(subscriptionStatus ?? "");
+    const accountBlocked = !isPlatformAdmin && (!profileActive || billingBlocked);
+    if (accountBlocked && location.pathname !== "/assinatura") {
+      throw redirect({ to: "/assinatura" });
+    }
+
+    return {
+      session,
+      user: session.user,
+      roles: userRoles,
+      tenant,
+      access: { profileActive, subscriptionStatus, accountBlocked },
+    };
   },
   component: AuthenticatedLayout,
 });
@@ -63,16 +99,19 @@ const primaryItems = [
 ] as const;
 
 const toolItems = [
+  { to: "/crm", label: "CRM / Oportunidades", icon: LayoutGrid },
   { to: "/atendimento", label: "Atendimento", icon: MessageCircle },
+  { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
   { to: "/fluxos", label: "Fluxos", icon: Workflow },
   { to: "/assistente", label: "Assistente IA", icon: Bot },
   { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
-  { to: "/settings/security", label: "Minha conta", icon: UserRound },
 ] as const;
 
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { roles, tenant, user } = Route.useRouteContext();
+  const isAdmin = roles.includes("admin");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -91,6 +130,16 @@ function AuthenticatedLayout() {
       window.dispatchEvent(new CustomEvent("mercadoimobi:global-search", { detail: value }));
     });
   };
+
+  const displayName =
+    typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
+      ? user.user_metadata.full_name.trim()
+      : user.email?.split("@")[0] || "Minha conta";
+  const initials = displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "MI";
 
   return (
     <div className="mi-shell min-h-screen">
@@ -159,8 +208,8 @@ function AuthenticatedLayout() {
                 <ChevronDown className="h-3 w-3" />
               </button>
               {toolsOpen && (
-                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border p-1.5 shadow-xl">
-                  {toolItems.slice(0, 4).map((item) => (
+                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border p-1.5 shadow-xl">
+                  {toolItems.map((item) => (
                     <PopoverLink key={item.to} item={item} pathname={location.pathname} onClick={() => setToolsOpen(false)} />
                   ))}
                 </div>
@@ -176,21 +225,33 @@ function AuthenticatedLayout() {
                 className="mi-account-button flex h-9 items-center gap-2 rounded-lg px-2 transition"
               >
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--mi-text)] text-[9px] font-black text-[var(--mi-bg)]">
-                  MI
+                  {initials}
                 </span>
-                <span className="hidden text-left 2xl:block">
-                  <span className="block text-[10px] font-black text-[var(--mi-text)]">Minha conta</span>
-                  <span className="block text-[8px] text-[var(--mi-text-soft)]">MercadoImobi</span>
+                <span className="hidden max-w-[150px] text-left 2xl:block">
+                  <span className="block truncate text-[10px] font-black text-[var(--mi-text)]">{displayName}</span>
+                  <span className="block truncate text-[8px] text-[var(--mi-text-soft)]">{tenant?.tenantName || "MercadoImobi"}</span>
                 </span>
                 <ChevronDown className="hidden h-3 w-3 text-[var(--mi-text-soft)] 2xl:block" />
               </button>
               {accountOpen && (
-                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border p-1.5 shadow-xl">
+                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border p-1.5 shadow-xl">
                   <PopoverLink
                     item={{ to: "/settings/security", label: "Minha conta", icon: UserRound }}
                     pathname={location.pathname}
                     onClick={() => setAccountOpen(false)}
                   />
+                  <PopoverLink
+                    item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }}
+                    pathname={location.pathname}
+                    onClick={() => setAccountOpen(false)}
+                  />
+                  {isAdmin && (
+                    <PopoverLink
+                      item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }}
+                      pathname={location.pathname}
+                      onClick={() => setAccountOpen(false)}
+                    />
+                  )}
                   <Link
                     to="/settings/security"
                     onClick={() => setAccountOpen(false)}
@@ -256,6 +317,8 @@ function AuthenticatedLayout() {
               {[...primaryItems, ...toolItems].map((item) => (
                 <MobileNavLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
               ))}
+              <MobileNavLink item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+              {isAdmin && <MobileNavLink item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />}
               <Link to="/settings/security" onClick={() => setMobileOpen(false)} className="mi-mobile-link">
                 <Settings className="h-4 w-4" /> Configurações
               </Link>
