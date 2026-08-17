@@ -12,12 +12,17 @@ function extractText(payload: any): string {
     .trim();
 }
 
-async function sendEvolutionText(phone: string, text: string) {
+async function sendEvolutionText(phone: string, text: string, instanceName: string) {
   const normalizedPhone = normalizeWhatsAppPhone(phone);
   if (!normalizedPhone) return null;
 
   try {
-    return await sendEvolutionTextMessage({ phone: normalizedPhone, text, delay: 900 });
+    return await sendEvolutionTextMessage({
+      phone: normalizedPhone,
+      text,
+      delay: 900,
+      instanceName,
+    });
   } catch {
     return null;
   }
@@ -34,8 +39,6 @@ export async function maybeAutoReply(input: {
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) return { sent: false, reason: "ai_not_configured" };
 
-  // Recovery polling can import a message that Evolution had persisted earlier.
-  // The recovery path passes the original timestamp so old history is never answered.
   if (input.inboundSentAt) {
     const receivedAt = new Date(input.inboundSentAt).getTime();
     const ageMs = Date.now() - receivedAt;
@@ -45,12 +48,20 @@ export async function maybeAutoReply(input: {
   }
 
   const db = supabaseAdmin as any;
-  const { data: settings } = await db
-    .from("ai_agent_settings")
-    .select("enabled,auto_reply,agent_name,system_prompt,handoff_keywords")
-    .eq("tenant_id", input.tenantId)
-    .maybeSingle();
+  const [{ data: settings }, { data: connection }] = await Promise.all([
+    db
+      .from("ai_agent_settings")
+      .select("enabled,auto_reply,agent_name,system_prompt,handoff_keywords")
+      .eq("tenant_id", input.tenantId)
+      .maybeSingle(),
+    db
+      .from("whatsapp_connections")
+      .select("instance_name,status")
+      .eq("tenant_id", input.tenantId)
+      .maybeSingle(),
+  ]);
   if (!settings?.enabled || !settings?.auto_reply) return { sent: false, reason: "disabled" };
+  if (!connection?.instance_name) return { sent: false, reason: "whatsapp_not_connected" };
 
   const normalizedInbound = input.inboundText.toLowerCase();
   const handoffKeywords = (settings.handoff_keywords ?? [])
@@ -100,7 +111,7 @@ export async function maybeAutoReply(input: {
   const reply = extractText(await response.json());
   if (!reply) return { sent: false, reason: "ai_empty" };
 
-  const evolutionPayload = await sendEvolutionText(input.phone, reply);
+  const evolutionPayload = await sendEvolutionText(input.phone, reply, String(connection.instance_name));
   if (!evolutionPayload) return { sent: false, reason: "whatsapp_send_failed" };
 
   const key = evolutionPayload["key"] as Record<string, unknown> | undefined;
