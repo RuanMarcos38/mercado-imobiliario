@@ -28,32 +28,23 @@ export async function maybeAutoReply(input: {
   conversationId: string;
   phone: string;
   inboundText: string | null;
+  inboundSentAt?: string;
 }) {
   if (!input.inboundText?.trim()) return { sent: false, reason: "empty" };
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) return { sent: false, reason: "ai_not_configured" };
 
-  const db = supabaseAdmin as any;
-
-  // Recovery polling can import a message that Evolution had already persisted before
-  // MercadoImobi started receiving it. Never auto-reply to old recovered history.
-  const { data: latestInbound } = await db
-    .from("whatsapp_messages")
-    .select("sent_at")
-    .eq("tenant_id", input.tenantId)
-    .eq("conversation_id", input.conversationId)
-    .eq("direction", "inbound")
-    .order("sent_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (latestInbound?.sent_at) {
-    const receivedAt = new Date(String(latestInbound.sent_at)).getTime();
+  // Recovery polling can import a message that Evolution had persisted earlier.
+  // The recovery path passes the original timestamp so old history is never answered.
+  if (input.inboundSentAt) {
+    const receivedAt = new Date(input.inboundSentAt).getTime();
     const ageMs = Date.now() - receivedAt;
     if (!Number.isFinite(receivedAt) || ageMs < -60_000 || ageMs > 3 * 60_000) {
       return { sent: false, reason: "stale_inbound" };
     }
   }
 
+  const db = supabaseAdmin as any;
   const { data: settings } = await db
     .from("ai_agent_settings")
     .select("enabled,auto_reply,agent_name,system_prompt,handoff_keywords")
