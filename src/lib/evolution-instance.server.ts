@@ -7,11 +7,47 @@ export type EvolutionGatewayConfig = {
   apiKey: string;
 };
 
+function firstEnv(names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+/**
+ * Resolve o gateway Evolution sem depender de um único nome de variável.
+ *
+ * EasyPanel/Evolution costuma expor a chave global como AUTHENTICATION_API_KEY,
+ * enquanto instalações antigas do MercadoImobi usam EVOLUTION_API_KEY. Mantemos
+ * compatibilidade com ambos sem mudar o frontend ou o modelo multi-tenant.
+ */
 export function evolutionGatewayConfig(): EvolutionGatewayConfig | null {
-  const baseUrl = process.env["EVOLUTION_API_URL"]?.trim().replace(/\/$/, "");
-  const apiKey = process.env["EVOLUTION_API_KEY"]?.trim();
+  const baseUrl = firstEnv([
+    "EVOLUTION_API_URL",
+    "EVOLUTION_URL",
+    "EVOLUTION_SERVER_URL",
+    "EVOLUTION_BASE_URL",
+  ]).replace(/\/$/, "");
+  const apiKey = firstEnv([
+    "EVOLUTION_API_KEY",
+    "EVOLUTION_GLOBAL_API_KEY",
+    "AUTHENTICATION_API_KEY",
+  ]);
   if (!baseUrl || !apiKey) return null;
   return { baseUrl, apiKey };
+}
+
+export function evolutionGatewayDiagnostics() {
+  return {
+    configured: Boolean(evolutionGatewayConfig()),
+    hasUrl: Boolean(
+      firstEnv(["EVOLUTION_API_URL", "EVOLUTION_URL", "EVOLUTION_SERVER_URL", "EVOLUTION_BASE_URL"]),
+    ),
+    hasApiKey: Boolean(
+      firstEnv(["EVOLUTION_API_KEY", "EVOLUTION_GLOBAL_API_KEY", "AUTHENTICATION_API_KEY"]),
+    ),
+  } as const;
 }
 
 export async function evolutionRequest(
