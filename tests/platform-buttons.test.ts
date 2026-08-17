@@ -49,6 +49,19 @@ describe("MercadoImobi platform controls", () => {
     expect(workspace).not.toContain("DashboardAtendimentoPanel");
   });
 
+  it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {
+    const layout = source("src/routes/_authenticated.tsx");
+    expect(layout).not.toContain('label: "CRM / Oportunidades"');
+    expect(layout).not.toContain('label: "Facebook e Instagram"');
+    expect(layout).not.toContain('label: "E-mail / CCA"');
+    expect(layout).not.toContain('label: "Discador"');
+    expect(layout).toContain('label: "Atendimento WhatsApp"');
+    expect(layout).toContain('label: "Fluxos"');
+    expect(layout).toContain('label: "Assistente IA"');
+    expect(layout).toContain('label: "Diagnóstico"');
+    expect(layout).toContain('label: "Fontes de imóveis"');
+  });
+
   it("keeps dashboard and search on all properties, while auctions remain separate", () => {
     expect(source("src/routes/_authenticated/dashboard.tsx")).toContain('initialMarket="all"');
     expect(source("src/routes/_authenticated/buscar.tsx")).toContain('initialMarket="all"');

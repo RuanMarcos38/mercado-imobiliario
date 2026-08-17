@@ -1,4 +1,11 @@
-import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  redirect,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Bell,
@@ -7,17 +14,13 @@ import {
   CreditCard,
   Gavel,
   LayoutDashboard,
-  LayoutGrid,
   LogOut,
-  Mail,
   MapPin,
   Menu,
   MessageCircle,
-  PhoneCall,
   Plug,
   Search,
   Settings,
-  Share2,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -103,11 +106,7 @@ const primaryItems = [
 ] as const;
 
 const toolItems = [
-  { to: "/crm", label: "CRM / Oportunidades", icon: LayoutGrid },
   { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
-  { to: "/midias-sociais", label: "Facebook e Instagram", icon: Share2 },
-  { to: "/email-cca", label: "E-mail / CCA", icon: Mail },
-  { to: "/discador", label: "Discador", icon: PhoneCall },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
   { to: "/fluxos", label: "Fluxos", icon: Workflow },
   { to: "/assistente", label: "Assistente IA", icon: Bot },
@@ -154,7 +153,11 @@ function AuthenticatedLayout() {
     <div className="mi-shell min-h-screen">
       <nav className="mi-appbar sticky top-0 z-50 border-b">
         <div className="mx-auto flex h-14 max-w-[1720px] items-center gap-3 px-3 sm:px-5 lg:px-6">
-          <Link to="/dashboard" className="mi-brand flex shrink-0 items-center gap-2.5" aria-label="MercadoImobi">
+          <Link
+            to="/dashboard"
+            className="mi-brand flex shrink-0 items-center gap-2.5"
+            aria-label="MercadoImobi"
+          >
             <span className="mi-brand-mark grid h-9 w-9 place-items-center">
               <TrendingUp className="h-5 w-5" strokeWidth={2.5} />
             </span>
@@ -219,7 +222,12 @@ function AuthenticatedLayout() {
               {toolsOpen && (
                 <div className="mi-nav-popover absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border p-1.5 shadow-xl">
                   {toolItems.map((item) => (
-                    <PopoverLink key={item.to} item={item} pathname={location.pathname} onClick={() => setToolsOpen(false)} />
+                    <PopoverLink
+                      key={item.to}
+                      item={item}
+                      pathname={location.pathname}
+                      onClick={() => setToolsOpen(false)}
+                    />
                   ))}
                 </div>
               )}
@@ -237,8 +245,12 @@ function AuthenticatedLayout() {
                   {initials}
                 </span>
                 <span className="hidden max-w-[150px] text-left 2xl:block">
-                  <span className="block truncate text-[10px] font-black text-[var(--mi-text)]">{displayName}</span>
-                  <span className="block truncate text-[8px] text-[var(--mi-text-soft)]">{tenant?.tenantName || "MercadoImobi"}</span>
+                  <span className="block truncate text-[10px] font-black text-[var(--mi-text)]">
+                    {displayName}
+                  </span>
+                  <span className="block truncate text-[8px] text-[var(--mi-text-soft)]">
+                    {tenant?.tenantName || "MercadoImobi"}
+                  </span>
                 </span>
                 <ChevronDown className="hidden h-3 w-3 text-[var(--mi-text-soft)] 2xl:block" />
               </button>
@@ -257,12 +269,20 @@ function AuthenticatedLayout() {
                   {isAdmin && (
                     <>
                       <PopoverLink
-                        item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }}
+                        item={{
+                          to: "/admin/usuarios",
+                          label: "Usuários e assinantes",
+                          icon: Users,
+                        }}
                         pathname={location.pathname}
                         onClick={() => setAccountOpen(false)}
                       />
                       <PopoverLink
-                        item={{ to: "/admin/parametros", label: "Parâmetros do sistema", icon: Settings }}
+                        item={{
+                          to: "/admin/parametros",
+                          label: "Parâmetros do sistema",
+                          icon: Settings,
+                        }}
                         pathname={location.pathname}
                         onClick={() => setAccountOpen(false)}
                       />
@@ -276,14 +296,21 @@ function AuthenticatedLayout() {
                     <Settings className="h-4 w-4" /> Configurações
                   </Link>
                   <div className="my-1 h-px bg-[var(--mi-border)]" />
-                  <button onClick={() => void signOut()} className="mi-popover-link w-full text-rose-600">
+                  <button
+                    onClick={() => void signOut()}
+                    className="mi-popover-link w-full text-rose-600"
+                  >
                     <LogOut className="h-4 w-4" /> Sair
                   </button>
                 </div>
               )}
             </div>
 
-            <button onClick={() => setMobileOpen(true)} className="mi-icon-button lg:hidden" aria-label="Abrir menu">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="mi-icon-button lg:hidden"
+              aria-label="Abrir menu"
+            >
               <Menu className="h-4 w-4" />
             </button>
           </div>
@@ -291,7 +318,10 @@ function AuthenticatedLayout() {
       </nav>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)}>
+        <div
+          className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-sm lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        >
           <div
             className="mi-mobile-menu ml-auto flex h-full w-[310px] max-w-[88vw] flex-col border-l p-4 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
@@ -302,8 +332,12 @@ function AuthenticatedLayout() {
                   <TrendingUp className="h-5 w-5" strokeWidth={2.5} />
                 </span>
                 <div>
-                  <p className="text-sm font-black tracking-tight">MercadoImobi<span className="text-[var(--mi-accent)]">.</span></p>
-                  <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Plataforma imobiliária</p>
+                  <p className="text-sm font-black tracking-tight">
+                    MercadoImobi<span className="text-[var(--mi-accent)]">.</span>
+                  </p>
+                  <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">
+                    Plataforma imobiliária
+                  </p>
                 </div>
               </div>
               <button onClick={() => setMobileOpen(false)} className="mi-icon-button">
@@ -329,25 +363,55 @@ function AuthenticatedLayout() {
             </form>
 
             <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-              <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">Navegação</p>
+              <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">
+                Navegação
+              </p>
               {[...primaryItems, ...toolItems].map((item) => (
-                <MobileNavLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+                <MobileNavLink
+                  key={item.to}
+                  item={item}
+                  pathname={location.pathname}
+                  onClick={() => setMobileOpen(false)}
+                />
               ))}
-              <MobileNavLink item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+              <MobileNavLink
+                item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }}
+                pathname={location.pathname}
+                onClick={() => setMobileOpen(false)}
+              />
               {isAdmin && (
                 <>
-                  <MobileNavLink item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
-                  <MobileNavLink item={{ to: "/admin/parametros", label: "Parâmetros do sistema", icon: Settings }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+                  <MobileNavLink
+                    item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }}
+                    pathname={location.pathname}
+                    onClick={() => setMobileOpen(false)}
+                  />
+                  <MobileNavLink
+                    item={{
+                      to: "/admin/parametros",
+                      label: "Parâmetros do sistema",
+                      icon: Settings,
+                    }}
+                    pathname={location.pathname}
+                    onClick={() => setMobileOpen(false)}
+                  />
                 </>
               )}
-              <Link to="/settings/security" onClick={() => setMobileOpen(false)} className="mi-mobile-link">
+              <Link
+                to="/settings/security"
+                onClick={() => setMobileOpen(false)}
+                className="mi-mobile-link"
+              >
                 <Settings className="h-4 w-4" /> Configurações
               </Link>
             </div>
 
             <div className="border-t border-[var(--mi-border)] pt-4">
               <ThemeToggle />
-              <button onClick={() => void signOut()} className="mi-mobile-link mt-2 w-full text-rose-600">
+              <button
+                onClick={() => void signOut()}
+                className="mi-mobile-link mt-2 w-full text-rose-600"
+              >
                 <LogOut className="h-4 w-4" /> Sair
               </button>
             </div>

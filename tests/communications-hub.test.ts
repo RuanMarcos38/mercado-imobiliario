@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { createMetaOAuthState, getMetaOAuthUrl, verifyMetaOAuthState } from "@/lib/meta-social.server";
+import {
+  createMetaOAuthState,
+  getMetaOAuthUrl,
+  verifyMetaOAuthState,
+} from "@/lib/meta-social.server";
 import { createVoiceBridgeToken, verifyVoiceBridgeToken } from "@/lib/dialer.functions";
 
 describe("MercadoImobi communication hub security", () => {
@@ -19,7 +23,9 @@ describe("MercadoImobi communication hub security", () => {
     expect(url).toContain("facebook.com/dialog/oauth");
     expect(url).toContain("pages_messaging");
     expect(url).toContain("instagram_manage_messages");
-    expect(url).toContain(encodeURIComponent("https://mercadoimobi.example.com/api/public/oauth/meta"));
+    expect(url).toContain(
+      encodeURIComponent("https://mercadoimobi.example.com/api/public/oauth/meta"),
+    );
   });
 
   it("rejects tampered voice bridge tokens", () => {
@@ -42,9 +48,9 @@ describe("MercadoImobi communication hub security", () => {
     expect(env).toContain("TWILIO_AUTH_TOKEN=");
     expect(env).not.toContain("VITE_META_APP_SECRET");
     expect(env).not.toContain("VITE_RESEND_API_KEY");
-    expect(nav).toContain('to: "/midias-sociais"');
-    expect(nav).toContain('to: "/email-cca"');
-    expect(nav).toContain('to: "/discador"');
+    expect(nav).not.toContain('label: "Facebook e Instagram"');
+    expect(nav).not.toContain('label: "E-mail / CCA"');
+    expect(nav).not.toContain('label: "Discador"');
     expect(nav).toContain('to: "/diagnostico"');
     expect(social).toContain("Conectar Facebook e Instagram");
     expect(email).toContain("Enviar documentação por e-mail");
