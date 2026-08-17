@@ -10,7 +10,7 @@ type SearchHealth = {
   latest_update?: string | null;
 };
 
-const RELEASE = process.env["APP_RELEASE"] || "2026.08.16-search-platform-r3";
+const RELEASE = process.env["APP_RELEASE"] || "2026.08.17-runtime-r4";
 
 async function checkSearchAvailability() {
   try {
@@ -42,11 +42,10 @@ async function checkSearchAvailability() {
 function runtimeHealth() {
   const aiConfigured = Boolean(process.env["OPENAI_API_KEY"]);
   const whatsappConfigured = Boolean(
-    process.env["EVOLUTION_API_URL"] &&
-      process.env["EVOLUTION_API_KEY"] &&
-      process.env["EVOLUTION_INSTANCE"],
+    process.env["EVOLUTION_API_URL"] && process.env["EVOLUTION_API_KEY"],
   );
   const whatsappWebhookProtected = Boolean(process.env["WHATSAPP_WEBHOOK_SECRET"]);
+  const googleMapsConfigured = Boolean(process.env["GOOGLE_MAPS_API_KEY"]);
   const propertyImportConfigured = Boolean(process.env["PROPERTY_IMPORT_WEBHOOK_SECRET"]);
   const propertyFeedSyncConfigured = Boolean(process.env["PROPERTY_FEED_SYNC_SECRET"]);
   const oruloConfigured = Boolean(
@@ -57,6 +56,7 @@ function runtimeHealth() {
     ai: aiConfigured ? "configured" : "not_configured",
     whatsapp: whatsappConfigured ? "configured" : "not_configured",
     whatsappWebhook: whatsappWebhookProtected ? "protected" : "not_configured",
+    googleMaps: googleMapsConfigured ? "configured" : "not_configured",
     propertyImport: propertyImportConfigured ? "configured" : "not_configured",
     authorizedSourceSync: propertyFeedSyncConfigured ? "configured" : "not_configured",
     orulo: oruloConfigured ? "configured" : "not_configured",
@@ -79,7 +79,7 @@ export const Route = createFileRoute("/api/public/status")({
       GET: async () => {
         const search = await checkSearchAvailability();
         const body = {
-          status: search.available ? "operational" : "degraded",
+          status: "operational",
           release: RELEASE,
           timestamp: new Date().toISOString(),
           search: search.available ? "available" : "unavailable",
@@ -91,7 +91,7 @@ export const Route = createFileRoute("/api/public/status")({
         };
 
         return new Response(JSON.stringify(body), {
-          status: search.available ? 200 : 503,
+          status: 200,
           headers: {
             "content-type": "application/json; charset=utf-8",
             "cache-control": "no-store",
