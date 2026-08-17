@@ -48,20 +48,12 @@ export async function maybeAutoReply(input: {
   }
 
   const db = supabaseAdmin as any;
-  const [{ data: settings }, { data: connection }] = await Promise.all([
-    db
-      .from("ai_agent_settings")
-      .select("enabled,auto_reply,agent_name,system_prompt,handoff_keywords")
-      .eq("tenant_id", input.tenantId)
-      .maybeSingle(),
-    db
-      .from("whatsapp_connections")
-      .select("instance_name,status")
-      .eq("tenant_id", input.tenantId)
-      .maybeSingle(),
-  ]);
+  const { data: settings } = await db
+    .from("ai_agent_settings")
+    .select("enabled,auto_reply,agent_name,system_prompt,handoff_keywords")
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
   if (!settings?.enabled || !settings?.auto_reply) return { sent: false, reason: "disabled" };
-  if (!connection?.instance_name) return { sent: false, reason: "whatsapp_not_connected" };
 
   const normalizedInbound = input.inboundText.toLowerCase();
   const handoffKeywords = (settings.handoff_keywords ?? [])
@@ -70,6 +62,17 @@ export async function maybeAutoReply(input: {
   if (handoffKeywords.some((keyword: string) => normalizedInbound.includes(keyword))) {
     return { sent: false, reason: "human_handoff" };
   }
+
+  const { data: connection } = await db
+    .from("whatsapp_connections")
+    .select("instance_name,status")
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  const instanceName =
+    (connection?.instance_name ? String(connection.instance_name) : "") ||
+    process.env["EVOLUTION_INSTANCE"]?.trim() ||
+    "";
+  if (!instanceName) return { sent: false, reason: "whatsapp_not_connected" };
 
   const { data: messages } = await db
     .from("whatsapp_messages")
@@ -111,7 +114,7 @@ export async function maybeAutoReply(input: {
   const reply = extractText(await response.json());
   if (!reply) return { sent: false, reason: "ai_empty" };
 
-  const evolutionPayload = await sendEvolutionText(input.phone, reply, String(connection.instance_name));
+  const evolutionPayload = await sendEvolutionText(input.phone, reply, instanceName);
   if (!evolutionPayload) return { sent: false, reason: "whatsapp_send_failed" };
 
   const key = evolutionPayload["key"] as Record<string, unknown> | undefined;
