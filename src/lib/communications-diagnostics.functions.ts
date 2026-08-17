@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
+import {
+  aiParameters,
+  externalServiceParameters,
+  integrationReadiness,
+  platformParameterDefinitions,
+} from "@/lib/platform-parameters.server";
 
 export type DiagnosticItem = {
   key: string;
@@ -12,59 +18,124 @@ export type DiagnosticItem = {
 
 async function testOpenAi(): Promise<DiagnosticItem> {
   const apiKey = process.env["OPENAI_API_KEY"]?.trim();
-  if (!apiKey) return { key: "openai", label: "Chatbot / OpenAI", configured: false, ok: false, detail: "OPENAI_API_KEY não configurada." };
+  if (!apiKey)
+    return {
+      key: "openai",
+      label: "Chatbot / OpenAI",
+      configured: false,
+      ok: false,
+      detail: "OPENAI_API_KEY não configurada.",
+    };
+  const parameters = aiParameters();
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env["OPENAI_MODEL"] || "gpt-5.6",
+        model: parameters.model,
         input: "Teste técnico do MercadoImobi. Responda somente OK.",
-        max_output_tokens: 8,
+        max_output_tokens: parameters.testMaxOutputTokens,
         store: false,
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(parameters.requestTimeoutMs),
     });
     return {
       key: "openai",
       label: "Chatbot / OpenAI",
       configured: true,
       ok: response.ok,
-      detail: response.ok ? "Resposta sintética executada com sucesso." : `OpenAI HTTP ${response.status}.`,
+      detail: response.ok
+        ? `Resposta sintética executada com sucesso (${parameters.model}).`
+        : `OpenAI HTTP ${response.status}.`,
     };
   } catch {
-    return { key: "openai", label: "Chatbot / OpenAI", configured: true, ok: false, detail: "Falha de conexão com a OpenAI." };
+    return {
+      key: "openai",
+      label: "Chatbot / OpenAI",
+      configured: true,
+      ok: false,
+      detail: "Falha de conexão com a OpenAI.",
+    };
   }
 }
 
 async function testWhatsApp(db: any, tenantId: string): Promise<DiagnosticItem> {
   try {
-    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } = await import("@/lib/evolution-instance.server");
+    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } = await import(
+      "@/lib/evolution-instance.server"
+    );
     const gateway = evolutionGatewayConfig();
     const instance = await getTenantEvolutionInstance(db, tenantId);
-    if (!gateway || !instance) return { key: "whatsapp", label: "WhatsApp / Evolution", configured: false, ok: false, detail: "Gateway ou instância ainda não configurados." };
-    const response = await evolutionRequest(gateway, `/instance/connectionState/${encodeURIComponent(instance)}`, { method: "GET" });
+    if (!gateway || !instance)
+      return {
+        key: "whatsapp",
+        label: "WhatsApp / Evolution",
+        configured: false,
+        ok: false,
+        detail: "Gateway ou instância ainda não configurados.",
+      };
+    const response = await evolutionRequest(
+      gateway,
+      `/instance/connectionState/${encodeURIComponent(instance)}`,
+      { method: "GET" },
+    );
     const payload = await response.json().catch(() => ({}));
     const raw = String(payload?.instance?.state ?? payload?.state ?? payload?.status ?? "").toLowerCase();
     const online = response.ok && ["open", "connected", "online"].includes(raw);
-    return { key: "whatsapp", label: "WhatsApp / Evolution", configured: true, ok: online, detail: online ? `Instância ${instance} online.` : `Instância ${instance}: ${raw || `HTTP ${response.status}`}.` };
+    return {
+      key: "whatsapp",
+      label: "WhatsApp / Evolution",
+      configured: true,
+      ok: online,
+      detail: online
+        ? `Instância ${instance} online.`
+        : `Instância ${instance}: ${raw || `HTTP ${response.status}`}.`,
+    };
   } catch {
-    return { key: "whatsapp", label: "WhatsApp / Evolution", configured: true, ok: false, detail: "Falha ao consultar a Evolution API." };
+    return {
+      key: "whatsapp",
+      label: "WhatsApp / Evolution",
+      configured: true,
+      ok: false,
+      detail: "Falha ao consultar a Evolution API.",
+    };
   }
 }
 
 async function testEmail(): Promise<DiagnosticItem> {
   const apiKey = process.env["RESEND_API_KEY"]?.trim();
   const from = process.env["EMAIL_FROM"]?.trim();
-  if (!apiKey || !from) return { key: "email", label: "E-mail / CCA", configured: false, ok: false, detail: "RESEND_API_KEY ou EMAIL_FROM ausentes." };
+  if (!apiKey || !from)
+    return {
+      key: "email",
+      label: "E-mail / CCA",
+      configured: false,
+      ok: false,
+      detail: "RESEND_API_KEY ou EMAIL_FROM ausentes.",
+    };
+  const timeout = externalServiceParameters().diagnosticTimeoutMs;
   try {
     const response = await fetch("https://api.resend.com/domains", {
       headers: { Authorization: `Bearer ${apiKey}`, "User-Agent": "MercadoImobi/1.0" },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(timeout),
     });
-    return { key: "email", label: "E-mail / CCA", configured: true, ok: response.ok, detail: response.ok ? `Provedor autenticado. Remetente: ${from}` : `Resend HTTP ${response.status}.` };
+    return {
+      key: "email",
+      label: "E-mail / CCA",
+      configured: true,
+      ok: response.ok,
+      detail: response.ok
+        ? `Provedor autenticado. Remetente: ${from}`
+        : `Resend HTTP ${response.status}.`,
+    };
   } catch {
-    return { key: "email", label: "E-mail / CCA", configured: true, ok: false, detail: "Falha ao consultar o provedor de e-mail." };
+    return {
+      key: "email",
+      label: "E-mail / CCA",
+      configured: true,
+      ok: false,
+      detail: "Falha ao consultar o provedor de e-mail.",
+    };
   }
 }
 
@@ -100,16 +171,31 @@ export const runCommunicationDiagnostics = createServerFn({ method: "POST" })
       label: "Discador / Twilio",
       configured: twilioResult.configured,
       ok: twilioResult.ok,
-      detail: twilioResult.ok ? "Conta de telefonia autenticada com sucesso." : twilioResult.configured ? `Twilio HTTP ${twilioResult.status ?? "falhou"}.` : "Credenciais Twilio ainda não configuradas.",
+      detail: twilioResult.ok
+        ? "Conta de telefonia autenticada com sucesso."
+        : twilioResult.configured
+          ? `Twilio HTTP ${twilioResult.status ?? "falhou"}.`
+          : "Credenciais Twilio ainda não configuradas.",
     };
     const supabase: DiagnosticItem = {
       key: "database",
       label: "Banco / isolamento",
       configured: true,
       ok: Boolean(tenantId),
-      detail: tenantId ? "Tenant autenticado e isolamento de conta ativo." : "Tenant não resolvido.",
+      detail: tenantId
+        ? "Tenant autenticado e isolamento de conta ativo."
+        : "Tenant não resolvido.",
     };
-    const items = [supabase, openai, whatsapp, meta, email, twilio];
+    const parameterDefinitions = platformParameterDefinitions();
+    const readiness = integrationReadiness();
+    const parameters: DiagnosticItem = {
+      key: "parameters",
+      label: "Parâmetros operacionais",
+      configured: true,
+      ok: parameterDefinitions.length > 0,
+      detail: `${parameterDefinitions.length} parâmetros centralizados; ${readiness.filter((item) => item.configured).length}/${readiness.length} integrações com configuração presente.`,
+    };
+    const items = [supabase, parameters, openai, whatsapp, meta, email, twilio];
     return {
       checkedAt: new Date().toISOString(),
       items,
