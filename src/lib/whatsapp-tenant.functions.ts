@@ -85,7 +85,7 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
     const db = context.supabase as any;
     const { data: savedConnection, error } = await db
       .from("whatsapp_connections")
-      .select("display_name,phone_number,status,instance_name")
+      .select("display_name,phone_number,status,instance_name,last_connected_at")
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) throw new Error(error.message);
