@@ -9,12 +9,16 @@ import {
   LayoutDashboard,
   LayoutGrid,
   LogOut,
+  Mail,
   MapPin,
   Menu,
   MessageCircle,
+  PhoneCall,
   Plug,
   Search,
   Settings,
+  Share2,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
   UserRound,
@@ -100,10 +104,14 @@ const primaryItems = [
 
 const toolItems = [
   { to: "/crm", label: "CRM / Oportunidades", icon: LayoutGrid },
-  { to: "/atendimento", label: "Atendimento", icon: MessageCircle },
+  { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
+  { to: "/midias-sociais", label: "Facebook e Instagram", icon: Share2 },
+  { to: "/email-cca", label: "E-mail / CCA", icon: Mail },
+  { to: "/discador", label: "Discador", icon: PhoneCall },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
   { to: "/fluxos", label: "Fluxos", icon: Workflow },
   { to: "/assistente", label: "Assistente IA", icon: Bot },
+  { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck },
   { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
 ] as const;
 
