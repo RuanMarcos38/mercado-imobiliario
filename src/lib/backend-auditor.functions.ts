@@ -243,10 +243,11 @@ async function testPublicApplication() {
   });
 }
 
-async function testAuthRuntime(admin: any, userId: string) {
+async function testAuthRuntime(db: any, userId: string) {
   return timed(async () => {
-    const result = await admin.auth.admin.getUserById(userId);
-    const ok = !result.error && Boolean(result.data?.user?.id);
+    const result = await db.auth.getUser();
+    const resolvedUserId = result.data?.user?.id ?? null;
+    const ok = !result.error && resolvedUserId === userId;
     return {
       key: "auth-runtime",
       label: "Autenticação Supabase",
@@ -254,15 +255,30 @@ async function testAuthRuntime(admin: any, userId: string) {
       critical: true,
       configured: true,
       status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok ? "Usuário autenticado validado pelo backend administrativo." : `Falha de autenticação: ${result.error?.message ?? "usuário não encontrado"}.`,
+      detail: ok
+        ? "Sessão autenticada validada pelo backend com RLS ativo."
+        : `Falha de autenticação: ${result.error?.message ?? "sessão não corresponde ao usuário autenticado"}.`,
     };
   });
 }
 
-async function testStorage(admin: any) {
+async function testStorage() {
   return timed(async () => {
     const bucket = documentParameters().ccaBucket;
-    const result = await admin.storage.getBucket(bucket);
+    if (!process.env["SUPABASE_SERVICE_ROLE_KEY"]?.trim()) {
+      return {
+        key: "storage-cca",
+        label: "Storage privado de documentos",
+        category: "Documentos / CCA",
+        critical: false,
+        configured: false,
+        status: "not_configured" as const,
+        detail: "Verificação administrativa do Storage requer SUPABASE_SERVICE_ROLE_KEY no runtime do servidor; o backend principal continua usando a sessão autenticada com RLS.",
+      };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const result = await supabaseAdmin.storage.getBucket(bucket);
     if (result.data) {
       return {
         key: "storage-cca",
@@ -272,6 +288,17 @@ async function testStorage(admin: any) {
         configured: true,
         status: "pass" as const,
         detail: `Bucket privado ${bucket} disponível.`,
+      };
+    }
+    if (result.error && !String(result.error.message ?? "").toLowerCase().includes("not found")) {
+      return {
+        key: "storage-cca",
+        label: "Storage privado de documentos",
+        category: "Documentos / CCA",
+        critical: false,
+        configured: true,
+        status: "warn" as const,
+        detail: `Storage respondeu com alerta: ${String(result.error.message ?? result.error)}.`,
       };
     }
     return {
@@ -535,14 +562,18 @@ async function testLeadWebhook(tenantId: string) {
         detail: ok ? "Assinatura, isolamento por origem e URL de ingestão validados." : "A assinatura do webhook de leads não passou na validação interna.",
       };
     } catch (error) {
+      const detail = error instanceof Error ? error.message : "Falha no teste de assinatura do webhook.";
+      const missingSecret = detail.includes("LEAD_WEBHOOK_SECRET_MISSING");
       return {
         key: "lead-webhook",
         label: "Captação assinada de leads",
         category: "Speed to Lead",
         critical: true,
         configured: false,
-        status: "fail" as const,
-        detail: error instanceof Error ? error.message : "Falha no teste de assinatura do webhook.",
+        status: missingSecret ? ("not_configured" as const) : ("fail" as const),
+        detail: missingSecret
+          ? "LEAD_WEBHOOK_SECRET ainda não está disponível neste runtime; a captação permanece bloqueada até o segredo seguro ser configurado."
+          : detail,
       };
     }
   });
@@ -598,8 +629,10 @@ export const runBackendAudit = createServerFn({ method: "POST" })
     await requirePlatformAdmin(context);
     const started = Date.now();
     const tenantId = await requireTenantId(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as any;
+    // A auditoria já roda dentro de uma sessão autenticada. Usar esse cliente
+    // preserva RLS/tenant e evita transformar a ausência de service role em
+    // dezenas de falsos "Teste inesperado" no backend principal.
+    const db = context.supabase as any;
 
     const tables: Array<[string, string, boolean?]> = [
       ["profiles", "Perfis de usuários"],
@@ -629,7 +662,7 @@ export const runBackendAudit = createServerFn({ method: "POST" })
       })),
       ...tables.map(([table, label, critical]) => testDatabaseTable(db, table, label, critical ?? true)),
       testSearchHealth(db),
-      testStorage(db),
+      testStorage(),
       testLeadWebhook(tenantId),
       testPublicApplication(),
     ]);
