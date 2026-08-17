@@ -1,0 +1,124 @@
+name: Patch strict public backend auditor
+
+on:
+  push:
+    branches: [fix/strict-public-backend-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/strict-public-backend-audit
+      - name: Patch public runtime healthcheck
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/lib/backend-auditor.functions.ts')
+          text = path.read_text()
+          old = '''async function testPublicApplication() {
+            return timed(async () => {
+              const url = platformBaseUrl();
+              try {
+                const response = await fetch(url, {
+                  method: "GET",
+                  headers: { "User-Agent": "MercadoImobi-Backend-Auditor/1.0" },
+                  signal: AbortSignal.timeout(externalServiceParameters().diagnosticTimeoutMs),
+                });
+                const ok = response.status >= 200 && response.status < 500;
+                return {
+                  key: "public-app",
+                  label: "Aplicação pública / roteamento",
+                  category: "Infraestrutura",
+                  critical: true,
+                  configured: Boolean(url),
+                  status: ok ? ("pass" as const) : ("fail" as const),
+                  detail: ok ? `Aplicação respondeu HTTP ${response.status}.` : `Aplicação respondeu HTTP ${response.status}.`,
+                };
+              } catch {
+                return {
+                  key: "public-app",
+                  label: "Aplicação pública / roteamento",
+                  category: "Infraestrutura",
+                  critical: true,
+                  configured: Boolean(url),
+                  status: "fail" as const,
+                  detail: "Não foi possível alcançar a URL pública configurada.",
+                };
+              }
+            });
+          }
+          '''
+          new = '''async function testPublicApplication() {
+            return timed(async () => {
+              const baseUrl = platformBaseUrl();
+              const statusUrl = new URL("/api/public/status", `${baseUrl}/`).toString();
+              try {
+                const response = await fetch(statusUrl, {
+                  method: "GET",
+                  redirect: "follow",
+                  headers: { "User-Agent": "MercadoImobi-Backend-Auditor/1.0" },
+                  signal: AbortSignal.timeout(externalServiceParameters().diagnosticTimeoutMs),
+                });
+                const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+                if (!response.ok || !contentType.includes("application/json")) {
+                  return {
+                    key: "public-app",
+                    label: "Aplicação pública / roteamento",
+                    category: "Infraestrutura",
+                    critical: true,
+                    configured: Boolean(baseUrl),
+                    status: "fail" as const,
+                    detail: `/api/public/status não entregou o backend MercadoImobi (HTTP ${response.status}, ${contentType || "sem content-type"}).`,
+                  };
+                }
+                const payload = await response.json().catch(() => null);
+                const status = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+                const indexed = Number(status?.["indexedProperties"] ?? 0);
+                const states = Number(status?.["coveredStates"] ?? 0);
+                const ok =
+                  status?.["status"] === "operational" &&
+                  status?.["search"] === "available" &&
+                  Number.isFinite(indexed) && indexed >= 1000 &&
+                  Number.isFinite(states) && states >= 27;
+                return {
+                  key: "public-app",
+                  label: "Aplicação pública / roteamento",
+                  category: "Infraestrutura",
+                  critical: true,
+                  configured: Boolean(baseUrl),
+                  status: ok ? ("pass" as const) : ("fail" as const),
+                  detail: ok
+                    ? `Backend público operacional: ${indexed.toLocaleString("pt-BR")} imóveis em ${states} UFs.`
+                    : `O endpoint respondeu JSON, mas falhou no healthcheck (status=${String(status?.["status"] ?? "ausente")}, search=${String(status?.["search"] ?? "ausente")}, imóveis=${indexed}, UFs=${states}).`,
+                };
+              } catch {
+                return {
+                  key: "public-app",
+                  label: "Aplicação pública / roteamento",
+                  category: "Infraestrutura",
+                  critical: true,
+                  configured: Boolean(baseUrl),
+                  status: "fail" as const,
+                  detail: "Não foi possível validar /api/public/status no endereço público configurado.",
+                };
+              }
+            });
+          }
+          '''
+          if old not in text:
+              print('Strict patch already applied or source block changed; no commit needed.')
+              raise SystemExit(0)
+          path.write_text(text.replace(old, new, 1))
+          PY
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/backend-auditor.functions.ts
+          git commit -m "fix: validate real public backend status in auditor"
+          git push origin HEAD:fix/strict-public-backend-audit
