@@ -34,9 +34,11 @@ create table if not exists public.property_search_index (
 
 alter table public.property_search_index enable row level security;
 drop policy if exists "public read property search index" on public.property_search_index;
+drop policy if exists "anonymous cannot read property search index" on public.property_search_index;
 drop policy if exists "authenticated read property search index" on public.property_search_index;
-revoke select on public.property_search_index from anon;
-grant select on public.property_search_index to authenticated;
+grant select on public.property_search_index to anon, authenticated;
+create policy "anonymous cannot read property search index"
+on public.property_search_index for select to anon using (false);
 create policy "authenticated read property search index"
 on public.property_search_index for select to authenticated using (true);
 
