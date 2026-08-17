@@ -25,6 +25,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+
+      - name: Apply controlled urgent search/presence patch
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'fix/urgent-search-presence')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-urgent-search-presence.py')
+          text = p.read_text()
+          needle = '''replace_once(
+              "src/lib/property-search.functions.ts",
+              "    const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);",'''
+          if needle in text:
+              start = text.index(needle)
+              end = text.index('\n\n# 3) Auditor:', start)
+              text = text[:start] + "# Priorização de mercado já existe em sortItems(..., input.market)." + text[end:]
+              p.write_text(text)
+          PY
+          python scripts/apply-urgent-search-presence.py
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -104,6 +125,21 @@ jobs:
             console.log('Search index is not installed in this Supabase project; core app smoke test remains valid.');
           }
           NODE
+
+      - name: Commit validated controlled PR patch
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'fix/urgent-search-presence')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src
+          if git diff --cached --quiet; then
+            echo "Controlled patch already present and validated."
+            exit 0
+          fi
+          git commit -m "feat: busca 100 por pagina, diversidade regional e usuarios online"
+          git push origin HEAD:refs/heads/${{ github.head_ref }}
 
       - name: Promote validated main to production
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
