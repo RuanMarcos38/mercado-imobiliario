@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
-  Building2,
   CheckCheck,
   ExternalLink,
   FileText,
@@ -284,8 +283,9 @@ function AtendimentoPage() {
 
   const selectAttachment = async (file: File | null) => {
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("O arquivo deve ter no máximo 8 MB.");
+    const maxAttachmentMb = connection.data?.maxAttachmentMb ?? 8;
+    if (file.size > maxAttachmentMb * 1024 * 1024) {
+      toast.error(`O arquivo deve ter no máximo ${maxAttachmentMb} MB.`);
       return;
     }
     const mimeType = file.type || "application/octet-stream";
@@ -661,7 +661,7 @@ function AtendimentoPage() {
                   </Button>
                 </div>
                 <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
-                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até 8 MB.
+                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até {connection.data?.maxAttachmentMb ?? 8} MB.
                 </p>
               </footer>
             </>
