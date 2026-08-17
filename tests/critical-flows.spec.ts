@@ -116,14 +116,14 @@ describe("MercadoImobi product invariants", () => {
   it("keeps AI and WhatsApp secrets server-side", () => {
     const envExample = source(".env.example");
     const assistant = source("src/lib/ai-assistant.functions.ts");
-    const autoReply = source("src/lib/whatsapp-auto-reply.server.ts");
+    const evolutionSender = source("src/lib/evolution-text.server.ts");
 
     expect(envExample).toContain("OPENAI_API_KEY=");
     expect(envExample).toContain("EVOLUTION_API_KEY=");
     expect(envExample).not.toContain("VITE_OPENAI_API_KEY");
     expect(envExample).not.toContain("VITE_EVOLUTION_API_KEY");
     expect(assistant).toContain('process.env["OPENAI_API_KEY"]');
-    expect(autoReply).toContain('process.env["EVOLUTION_API_KEY"]');
+    expect(evolutionSender).toContain('process.env["EVOLUTION_API_KEY"]');
   });
 
   it("keeps the Lovable template visual primitives and paginates the full property base", () => {
