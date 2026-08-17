@@ -1,0 +1,82 @@
+name: Repair QuintoAndar purchase prices
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/repair_quintoandar_prices.py"
+      - ".github/workflows/repair-quintoandar-prices.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-quintoandar-public-cache
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Load current public cache
+        run: |
+          curl --fail --location --retry 3 \
+            "https://raw.githubusercontent.com/RuanMarcos38/mercado-imobiliario/public-data-cache/public-properties.json" \
+            --output public-properties.json
+
+      - name: Repair every suspicious QuintoAndar purchase card
+        run: |
+          python scripts/repair_quintoandar_prices.py \
+            --input public-properties.json
+
+      - name: Validate repaired cache
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("public-properties.json").read_text(encoding="utf-8"))
+          bad = []
+          for item in payload.get("items") or []:
+              if str(item.get("source_code") or "").lower() != "quintoandar":
+                  continue
+              title = str(item.get("title") or "").lower()
+              if not any(term in title for term in ("alugue ou compre", "alugar ou comprar", "compre", "comprar", "compra", "venda", "à venda", "a venda")):
+                  continue
+              price = item.get("price")
+              try:
+                  numeric = float(price) if price is not None else None
+              except (TypeError, ValueError):
+                  numeric = None
+              if numeric is not None and 0 < numeric < 20000:
+                  bad.append((item.get("title"), price, item.get("source_url")))
+
+          print(f"QuintoAndar suspicious purchase prices remaining: {len(bad)}")
+          for row in bad[:20]:
+              print(row)
+          if bad:
+              raise SystemExit("Repair incomplete: suspicious purchase prices remain")
+
+      - name: Publish repaired public cache
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mercadoimobi-repaired-cache
+          cp public-properties.json /tmp/mercadoimobi-repaired-cache/public-properties.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan public-data-cache-repair
+          git rm -rf . || true
+          cp /tmp/mercadoimobi-repaired-cache/public-properties.json public-properties.json
+          git add public-properties.json
+          git commit -m "Repair QuintoAndar purchase prices"
+          git branch -M public-data-cache
+          git push --force origin public-data-cache
