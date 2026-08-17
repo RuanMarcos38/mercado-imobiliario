@@ -130,7 +130,7 @@ function DiagnosticsPage() {
             </Link>
             <Button onClick={() => void run()} disabled={running} className="h-11 rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700">
               <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
-              {running ? "Executando testes..." : "Testar integrações"}
+              {running ? "Executando testes..." : "Testar tudo agora"}
             </Button>
             {isAdmin && (
               <Button
