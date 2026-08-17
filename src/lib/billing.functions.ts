@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 
 export interface BillingOverview {
   configured: boolean;
@@ -21,13 +22,14 @@ export interface BillingOverview {
 
 function requestOrigin() {
   const request = getRequest();
-  if (!request?.url) return process.env["MERCADOIMOBI_BASE_URL"]?.replace(/\/$/, "") ?? "";
+  if (!request?.url) return platformBaseUrl();
   return new URL(request.url).origin;
 }
 
 async function stripePost(path: string, body: URLSearchParams) {
   const secret = process.env["STRIPE_SECRET_KEY"]?.trim();
   if (!secret) throw new Error("STRIPE_NOT_CONFIGURED");
+  const timeoutMs = externalServiceParameters().stripeTimeoutMs;
 
   const response = await fetch(`https://api.stripe.com/v1${path}`, {
     method: "POST",
@@ -36,7 +38,7 @@ async function stripePost(path: string, body: URLSearchParams) {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
