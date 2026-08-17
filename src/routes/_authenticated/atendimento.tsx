@@ -7,12 +7,14 @@ import {
   Building2,
   CheckCheck,
   ExternalLink,
+  FileText,
   Link2,
   MessageCircle,
   Paperclip,
   RefreshCw,
   Search,
   Send,
+  Smile,
   Sparkles,
   Wifi,
   WifiOff,
@@ -21,6 +23,10 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
+import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";
+import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
+import { sendWhatsAppAttachment } from "@/lib/whatsapp-media.functions";
 import {
   getWhatsAppConnectionStatus,
   getWhatsAppQrCode,
@@ -30,9 +36,6 @@ import {
   sendWhatsAppText,
   type WhatsAppConversation,
 } from "@/lib/whatsapp-tenant.functions";
-import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";
-import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
-import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
 
 export const Route = createFileRoute("/_authenticated/atendimento")({
   component: AtendimentoPage,
@@ -45,6 +48,35 @@ type PropertyContext = {
   url?: string | null;
 };
 
+type PendingAttachment = {
+  fileName: string;
+  mimeType: string;
+  base64: string;
+  size: number;
+};
+
+const EMOJIS = [
+  "😀", "😃", "😄", "😁", "😊", "😍", "🥰", "😉",
+  "🙂", "🤩", "😎", "🤝", "👍", "👏", "🙏", "💪",
+  "❤️", "💙", "💚", "✨", "🎉", "🔥", "✅", "⭐",
+  "🏠", "🏡", "🏢", "🔑", "📍", "📅", "📞", "💬",
+  "💰", "📄", "📎", "🚀", "👀", "🤔", "☺️", "🙌",
+];
+
+function readFileBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      const base64 = result.includes(",") ? result.split(",")[1] ?? "" : result;
+      if (!base64) reject(new Error("Não foi possível ler o arquivo."));
+      else resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
 function AtendimentoPage() {
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
   const qrFn = useServerFn(getWhatsAppQrCode);
@@ -53,6 +85,7 @@ function AtendimentoPage() {
   const messagesFn = useServerFn(listWhatsAppMessages);
   const markReadFn = useServerFn(markWhatsAppConversationRead);
   const sendFn = useServerFn(sendWhatsAppText);
+  const attachmentFn = useServerFn(sendWhatsAppAttachment);
   const startFn = useServerFn(startWhatsAppConversation);
   const draftFn = useServerFn(generateConversationDraft);
   const aiStatusFn = useServerFn(getAiRuntimeStatus);
@@ -67,8 +100,11 @@ function AtendimentoPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const connection = useQuery({
     queryKey: ["whatsapp-connection"],
@@ -125,6 +161,8 @@ function AtendimentoPage() {
 
   useEffect(() => {
     if (!selectedId) return;
+    setPendingAttachment(null);
+    setShowEmoji(false);
     void markReadFn({ data: { conversationId: selectedId } }).then(() => conversations.refetch());
   }, [selectedId]);
 
@@ -244,8 +282,26 @@ function AtendimentoPage() {
     }
   };
 
+  const selectAttachment = async (file: File | null) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("O arquivo deve ter no máximo 8 MB.");
+      return;
+    }
+    const mimeType = file.type || "application/octet-stream";
+    try {
+      const base64 = await readFileBase64(file);
+      setPendingAttachment({ fileName: file.name, mimeType, base64, size: file.size });
+      setShowEmoji(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível anexar o arquivo.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const send = async () => {
-    if (!selectedId || !text.trim() || sending) return;
+    if (!selectedId || sending || (!text.trim() && !pendingAttachment)) return;
     if (!connection.data?.connected) {
       toast.info("Conecte seu WhatsApp para enviar mensagens.");
       return;
@@ -253,8 +309,24 @@ function AtendimentoPage() {
     const outgoing = text.trim();
     setSending(true);
     try {
-      await sendFn({ data: { conversationId: selectedId, text: outgoing } });
-      setText("");
+      if (pendingAttachment) {
+        await attachmentFn({
+          data: {
+            conversationId: selectedId,
+            fileName: pendingAttachment.fileName,
+            mimeType: pendingAttachment.mimeType,
+            base64: pendingAttachment.base64,
+            caption: outgoing || undefined,
+          },
+        });
+        setPendingAttachment(null);
+        setText("");
+        toast.success("Arquivo enviado pelo WhatsApp.");
+      } else {
+        await sendFn({ data: { conversationId: selectedId, text: outgoing } });
+        setText("");
+      }
+      setShowEmoji(false);
       await Promise.all([messages.refetch(), conversations.refetch()]);
     } catch (error) {
       toast.error(
@@ -441,6 +513,11 @@ function AtendimentoPage() {
                             : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"
                         }`}
                       >
+                        {message.message_type !== "text" && (
+                          <div className="mb-1 flex items-center gap-2 text-xs font-black">
+                            <FileText className="h-4 w-4" /> Arquivo do WhatsApp
+                          </div>
+                        )}
                         {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
                         {!message.body && message.media_url && (
                           <a
@@ -472,7 +549,7 @@ function AtendimentoPage() {
                 </div>
               </div>
 
-              <footer className="border-t border-[var(--mi-border)] p-4">
+              <footer className="relative border-t border-[var(--mi-border)] p-4">
                 <div className="mb-2 flex justify-end">
                   <Button
                     variant="outline"
@@ -485,9 +562,81 @@ function AtendimentoPage() {
                     {drafting ? "Gerando..." : "Sugerir resposta com IA"}
                   </Button>
                 </div>
+
+                {pendingAttachment && (
+                  <div className="mb-2 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-slate-800">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-blue-600">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-black">{pendingAttachment.fileName}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {(pendingAttachment.size / 1024 / 1024).toFixed(2)} MB · pronto para enviar
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingAttachment(null)}
+                      className="rounded-lg p-1 text-slate-500 hover:bg-white"
+                      aria-label="Remover anexo"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {showEmoji && (
+                  <div className="absolute bottom-[82px] left-16 z-20 w-72 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 shadow-xl">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-black">Emojis</p>
+                      <button type="button" onClick={() => setShowEmoji(false)} aria-label="Fechar emojis">
+                        <X className="h-4 w-4 text-[var(--mi-text-soft)]" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-8 gap-1">
+                      {EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setText((current) => `${current}${emoji}`)}
+                          className="grid h-8 w-8 place-items-center rounded-lg text-xl hover:bg-[var(--mi-surface-soft)]"
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                  onChange={(event) => void selectAttachment(event.target.files?.[0] ?? null)}
+                />
+
                 <div className="flex items-end gap-2">
-                  <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" disabled>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl"
+                    disabled={sending || !connection.data?.connected}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Anexar documento, foto ou arquivo"
+                  >
                     <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl"
+                    disabled={sending}
+                    onClick={() => setShowEmoji((open) => !open)}
+                    title="Adicionar emoji"
+                  >
+                    <Smile className="h-5 w-5" />
                   </Button>
                   <textarea
                     value={text}
@@ -499,18 +648,21 @@ function AtendimentoPage() {
                       }
                     }}
                     rows={1}
-                    placeholder="Digite uma mensagem"
+                    placeholder={pendingAttachment ? "Adicione uma legenda (opcional)" : "Digite uma mensagem"}
                     className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
                   />
                   <Button
                     size="icon"
                     onClick={() => void send()}
-                    disabled={sending || !text.trim() || !connection.data?.connected}
+                    disabled={sending || (!text.trim() && !pendingAttachment) || !connection.data?.connected}
                     className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
                   >
-                    <Send className="h-4 w-4" />
+                    {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
+                <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
+                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até 8 MB.
+                </p>
               </footer>
             </>
           ) : (
