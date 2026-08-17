@@ -1,9 +1,9 @@
 type JsonObject = Record<string, unknown>;
 
-function evolutionConfig() {
+function evolutionConfig(instanceName?: string) {
   const baseUrl = process.env["EVOLUTION_API_URL"]?.replace(/\/$/, "");
   const apiKey = process.env["EVOLUTION_API_KEY"];
-  const instance = process.env["EVOLUTION_INSTANCE"];
+  const instance = instanceName?.trim() || process.env["EVOLUTION_INSTANCE"]?.trim();
   if (!baseUrl || !apiKey || !instance) return null;
   return { baseUrl, apiKey, instance };
 }
@@ -34,15 +34,14 @@ export async function sendEvolutionTextMessage(input: {
   phone: string;
   text: string;
   delay?: number;
+  instanceName?: string;
 }): Promise<JsonObject> {
-  const config = evolutionConfig();
+  const config = evolutionConfig(input.instanceName);
   if (!config) throw new Error("WHATSAPP_NOT_CONFIGURED");
 
   const endpoint = `${config.baseUrl}/message/sendText/${encodeURIComponent(config.instance)}`;
   const delay = Math.max(0, Math.min(input.delay ?? 800, 10_000));
 
-  // Evolution API has used more than one sendText contract across releases.
-  // Try the currently used top-level schema first, then older documented shapes.
   const bodies: JsonObject[] = [
     {
       number: input.phone,
@@ -83,8 +82,6 @@ export async function sendEvolutionTextMessage(input: {
 
       lastStatus = response.status;
       lastPayload = payload;
-
-      // Auth and missing-instance failures are not payload-shape problems.
       if ([401, 403, 404].includes(response.status)) break;
     } catch (error) {
       const reason = error instanceof Error ? error.message : "request_failed";

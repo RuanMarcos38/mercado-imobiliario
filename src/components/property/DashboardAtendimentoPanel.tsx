@@ -9,7 +9,7 @@ import {
   listWhatsAppConversations,
   listWhatsAppMessages,
   sendWhatsAppText,
-} from "@/lib/whatsapp.functions";
+} from "@/lib/whatsapp-tenant.functions";
 
 export function DashboardAtendimentoPanel() {
   const statusFn = useServerFn(getWhatsAppConnectionStatus);

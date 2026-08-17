@@ -12,12 +12,17 @@ function extractText(payload: any): string {
     .trim();
 }
 
-async function sendEvolutionText(phone: string, text: string) {
+async function sendEvolutionText(phone: string, text: string, instanceName: string) {
   const normalizedPhone = normalizeWhatsAppPhone(phone);
   if (!normalizedPhone) return null;
 
   try {
-    return await sendEvolutionTextMessage({ phone: normalizedPhone, text, delay: 900 });
+    return await sendEvolutionTextMessage({
+      phone: normalizedPhone,
+      text,
+      delay: 900,
+      instanceName,
+    });
   } catch {
     return null;
   }
@@ -34,8 +39,6 @@ export async function maybeAutoReply(input: {
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) return { sent: false, reason: "ai_not_configured" };
 
-  // Recovery polling can import a message that Evolution had persisted earlier.
-  // The recovery path passes the original timestamp so old history is never answered.
   if (input.inboundSentAt) {
     const receivedAt = new Date(input.inboundSentAt).getTime();
     const ageMs = Date.now() - receivedAt;
@@ -59,6 +62,17 @@ export async function maybeAutoReply(input: {
   if (handoffKeywords.some((keyword: string) => normalizedInbound.includes(keyword))) {
     return { sent: false, reason: "human_handoff" };
   }
+
+  const { data: connection } = await db
+    .from("whatsapp_connections")
+    .select("instance_name,status")
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  const instanceName =
+    (connection?.instance_name ? String(connection.instance_name) : "") ||
+    process.env["EVOLUTION_INSTANCE"]?.trim() ||
+    "";
+  if (!instanceName) return { sent: false, reason: "whatsapp_not_connected" };
 
   const { data: messages } = await db
     .from("whatsapp_messages")
@@ -100,7 +114,7 @@ export async function maybeAutoReply(input: {
   const reply = extractText(await response.json());
   if (!reply) return { sent: false, reason: "ai_empty" };
 
-  const evolutionPayload = await sendEvolutionText(input.phone, reply);
+  const evolutionPayload = await sendEvolutionText(input.phone, reply, instanceName);
   if (!evolutionPayload) return { sent: false, reason: "whatsapp_send_failed" };
 
   const key = evolutionPayload["key"] as Record<string, unknown> | undefined;

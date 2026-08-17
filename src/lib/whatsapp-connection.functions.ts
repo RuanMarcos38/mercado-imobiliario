@@ -1,36 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  evolutionGatewayConfig,
+  evolutionRequest,
+  generatedEvolutionInstanceName,
+  getTenantEvolutionInstance,
+  type EvolutionGatewayConfig,
+} from "@/lib/evolution-instance.server";
 import { requireTenantId } from "@/lib/tenant.server";
 
 type EvolutionState = "connected" | "connecting" | "disconnected" | "error";
 
-type EvolutionConfig = {
-  baseUrl: string;
-  apiKey: string;
-  instance: string;
+type QrPayload = {
+  base64: string | null;
+  code: string | null;
+  pairingCode: string | null;
+  count: number;
 };
 
 const DEFAULT_MERCADOIMOBI_URL = "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br";
-
-function evolutionConfig(): EvolutionConfig | null {
-  const baseUrl = process.env["EVOLUTION_API_URL"]?.trim().replace(/\/$/, "");
-  const apiKey = process.env["EVOLUTION_API_KEY"]?.trim();
-  const instance = process.env["EVOLUTION_INSTANCE"]?.trim();
-  if (!baseUrl || !apiKey || !instance) return null;
-  return { baseUrl, apiKey, instance };
-}
-
-async function evolutionRequest(config: EvolutionConfig, path: string, init?: RequestInit) {
-  return fetch(`${config.baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      apikey: config.apiKey,
-      ...(init?.headers ?? {}),
-    },
-    signal: AbortSignal.timeout(15_000),
-  });
-}
 
 function normalizeState(payload: unknown): EvolutionState {
   if (!payload || typeof payload !== "object") return "error";
@@ -46,21 +34,36 @@ function normalizeState(payload: unknown): EvolutionState {
   return "error";
 }
 
+function extractQr(payload: unknown): QrPayload {
+  const root = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const nested =
+    root["qrcode"] && typeof root["qrcode"] === "object"
+      ? (root["qrcode"] as Record<string, unknown>)
+      : root;
+  const base64 = typeof nested["base64"] === "string" && nested["base64"] ? nested["base64"] : null;
+  const code = typeof nested["code"] === "string" && nested["code"] ? nested["code"] : null;
+  const pairingCode =
+    typeof nested["pairingCode"] === "string" && nested["pairingCode"]
+      ? nested["pairingCode"]
+      : null;
+  const count = Number(nested["count"] ?? 0);
+  return { base64, code, pairingCode, count: Number.isFinite(count) ? count : 0 };
+}
+
 function webhookUrl(): string {
   const explicit = process.env["WHATSAPP_WEBHOOK_URL"]?.trim();
   if (explicit) return explicit;
-
   const appBaseUrl =
     process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ?? DEFAULT_MERCADOIMOBI_URL;
   return `${appBaseUrl}/api/public/hooks/whatsapp`;
 }
 
-async function configureWebhook(config: EvolutionConfig) {
+async function configureWebhook(config: EvolutionGatewayConfig, instance: string) {
   const url = webhookUrl();
   const secret = process.env["WHATSAPP_WEBHOOK_SECRET"]?.trim();
   const response = await evolutionRequest(
     config,
-    `/webhook/set/${encodeURIComponent(config.instance)}`,
+    `/webhook/set/${encodeURIComponent(instance)}`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -83,15 +86,93 @@ async function configureWebhook(config: EvolutionConfig) {
       warning: `EVOLUTION_WEBHOOK_HTTP_${response.status}` as string | null,
     };
   }
-
   return { configured: true, url, warning: null as string | null };
+}
+
+async function isPlatformAdmin(db: any, userId: string) {
+  const { data } = await db
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+async function ensureTenantInstance(input: {
+  db: any;
+  tenantId: string;
+  userId: string;
+  config: EvolutionGatewayConfig;
+}) {
+  const saved = await getTenantEvolutionInstance(input.db, input.tenantId);
+  if (saved) return { instance: saved, created: false, qr: null as QrPayload | null };
+
+  // Preserve the original administrator's already-connected legacy instance when present,
+  // while all subscriber tenants receive their own dedicated Evolution instance.
+  const legacyInstance = process.env["EVOLUTION_INSTANCE"]?.trim();
+  const instance =
+    legacyInstance && (await isPlatformAdmin(input.db, input.userId))
+      ? legacyInstance
+      : generatedEvolutionInstanceName(input.tenantId);
+
+  let created = false;
+  let qr: QrPayload | null = null;
+  const stateResponse = await evolutionRequest(
+    input.config,
+    `/instance/connectionState/${encodeURIComponent(instance)}`,
+    { method: "GET" },
+  );
+
+  if (stateResponse.status === 401 || stateResponse.status === 403) {
+    throw new Error("EVOLUTION_API_AUTH_FAILED");
+  }
+
+  if (stateResponse.status === 404) {
+    const response = await evolutionRequest(input.config, "/instance/create", {
+      method: "POST",
+      body: JSON.stringify({
+        instanceName: instance,
+        integration: "WHATSAPP-BAILEYS",
+        qrcode: true,
+      }),
+    });
+    if (response.status === 401 || response.status === 403) throw new Error("EVOLUTION_API_AUTH_FAILED");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === "object"
+          ? String((payload as Record<string, unknown>)["message"] ?? "")
+          : "";
+      throw new Error(`EVOLUTION_INSTANCE_CREATE_FAILED:${response.status}:${message.slice(0, 180)}`);
+    }
+    created = true;
+    qr = extractQr(payload);
+  } else if (!stateResponse.ok) {
+    throw new Error(`EVOLUTION_API_HTTP_${stateResponse.status}`);
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await input.db.from("whatsapp_connections").upsert(
+    {
+      tenant_id: input.tenantId,
+      owner_user_id: input.userId,
+      instance_name: instance,
+      display_name: "Meu WhatsApp",
+      status: "connecting",
+      updated_at: now,
+    },
+    { onConflict: "tenant_id" },
+  );
+  if (error) throw new Error(error.message);
+
+  return { instance, created, qr };
 }
 
 export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const config = evolutionConfig();
-
+    const config = evolutionGatewayConfig();
     if (!config) {
       return {
         configured: false,
@@ -102,31 +183,31 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
         webhookUrl: null as string | null,
         warning: "EVOLUTION_ENV_MISSING" as string | null,
         instanceName: null as string | null,
+        qrBase64: null as string | null,
+        qrCode: null as string | null,
+        pairingCode: null as string | null,
       };
     }
 
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const ensured = await ensureTenantInstance({ db, tenantId, userId: context.userId, config });
+    const webhook = await configureWebhook(config, ensured.instance);
+
     const stateResponse = await evolutionRequest(
       config,
-      `/instance/connectionState/${encodeURIComponent(config.instance)}`,
+      `/instance/connectionState/${encodeURIComponent(ensured.instance)}`,
       { method: "GET" },
     );
-
     if (stateResponse.status === 401 || stateResponse.status === 403) {
       throw new Error("EVOLUTION_API_AUTH_FAILED");
     }
-    if (stateResponse.status === 404) {
-      throw new Error("EVOLUTION_INSTANCE_NOT_FOUND");
-    }
-    if (!stateResponse.ok) {
+    if (!stateResponse.ok && stateResponse.status !== 404) {
       throw new Error(`EVOLUTION_API_HTTP_${stateResponse.status}`);
     }
 
     const statePayload = await stateResponse.json().catch(() => ({}));
-    const state = normalizeState(statePayload);
-    const webhook = await configureWebhook(config);
-
-    const tenantId = await requireTenantId(context.supabase, context.userId);
-    const db = context.supabase as any;
+    const state = stateResponse.ok ? normalizeState(statePayload) : "disconnected";
     const now = new Date().toISOString();
     const status =
       state === "connected"
@@ -137,19 +218,15 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
             ? "disconnected"
             : "error";
 
-    const { error } = await db.from("whatsapp_connections").upsert(
-      {
-        tenant_id: tenantId,
-        owner_user_id: context.userId,
-        instance_name: config.instance,
-        display_name: config.instance,
+    const { error } = await db
+      .from("whatsapp_connections")
+      .update({
         status,
         last_connected_at: state === "connected" ? now : null,
         updated_at: now,
-      },
-      { onConflict: "tenant_id" },
-    );
-
+      })
+      .eq("tenant_id", tenantId)
+      .eq("instance_name", ensured.instance);
     if (error) throw new Error(error.message);
 
     return {
@@ -160,6 +237,9 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
       webhookConfigured: webhook.configured,
       webhookUrl: webhook.url,
       warning: webhook.warning,
-      instanceName: config.instance,
+      instanceName: ensured.instance,
+      qrBase64: ensured.qr?.base64 ?? null,
+      qrCode: ensured.qr?.code ?? null,
+      pairingCode: ensured.qr?.pairingCode ?? null,
     };
   });
