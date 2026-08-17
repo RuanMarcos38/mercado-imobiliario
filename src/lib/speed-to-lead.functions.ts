@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeLeadPhone } from "@/lib/lead-operations.server";
+import { speedToLeadParameters } from "@/lib/platform-parameters.server";
 
 const testLeadSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
@@ -55,31 +56,32 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
+    const parameters = speedToLeadParameters();
     const now = Date.now();
-    const since30 = new Date(now - 30 * 24 * 60 * 60_000).toISOString();
-    const since7 = now - 7 * 24 * 60 * 60_000;
+    const sinceHistory = new Date(now - parameters.historyDays * 24 * 60 * 60_000).toISOString();
+    const sinceMetrics = now - parameters.metricsDays * 24 * 60 * 60_000;
 
     const [leadsResult, conversationsResult, messagesResult] = await Promise.all([
       db
         .from("leads")
         .select("id,user_id,client_name,client_phone,created_at,status,ai_qualification_notes")
         .eq("tenant_id", tenantId)
-        .gte("created_at", since30)
+        .gte("created_at", sinceHistory)
         .order("created_at", { ascending: false })
-        .limit(5000),
+        .limit(parameters.maxLeadsQuery),
       db
         .from("whatsapp_conversations")
         .select("id,phone_e164")
         .eq("tenant_id", tenantId)
-        .limit(3000),
+        .limit(parameters.maxConversationsQuery),
       db
         .from("whatsapp_messages")
         .select("conversation_id,sent_at")
         .eq("tenant_id", tenantId)
         .eq("direction", "outbound")
-        .gte("sent_at", since30)
+        .gte("sent_at", sinceHistory)
         .order("sent_at", { ascending: true })
-        .limit(10000),
+        .limit(parameters.maxMessagesQuery),
     ]);
 
     if (leadsResult.error) throw new Error(leadsResult.error.message);
@@ -109,12 +111,12 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
       lead,
       responseSeconds: responseSecondsForLead(lead, phoneMessages),
     }));
-    const recent7 = measured.filter(({ lead }) => {
+    const recent = measured.filter(({ lead }) => {
       const created = Date.parse(lead.created_at || "");
-      return Number.isFinite(created) && created >= since7;
+      return Number.isFinite(created) && created >= sinceMetrics;
     });
-    const answered7 = recent7.filter((item) => item.responseSeconds !== null);
-    const values = answered7
+    const answered = recent.filter((item) => item.responseSeconds !== null);
+    const values = answered
       .map((item) => item.responseSeconds as number)
       .sort((a, b) => a - b);
     const averageSeconds = values.length
@@ -125,10 +127,12 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
         ? values[Math.floor(values.length / 2)]!
         : (values[values.length / 2 - 1]! + values[values.length / 2]!) / 2
       : null;
-    const withinSla = answered7.filter((item) => (item.responseSeconds as number) <= 300).length;
+    const withinSla = answered.filter(
+      (item) => (item.responseSeconds as number) <= parameters.slaSeconds,
+    ).length;
 
     const sourceMap = new Map<string, number>();
-    for (const item of recent7) {
+    for (const item of recent) {
       const source = sourceFromNotes(item.lead.ai_qualification_notes);
       sourceMap.set(source, (sourceMap.get(source) ?? 0) + 1);
     }
@@ -146,36 +150,41 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
 
     const team = userIds
       .map((userId) => {
-        const userLeads = recent7.filter((item) => item.lead.user_id === userId);
-        const answered = userLeads.filter((item) => item.responseSeconds !== null);
-        const seconds = answered.map((item) => item.responseSeconds as number);
+        const userLeads = recent.filter((item) => item.lead.user_id === userId);
+        const answeredUser = userLeads.filter((item) => item.responseSeconds !== null);
+        const seconds = answeredUser.map((item) => item.responseSeconds as number);
         const avg = seconds.length ? seconds.reduce((sum, value) => sum + value, 0) / seconds.length : null;
-        const within = answered.filter((item) => (item.responseSeconds as number) <= 300).length;
+        const within = answeredUser.filter(
+          (item) => (item.responseSeconds as number) <= parameters.slaSeconds,
+        ).length;
         return {
           userId,
           name: profileMap.get(userId) || "Corretor",
           assigned: userLeads.length,
-          answered: answered.length,
-          unanswered: userLeads.length - answered.length,
+          answered: answeredUser.length,
+          unanswered: userLeads.length - answeredUser.length,
           averageSeconds: avg,
           averageLabel: secondsLabel(avg),
-          withinSlaPct: answered.length ? Math.round((within / answered.length) * 100) : null,
+          withinSlaPct: answeredUser.length ? Math.round((within / answeredUser.length) * 100) : null,
         };
       })
       .sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
 
     return {
       checkedAt: new Date().toISOString(),
-      targetSeconds: 300,
-      leads7d: recent7.length,
+      targetSeconds: parameters.slaSeconds,
+      metricsDays: parameters.metricsDays,
+      historyDays: parameters.historyDays,
+      distributionLookbackHours: parameters.distributionLookbackHours,
+      leads7d: recent.length,
       leads30d: leads.length,
-      answered7d: answered7.length,
-      unanswered7d: recent7.length - answered7.length,
+      answered7d: answered.length,
+      unanswered7d: recent.length - answered.length,
       averageSeconds,
       averageLabel: secondsLabel(averageSeconds),
       medianSeconds,
       medianLabel: secondsLabel(medianSeconds),
-      withinSlaPct: answered7.length ? Math.round((withinSla / answered7.length) * 100) : null,
+      withinSlaPct: answered.length ? Math.round((withinSla / answered.length) * 100) : null,
       sources: [...sourceMap.entries()]
         .map(([source, count]) => ({ source, count }))
         .sort((a, b) => b.count - a.count),

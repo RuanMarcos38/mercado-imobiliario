@@ -4,6 +4,10 @@ import {
   readIntegrationSecret,
   writeIntegrationSecret,
 } from "@/lib/integration-secrets.server";
+import {
+  externalServiceParameters,
+  platformBaseUrl,
+} from "@/lib/platform-parameters.server";
 
 const SECRET_NAME = "meta-social";
 
@@ -44,10 +48,7 @@ export type SocialMessage = {
 };
 
 function baseUrl() {
-  return (
-    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ||
-    "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-  );
+  return platformBaseUrl();
 }
 
 function metaAppConfig() {
@@ -140,7 +141,7 @@ async function metaJson(url: string, init?: RequestInit) {
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
-    signal: AbortSignal.timeout(25_000),
+    signal: AbortSignal.timeout(externalServiceParameters().metaTimeoutMs),
   });
   const text = await response.text();
   let payload: any = {};
@@ -212,7 +213,11 @@ export async function completeMetaOAuth(input: { code: string; state: string }) 
   if (!pages.length) throw new Error("META_NO_MANAGED_PAGES");
   const config: MetaSocialConfig = { connectedAt: new Date().toISOString(), pages };
   await writeIntegrationSecret(owner.tenantId, owner.userId, SECRET_NAME, config);
-  return { ...owner, pageCount: pages.length, instagramCount: pages.filter((p) => p.instagramUserId).length };
+  return {
+    ...owner,
+    pageCount: pages.length,
+    instagramCount: pages.filter((p) => p.instagramUserId).length,
+  };
 }
 
 export async function getMetaSocialConfig(tenantId: string, userId: string) {
@@ -232,7 +237,9 @@ function participantForConversation(
     [page.pageId, channel === "instagram" ? page.instagramUserId : null].filter(Boolean),
   );
   const participants = conversation?.participants?.data ?? [];
-  const external = participants.find((participant: any) => !ownIds.has(String(participant?.id ?? "")));
+  const external = participants.find(
+    (participant: any) => !ownIds.has(String(participant?.id ?? "")),
+  );
   return {
     id: String(external?.id ?? ""),
     name: String(external?.name ?? external?.username ?? "Contato"),
@@ -280,8 +287,12 @@ export async function listMetaSocialConversations(input: {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
   if (!config) return [] as SocialConversation[];
   const channels: SocialChannel[] =
-    !input.channel || input.channel === "all" ? ["facebook", "instagram"] : [input.channel];
-  const jobs = config.pages.flatMap((page) => channels.map((channel) => fetchConversationsForPage(page, channel)));
+    !input.channel || input.channel === "all"
+      ? ["facebook", "instagram"]
+      : [input.channel];
+  const jobs = config.pages.flatMap((page) =>
+    channels.map((channel) => fetchConversationsForPage(page, channel)),
+  );
   const settled = await Promise.allSettled(jobs);
   return settled
     .flatMap((entry) => (entry.status === "fulfilled" ? entry.value : []))
@@ -356,11 +367,17 @@ export async function sendMetaSocialText(input: {
 
 export async function testMetaConnection(tenantId: string, userId: string) {
   const config = await getMetaSocialConfig(tenantId, userId);
-  if (!config?.pages.length) return { configured: Boolean(metaAppConfig()), connected: false, ok: false };
+  if (!config?.pages.length)
+    return { configured: Boolean(metaAppConfig()), connected: false, ok: false };
   const page = config.pages[0];
   try {
-    const params = new URLSearchParams({ fields: "id,name", access_token: page.pageAccessToken });
-    await metaJson(`https://graph.facebook.com/${encodeURIComponent(page.pageId)}?${params.toString()}`);
+    const params = new URLSearchParams({
+      fields: "id,name",
+      access_token: page.pageAccessToken,
+    });
+    await metaJson(
+      `https://graph.facebook.com/${encodeURIComponent(page.pageId)}?${params.toString()}`,
+    );
     return { configured: true, connected: true, ok: true };
   } catch (error) {
     return {

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
+import { documentParameters } from "@/lib/platform-parameters.server";
 
 const CATEGORIES = [
   "identificacao_comprador",
@@ -13,8 +14,6 @@ const CATEGORIES = [
   "matricula_imovel",
   "outros",
 ] as const;
-const BUCKET = "cca-documents";
-const MAX_RAW_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 const sendSchema = z.object({
   leadId: z.string().uuid(),
@@ -29,6 +28,7 @@ export const getEmailCcaStatus = createServerFn({ method: "GET" })
     configured: Boolean(process.env["RESEND_API_KEY"]?.trim() && process.env["EMAIL_FROM"]?.trim()),
     defaultRecipient: process.env["CCA_EMAIL_TO"]?.trim() || null,
     from: process.env["EMAIL_FROM"]?.trim() || null,
+    maxAttachmentMb: documentParameters().emailAttachmentMaxMb,
   }));
 
 export const listEmailCcaLeads = createServerFn({ method: "GET" })
@@ -55,6 +55,9 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
     const from = process.env["EMAIL_FROM"]?.trim();
     if (!apiKey || !from) throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
 
+    const parameters = documentParameters();
+    const bucket = parameters.ccaBucket;
+    const maxRawAttachmentBytes = parameters.emailAttachmentMaxMb * 1024 * 1024;
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
     const { data: lead, error: leadError } = await db
@@ -73,7 +76,7 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
     let rawSize = 0;
 
     for (const category of CATEGORIES) {
-      const listed = await supabaseAdmin.storage.from(BUCKET).list(`${prefix}/${category}`, {
+      const listed = await supabaseAdmin.storage.from(bucket).list(`${prefix}/${category}`, {
         limit: 100,
         sortBy: { column: "created_at", order: "asc" },
       });
@@ -91,13 +94,15 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
     }
 
     if (!files.length) throw new Error("Anexe os documentos do cliente no CRM antes de enviar ao CCA.");
-    if (rawSize > MAX_RAW_ATTACHMENT_BYTES) {
-      throw new Error("O dossiê ultrapassa 25 MB. Divida os documentos em mais de um envio.");
+    if (rawSize > maxRawAttachmentBytes) {
+      throw new Error(
+        `O dossiê ultrapassa ${parameters.emailAttachmentMaxMb} MB. Divida os documentos em mais de um envio.`,
+      );
     }
 
     const attachments: Array<{ filename: string; content: string }> = [];
     for (const file of files) {
-      const downloaded = await supabaseAdmin.storage.from(BUCKET).download(file.path);
+      const downloaded = await supabaseAdmin.storage.from(bucket).download(file.path);
       if (downloaded.error) throw new Error(`Falha ao carregar ${file.filename}.`);
       const buffer = Buffer.from(await downloaded.data.arrayBuffer());
       attachments.push({ filename: file.filename, content: buffer.toString("base64") });
@@ -127,7 +132,7 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
         text: `${data.message}\n\n${details}\n\nDocumentos anexados: ${files.length}.`,
         attachments,
       }),
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(parameters.emailRequestTimeoutMs),
     });
     const text = await response.text();
     let payload: any = {};
@@ -137,7 +142,9 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
       payload = { raw: text };
     }
     if (!response.ok) {
-      throw new Error(`EMAIL_SEND_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`);
+      throw new Error(
+        `EMAIL_SEND_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`,
+      );
     }
     return {
       success: true,

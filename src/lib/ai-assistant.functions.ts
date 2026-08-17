@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
+import { aiParameters } from "@/lib/platform-parameters.server";
 
 const draftSchema = z.object({ conversationId: z.string().uuid() });
 const testSchema = z.object({ message: z.string().trim().min(1).max(2000) });
@@ -25,8 +26,8 @@ export function extractOpenAIText(payload: OpenAIResponse): string {
 
 function aiConfig() {
   const apiKey = process.env["OPENAI_API_KEY"];
-  const model = process.env["OPENAI_MODEL"] || "gpt-5.6";
-  return apiKey ? { apiKey, model } : null;
+  const parameters = aiParameters();
+  return apiKey ? { apiKey, ...parameters } : null;
 }
 
 async function createResponse(input: unknown, instructions: string) {
@@ -45,7 +46,7 @@ async function createResponse(input: unknown, instructions: string) {
       input,
       store: false,
     }),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(config.requestTimeoutMs),
   });
 
   if (!response.ok) throw new Error(`AI_REQUEST_FAILED_${response.status}`);
@@ -89,13 +90,14 @@ export const generateConversationDraft = createServerFn({ method: "POST" })
     if (!conversation) throw new Error("Conversa não encontrada.");
     if (!settings?.enabled) throw new Error("AI_DISABLED");
 
+    const parameters = aiParameters();
     const { data: messages, error } = await db
       .from("whatsapp_messages")
       .select("direction,body,sender_name,sent_at")
       .eq("tenant_id", tenantId)
       .eq("conversation_id", data.conversationId)
       .order("sent_at", { ascending: false })
-      .limit(20);
+      .limit(parameters.historyMessages);
     if (error) throw new Error(error.message);
 
     const history = [...(messages ?? [])]
@@ -143,8 +145,5 @@ export const testAiAssistant = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    return createResponse(
-      [{ role: "user", content: data.message }],
-      instructions,
-    );
+    return createResponse([{ role: "user", content: data.message }], instructions);
   });

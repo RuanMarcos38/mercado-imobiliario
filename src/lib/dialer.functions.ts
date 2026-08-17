@@ -3,6 +3,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
+import {
+  externalServiceParameters,
+  platformBaseUrl,
+} from "@/lib/platform-parameters.server";
 
 const callSchema = z.object({
   agentPhone: z.string().trim().min(8).max(30),
@@ -35,10 +39,7 @@ function twilioConfig() {
 }
 
 function appBaseUrl() {
-  return (
-    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ||
-    "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-  );
+  return platformBaseUrl();
 }
 
 function voiceSecret() {
@@ -48,7 +49,8 @@ function voiceSecret() {
 export function createVoiceBridgeToken(customerPhone: string) {
   const secret = voiceSecret();
   if (!secret) throw new Error("VOICE_WEBHOOK_SECRET_MISSING");
-  const exp = Date.now() + 5 * 60_000;
+  const { voiceBridgeTokenMinutes } = externalServiceParameters();
+  const exp = Date.now() + voiceBridgeTokenMinutes * 60_000;
   const payload = Buffer.from(JSON.stringify({ to: customerPhone, exp }), "utf8").toString("base64url");
   const signature = createHmac("sha256", secret).update(payload).digest("base64url");
   return `${payload}.${signature}`;
@@ -103,6 +105,7 @@ export const startDialerCall = createServerFn({ method: "POST" })
     });
     const authUser = config.apiKeySid || config.accountSid;
     const authPass = config.apiKeySecret || config.authToken;
+    const { twilioTimeoutMs } = externalServiceParameters();
     const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Calls.json`,
       {
@@ -112,7 +115,7 @@ export const startDialerCall = createServerFn({ method: "POST" })
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: params.toString(),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(twilioTimeoutMs),
       },
     );
     const text = await response.text();
@@ -139,12 +142,13 @@ export async function testTwilioRuntime() {
   if (!config) return { configured: false, ok: false };
   const authUser = config.apiKeySid || config.accountSid;
   const authPass = config.apiKeySecret || config.authToken;
+  const { diagnosticTimeoutMs } = externalServiceParameters();
   try {
     const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}.json`,
       {
         headers: { Authorization: `Basic ${Buffer.from(`${authUser}:${authPass}`).toString("base64")}` },
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(diagnosticTimeoutMs),
       },
     );
     return { configured: true, ok: response.ok, status: response.status };

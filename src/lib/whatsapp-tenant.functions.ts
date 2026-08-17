@@ -9,6 +9,7 @@ import {
 import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
+import { whatsappParameters } from "@/lib/platform-parameters.server";
 
 const conversationSchema = z.object({ conversationId: z.string().uuid() });
 const sendTextSchema = z.object({
@@ -24,6 +25,7 @@ export interface WhatsAppConnectionStatus {
   displayName: string | null;
   phoneNumber: string | null;
   instanceName: string | null;
+  maxAttachmentMb: number;
 }
 
 export interface WhatsAppConversation {
@@ -83,6 +85,7 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<WhatsAppConnectionStatus> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
+    const maxAttachmentMb = whatsappParameters().maxAttachmentMb;
     const { data: savedConnection, error } = await db
       .from("whatsapp_connections")
       .select("display_name,phone_number,status,instance_name,last_connected_at")
@@ -101,6 +104,7 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         displayName: savedConnection?.display_name ?? null,
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
+        maxAttachmentMb,
       };
     }
 
@@ -129,6 +133,7 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         displayName: savedConnection?.display_name ?? "Meu WhatsApp",
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
+        maxAttachmentMb,
       };
     } catch {
       return {
@@ -139,6 +144,7 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         displayName: savedConnection?.display_name ?? "Meu WhatsApp",
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
+        maxAttachmentMb,
       };
     }
   });
@@ -266,7 +272,7 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
     const payload = await sendEvolutionTextMessage({
       phone,
       text: data.text,
-      delay: 800,
+      delay: whatsappParameters().sendDelayMs,
       instanceName,
     });
     const key = payload["key"] as Record<string, unknown> | undefined;
