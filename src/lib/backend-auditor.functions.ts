@@ -408,32 +408,45 @@ async function testMeta(tenantId: string, userId: string) {
 
 async function testEmail() {
   return timed(async () => {
-    const apiKey = process.env["RESEND_API_KEY"]?.trim();
-    const from = process.env["EMAIL_FROM"]?.trim();
-    if (!apiKey || !from) {
+    const { verifyEmailRuntime } = await import("@/lib/smtp-email.server");
+    try {
+      const result = await verifyEmailRuntime();
+      if (!result.configured) {
+        return {
+          key: "email-live",
+          label: "E-mail / SMTP",
+          category: "Comunicação",
+          critical: false,
+          configured: false,
+          status: "not_configured" as const,
+          detail: "SMTP Hostinger ou Resend ainda não configurados.",
+        };
+      }
+      const provider = result.provider === "smtp-hostinger" ? "SMTP Hostinger" : "Resend";
       return {
         key: "email-live",
-        label: "E-mail / Resend",
+        label: "E-mail / SMTP",
         category: "Comunicação",
         critical: false,
-        configured: false,
-        status: "not_configured" as const,
-        detail: "RESEND_API_KEY ou EMAIL_FROM ausentes.",
+        configured: true,
+        status: result.ok ? ("pass" as const) : ("fail" as const),
+        detail: result.ok
+          ? `${provider} autenticado para o remetente ${result.from}.`
+          : `${provider} configurado, mas a autenticação falhou.`,
+      };
+    } catch (error) {
+      return {
+        key: "email-live",
+        label: "E-mail / SMTP",
+        category: "Comunicação",
+        critical: false,
+        configured: true,
+        status: "fail" as const,
+        detail: error instanceof Error
+          ? `Falha de autenticação SMTP: ${error.message.slice(0, 180)}`
+          : "Falha de autenticação do provedor de e-mail.",
       };
     }
-    const response = await fetch("https://api.resend.com/domains", {
-      headers: { Authorization: `Bearer ${apiKey}`, "User-Agent": "MercadoImobi-Backend-Auditor/1.0" },
-      signal: AbortSignal.timeout(externalServiceParameters().diagnosticTimeoutMs),
-    });
-    return {
-      key: "email-live",
-      label: "E-mail / Resend",
-      category: "Comunicação",
-      critical: false,
-      configured: true,
-      status: response.ok ? ("pass" as const) : ("fail" as const),
-      detail: response.ok ? `Provedor autenticado para o remetente ${from}.` : `Resend HTTP ${response.status}.`,
-    };
   });
 }
 

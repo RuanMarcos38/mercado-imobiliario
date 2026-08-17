@@ -118,7 +118,7 @@ export function integrationReadiness() {
     { key: "whatsapp", label: "Evolution / WhatsApp", configured: Boolean(process.env["EVOLUTION_API_URL"]?.trim() && process.env["EVOLUTION_API_KEY"]?.trim()) },
     { key: "meta", label: "Facebook / Instagram", configured: Boolean(process.env["META_APP_ID"]?.trim() && process.env["META_APP_SECRET"]?.trim()) },
     { key: "google", label: "Google Maps / Places", configured: Boolean(process.env["GOOGLE_MAPS_API_KEY"]?.trim()) },
-    { key: "email", label: "E-mail / Resend", configured: Boolean(process.env["RESEND_API_KEY"]?.trim() && process.env["EMAIL_FROM"]?.trim()) },
+    { key: "email", label: "E-mail / SMTP", configured: Boolean(((process.env["SMTP_PASSWORD"]?.trim() || process.env["SMTP_PASS"]?.trim()) && (process.env["SMTP_USER"]?.trim() || process.env["EMAIL_FROM"]?.trim())) || (process.env["RESEND_API_KEY"]?.trim() && process.env["EMAIL_FROM"]?.trim())) },
     { key: "stripe", label: "Stripe", configured: Boolean(process.env["STRIPE_SECRET_KEY"]?.trim() && process.env["STRIPE_PRICE_ID"]?.trim()) },
     { key: "twilio", label: "Discador / Twilio", configured: Boolean(process.env["TWILIO_ACCOUNT_SID"]?.trim() && process.env["TWILIO_AUTH_TOKEN"]?.trim() && process.env["TWILIO_PHONE_NUMBER"]?.trim()) },
     { key: "cca", label: "Conector CCA", configured: Boolean(process.env["CCA_INTEGRATION_URL"]?.trim()) },
