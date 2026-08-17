@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { requireTenantId } from "@/lib/tenant.server";
+import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 
 const conversationSchema = z.object({ conversationId: z.string().uuid() });
 const sendTextSchema = z.object({
@@ -126,7 +128,8 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const config = evolutionConfig();
-    if (!config) return { configured: false, code: null as string | null, base64: null as string | null };
+    if (!config)
+      return { configured: false, code: null as string | null, base64: null as string | null };
 
     const response = await evolutionRequest(`/instance/connect/${encodeURIComponent(config.instance)}`, {
       method: "GET",
@@ -211,8 +214,7 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
-    const config = evolutionConfig();
-    if (!config) throw new Error("WHATSAPP_NOT_CONFIGURED");
+    if (!evolutionConfig()) throw new Error("WHATSAPP_NOT_CONFIGURED");
 
     const { data: conversation, error: conversationError } = await db
       .from("whatsapp_conversations")
@@ -223,30 +225,20 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
     if (conversationError) throw new Error(conversationError.message);
     if (!conversation) throw new Error("Conversa não encontrada.");
 
-    const endpoint = `/message/sendText/${encodeURIComponent(config.instance)}`;
-    let response = await evolutionRequest(endpoint, {
-      method: "POST",
-      body: JSON.stringify({
-        number: conversation.phone_e164,
-        text: data.text,
-        options: { delay: 800, presence: "composing" },
-      }),
-    });
+    const phone = normalizeWhatsAppPhone(String(conversation.phone_e164 ?? ""));
+    if (!phone) throw new Error(whatsappPhoneErrorMessage(String(conversation.phone_e164 ?? "")));
 
-    if (!response.ok && response.status === 400) {
-      response = await evolutionRequest(endpoint, {
-        method: "POST",
-        body: JSON.stringify({
-          number: conversation.phone_e164,
-          options: { delay: 800, presence: "composing" },
-          textMessage: { text: data.text },
-        }),
-      });
+    // Repair old conversations that were stored without Brazil's DDI.
+    if (phone !== conversation.phone_e164) {
+      const { error: phoneUpdateError } = await db
+        .from("whatsapp_conversations")
+        .update({ phone_e164: phone, updated_at: new Date().toISOString() })
+        .eq("id", conversation.id)
+        .eq("tenant_id", tenantId);
+      if (phoneUpdateError) throw new Error(phoneUpdateError.message);
     }
 
-    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!response.ok) throw new Error("Não foi possível enviar a mensagem pelo WhatsApp.");
-
+    const payload = await sendEvolutionTextMessage({ phone, text: data.text, delay: 800 });
     const key = payload["key"] as Record<string, unknown> | undefined;
     const externalMessageId =
       (typeof key?.["id"] === "string" && key["id"]) ||
