@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PropertyWorkspace } from "@/components/property/PropertyWorkspace";
+import { PropertyWorkspaceAtendimento } from "@/components/property/PropertyWorkspaceAtendimento";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function DashboardPage() {
-  return <PropertyWorkspace initialMarket="all" />;
+  return <PropertyWorkspaceAtendimento initialMarket="all" />;
 }
