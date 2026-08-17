@@ -109,18 +109,13 @@ function jidCandidates(record: JsonObject, key: JsonObject): string[] {
 
 function phoneFromRecord(record: JsonObject, key: JsonObject): string | null {
   const candidates = jidCandidates(record, key).filter(
-    (jid) => !jid.endsWith("@g.us") && !jid.includes("broadcast"),
+    (jid) => !jid.endsWith("@g.us") && !jid.includes("broadcast") && !jid.endsWith("@lid"),
   );
-  const preferred = [
-    ...candidates.filter((jid) => !jid.endsWith("@lid")),
-    ...candidates.filter((jid) => jid.endsWith("@lid")),
-  ];
 
-  for (const jid of preferred) {
-    // A LID is an internal WhatsApp identifier, not necessarily the customer's phone.
-    // Only use it if a real phone JID was not provided and it already looks E.164-like.
+  // Never treat a WhatsApp LID as a phone number. On v2.3.7 inbound records can use
+  // remoteJid=@lid while remoteJidAlt/participantAlt carries the real phone JID.
+  for (const jid of candidates) {
     const digits = jid.split("@")[0]?.replace(/\D/g, "") ?? "";
-    if (jid.endsWith("@lid") && (digits.length < 12 || digits.length > 15)) continue;
     const normalized = normalizeWhatsAppPhone(digits);
     if (normalized) return normalized;
   }
@@ -182,9 +177,9 @@ async function fetchLatestEvolutionMessages(config: EvolutionConfig): Promise<Js
         "Content-Type": "application/json",
         apikey: config.apiKey,
       },
-      // Evolution v2.3.7 returns newest messages first and defaults to 50 records.
-      // Keep this bounded so Atendimento can safely use it as a recovery sync.
-      body: JSON.stringify({ page: 1, offset: 100 }),
+      // This is the contract confirmed on Evolution API v2.3.7. Its repository
+      // returns the newest page first and defaults to a bounded page of records.
+      body: JSON.stringify({}),
       signal: AbortSignal.timeout(20_000),
     },
   );
