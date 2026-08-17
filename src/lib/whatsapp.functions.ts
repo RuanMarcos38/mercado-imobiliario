@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { requireTenantId } from "@/lib/tenant.server";
+import { syncEvolutionInboxForTenant } from "@/lib/whatsapp-inbox-sync.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 
 const conversationSchema = z.object({ conversationId: z.string().uuid() });
@@ -156,6 +157,16 @@ export const listWhatsAppConversations = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<WhatsAppConversation[]> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
+
+    // Evolution API v2.3.7 can persist incoming @lid messages even when a webhook/UI
+    // consumer misses them. Reconcile the latest Evolution records before rendering.
+    try {
+      await syncEvolutionInboxForTenant(db, tenantId);
+    } catch {
+      // Webhook/realtime remains the primary path. A recovery-sync failure must not
+      // prevent the Atendimento screen from loading already stored conversations.
+    }
+
     const { data, error } = await db
       .from("whatsapp_conversations")
       .select("id,phone_e164,contact_name,avatar_url,last_message,last_message_at,unread_count")
@@ -181,6 +192,14 @@ export const listWhatsAppMessages = createServerFn({ method: "POST" })
       .maybeSingle();
     if (conversationError) throw new Error(conversationError.message);
     if (!conversation) throw new Error("Conversa não encontrada.");
+
+    // The selected conversation polls this function, so this also acts as a bounded
+    // fallback for inbound delivery when Evolution's webhook path is interrupted.
+    try {
+      await syncEvolutionInboxForTenant(db, tenantId);
+    } catch {
+      // Keep showing local history if Evolution is temporarily unavailable.
+    }
 
     const { data: messages, error } = await db
       .from("whatsapp_messages")
