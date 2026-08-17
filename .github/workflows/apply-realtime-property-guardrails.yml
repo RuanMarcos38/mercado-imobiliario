@@ -1,95 +1,14 @@
-name: Apply realtime property guardrails
+name: Apply realtime property guardrails (archived)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/apply-realtime-property-guardrails.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
+  archived:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Apply source guardrails
-        shell: python
-        run: |
-          from pathlib import Path
-
-          search = Path('src/lib/property-search.functions.ts')
-          text = search.read_text()
-
-          import_line = 'import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";\n'
-          quality_import = 'import { isFreshRealEstateListing } from "@/lib/property-listing-quality";\n'
-          if quality_import not in text:
-              text = text.replace(import_line, import_line + quality_import, 1)
-
-          old_select = 'source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata'
-          new_select = 'source_portal,source_url,scanned_at,last_seen_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata'
-          if old_select in text:
-              text = text.replace(old_select, new_select, 1)
-
-          marker = '''    let propertyQuery = context.supabase\n      .from("properties")\n      .select(\n        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",\n        { count: "exact" },\n      );\n'''
-          replacement = marker + '''\n    const freshnessCutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();\n    indexQuery = indexQuery.gte("last_seen_at", freshnessCutoff);\n    propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);\n'''
-          if 'const freshnessCutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();' not in text:
-              if marker not in text:
-                  raise SystemExit('propertyQuery marker not found')
-              text = text.replace(marker, replacement, 1)
-
-          text = text.replace('updated_at: item.scanned_at,', 'updated_at: item.last_seen_at ?? item.scanned_at,', 1)
-
-          old_live = '.filter((item) => matchesSearch(item, input));'
-          new_live = '.filter((item) => isFreshRealEstateListing(item) && matchesSearch(item, input));'
-          if old_live in text:
-              text = text.replace(old_live, new_live, 1)
-
-          dedupe_marker = '''    for (const item of [...configuredLiveItems, ...indexed, ...saved]) {\n      if (!matchesSearch(item, input)) continue;\n'''
-          dedupe_replacement = '''    for (const item of [...configuredLiveItems, ...indexed, ...saved]) {\n      if (!isFreshRealEstateListing(item)) continue;\n      if (!matchesSearch(item, input)) continue;\n'''
-          if 'if (!isFreshRealEstateListing(item)) continue;' not in text:
-              if dedupe_marker not in text:
-                  raise SystemExit('dedupe marker not found')
-              text = text.replace(dedupe_marker, dedupe_replacement, 1)
-
-          search.write_text(text)
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Format
-        run: npx prettier --write src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm run test -- --passWithNoTests
-
-      - name: Build
-        run: npm run build
-
-      - name: Commit validated source guardrails
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet && exit 0
-          git commit -m "feat: enforce fresh real-estate-only listings"
-          git status --short
-          git fetch origin main
-          git rebase --autostash origin/main
-          git push origin HEAD:main
+      - name: Guardrails already applied
+        run: echo "Guardrails de frescor e contexto imobiliário já estão incorporados ao código principal. Nenhuma alteração automática será executada."
