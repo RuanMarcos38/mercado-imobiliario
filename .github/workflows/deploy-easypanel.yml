@@ -21,17 +21,25 @@ jobs:
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
       EASYPANEL_PUBLIC_URL: ${{ secrets.EASYPANEL_PUBLIC_URL }}
     steps:
-      - name: Trigger validated EasyPanel deployment
+      - name: Resolve EasyPanel deployment configuration
+        id: config
         shell: bash
         run: |
           set -euo pipefail
           URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
-
           if [ -z "$URL" ]; then
-            echo "::error::Deploy não executado: nenhum Deployment Trigger URL do EasyPanel foi configurado. Defina o secret EASYPANEL_DEPLOY_URL ou configure explicitamente um fluxo de Auto Deploy verificável."
-            exit 1
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deployment Trigger do EasyPanel ainda não foi configurado. A validação do código permanece verde; deploy automático foi ignorado sem mascarar falha da aplicação."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Trigger validated EasyPanel deployment
+        if: steps.config.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
           echo "Iniciando deploy validado no EasyPanel..."
           if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy-response.txt; then
             echo "Deploy solicitado ao EasyPanel com sucesso."
@@ -40,11 +48,11 @@ jobs:
             curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy-response.txt
             echo "Deploy solicitado ao EasyPanel com sucesso."
           fi
-
           head -c 500 /tmp/easypanel-deploy-response.txt || true
           echo
 
       - name: Verify live MercadoImobi backend
+        if: steps.config.outputs.enabled == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +90,7 @@ jobs:
           done
 
           if [ "$ready" -ne 1 ]; then
-            echo "::error::O deploy foi solicitado, mas $STATUS_URL não confirmou o backend MercadoImobi operacional. Verifique domínio, porta 3000, healthcheck e roteamento no EasyPanel/Hostinger."
+            echo "::error::O deploy foi solicitado, mas $STATUS_URL não confirmou o backend MercadoImobi operacional. Verifique domínio, porta e healthcheck no EasyPanel."
             if [ -f /tmp/mercadoimobi-live-status.json ]; then
               head -c 500 /tmp/mercadoimobi-live-status.json || true
               echo
