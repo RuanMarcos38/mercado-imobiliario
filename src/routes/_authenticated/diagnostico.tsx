@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, CheckCircle2, CircleAlert, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
+import { Bot, CheckCircle2, CircleAlert, Gauge, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { runCommunicationDiagnostics, type DiagnosticItem } from "@/lib/communications-diagnostics.functions";
@@ -41,10 +41,17 @@ function DiagnosticsPage() {
               Execute testes sintéticos do chatbot e verificações reais de autenticação/conectividade das integrações sem enviar mensagens para clientes.
             </p>
           </div>
-          <Button onClick={() => void run()} disabled={running} className="h-11 rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700">
-            <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
-            {running ? "Executando testes..." : "Testar tudo agora"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/speed-to-lead">
+              <Button variant="outline" className="h-11 rounded-xl border-[var(--mi-border)] font-black">
+                <Gauge className="mr-2 h-4 w-4" /> Speed to Lead
+              </Button>
+            </Link>
+            <Button onClick={() => void run()} disabled={running} className="h-11 rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700">
+              <RefreshCw className={`mr-2 h-4 w-4 ${running ? "animate-spin" : ""}`} />
+              {running ? "Executando testes..." : "Testar tudo agora"}
+            </Button>
+          </div>
         </div>
 
         <section className="mt-6 rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 shadow-sm sm:p-6">
