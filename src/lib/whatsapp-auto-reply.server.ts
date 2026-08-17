@@ -1,4 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
 
 function extractText(payload: any): string {
   return (payload?.output ?? [])
@@ -11,34 +13,14 @@ function extractText(payload: any): string {
 }
 
 async function sendEvolutionText(phone: string, text: string) {
-  const baseUrl = process.env["EVOLUTION_API_URL"]?.replace(/\/$/, "");
-  const apiKey = process.env["EVOLUTION_API_KEY"];
-  const instance = process.env["EVOLUTION_INSTANCE"];
-  if (!baseUrl || !apiKey || !instance) return null;
+  const normalizedPhone = normalizeWhatsAppPhone(phone);
+  if (!normalizedPhone) return null;
 
-  const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(instance)}`;
-  let response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: apiKey },
-    body: JSON.stringify({ number: phone, text, options: { delay: 900, presence: "composing" } }),
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  if (!response.ok && response.status === 400) {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: apiKey },
-      body: JSON.stringify({
-        number: phone,
-        options: { delay: 900, presence: "composing" },
-        textMessage: { text },
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
+  try {
+    return await sendEvolutionTextMessage({ phone: normalizedPhone, text, delay: 900 });
+  } catch {
+    return null;
   }
-
-  if (!response.ok) return null;
-  return (await response.json().catch(() => ({}))) as Record<string, unknown>;
 }
 
 export async function maybeAutoReply(input: {
