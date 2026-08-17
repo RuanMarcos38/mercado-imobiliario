@@ -25,6 +25,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
 
           workspace = Path('src/components/property/PropertyWorkspace.tsx')
           text = workspace.read_text()
@@ -126,16 +127,11 @@ jobs:
           if old_fetch not in source:
             raise SystemExit('fetchLimit pattern not found')
           source = source.replace(old_fetch, 'const fetchLimit = limit;', 1)
-          old_total = '''    const total = Math.max(
-              items.length,
-              (indexResult.count ?? 0) + (propertyResult.count ?? 0) + configuredLiveItems.length,
-            );'''
-          if old_total not in source:
-            raise SystemExit('total pattern not found')
-          new_total = '''    const indexedTotal = indexResult.count ?? 0;
-            const legacyTotal = propertyResult.count ?? 0;
-            const total = Math.max(items.length, indexedTotal, legacyTotal, configuredLiveItems.length);'''
-          source = source.replace(old_total, new_total, 1)
+          pattern = re.compile(r'    const total = Math\.max\(\s*items\.length,\s*\(indexResult\.count \?\? 0\) \+ \(propertyResult\.count \?\? 0\) \+ configuredLiveItems\.length,\s*\);')
+          replacement_total = '    const indexedTotal = indexResult.count ?? 0;\n    const legacyTotal = propertyResult.count ?? 0;\n    const total = Math.max(items.length, indexedTotal, legacyTotal, configuredLiveItems.length);'
+          source, count = pattern.subn(replacement_total, source, count=1)
+          if count != 1:
+            raise SystemExit(f'total pattern replacements={count}')
           search.write_text(source)
           PY
           npx prettier --write src/components/property/PropertyWorkspace.tsx src/lib/property-search.functions.ts
