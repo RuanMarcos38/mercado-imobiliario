@@ -28,6 +28,12 @@ export const Route = createFileRoute("/_authenticated/speed-to-lead")({
   head: () => ({ title: "Speed to Lead | MercadoImobi" }),
 });
 
+function slaTargetLabel(seconds: number) {
+  if (seconds < 120) return `${seconds}s`;
+  const minutes = seconds / 60;
+  return Number.isInteger(minutes) ? `${minutes} min` : `${minutes.toFixed(1)} min`;
+}
+
 function SpeedToLeadPage() {
   const snapshotFn = useServerFn(getSpeedToLeadSnapshot);
   const webhookFn = useServerFn(getLeadWebhookSetup);
@@ -76,6 +82,11 @@ function SpeedToLeadPage() {
   };
 
   const data = snapshot.data;
+  const metricsDays = data?.metricsDays ?? 7;
+  const historyDays = data?.historyDays ?? 30;
+  const targetSeconds = data?.targetSeconds ?? 300;
+  const targetLabel = slaTargetLabel(targetSeconds);
+  const distributionHours = data?.distributionLookbackHours ?? 24;
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[var(--mi-bg)] p-4 text-[var(--mi-text)] sm:p-6 lg:p-8">
@@ -99,9 +110,9 @@ function SpeedToLeadPage() {
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard icon={RouteIcon} label="Leads nos últimos 7 dias" value={String(data?.leads7d ?? "—")} detail={`${data?.leads30d ?? 0} nos últimos 30 dias`} />
+          <MetricCard icon={RouteIcon} label={`Leads nos últimos ${metricsDays} dias`} value={String(data?.leads7d ?? "—")} detail={`${data?.leads30d ?? 0} nos últimos ${historyDays} dias`} />
           <MetricCard icon={Clock3} label="SLA médio de 1ª resposta" value={data?.averageLabel ?? "—"} detail={`Mediana: ${data?.medianLabel ?? "—"}`} />
-          <MetricCard icon={Gauge} label="Dentro do SLA de 5 min" value={data?.withinSlaPct === null || data?.withinSlaPct === undefined ? "—" : `${data.withinSlaPct}%`} detail={`${data?.answered7d ?? 0} leads com resposta medida`} />
+          <MetricCard icon={Gauge} label={`Dentro do SLA de ${targetLabel}`} value={data?.withinSlaPct === null || data?.withinSlaPct === undefined ? "—" : `${data.withinSlaPct}%`} detail={`${data?.answered7d ?? 0} leads com resposta medida`} />
           <MetricCard icon={Activity} label="Aguardando 1ª resposta" value={String(data?.unanswered7d ?? "—")} detail="Leads sem mensagem de saída após a entrada" />
         </div>
 
@@ -114,7 +125,7 @@ function SpeedToLeadPage() {
                   <h2 className="font-black">Roleta e performance da equipe</h2>
                 </div>
                 <p className="mt-1 text-xs leading-5 text-[var(--mi-text-muted)]">
-                  A distribuição favorece usuários ativos com menor carga de leads nas últimas 24 horas. O quadro abaixo mede os últimos 7 dias.
+                  A distribuição favorece usuários ativos com menor carga de leads nas últimas {distributionHours} horas. O quadro abaixo mede os últimos {metricsDays} dias.
                 </p>
               </div>
             </div>
@@ -127,7 +138,7 @@ function SpeedToLeadPage() {
                     <th className="px-3 py-3">Leads</th>
                     <th className="px-3 py-3">Respondidos</th>
                     <th className="px-3 py-3">SLA médio</th>
-                    <th className="px-3 py-3">Até 5 min</th>
+                    <th className="px-3 py-3">Até {targetLabel}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,7 +203,7 @@ function SpeedToLeadPage() {
             )}
 
             <div className="mt-6 border-t border-[var(--mi-border)] pt-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">Origem dos leads — 7 dias</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">Origem dos leads — {metricsDays} dias</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {(data?.sources ?? []).map((source) => (
                   <span key={source.source} className="rounded-full border border-[var(--mi-border)] bg-[var(--mi-bg)] px-3 py-1.5 text-xs font-bold">
