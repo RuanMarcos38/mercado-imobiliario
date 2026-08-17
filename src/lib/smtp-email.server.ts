@@ -118,7 +118,7 @@ function buildMime(input: SendEmailInput, from: string) {
     `Date: ${new Date().toUTCString()}`,
     `Message-ID: <${randomUUID()}@rdmconsultoriaimobiliaria.com.br>`,
     "MIME-Version: 1.0",
-    `Content-Type: multipart/mixed; boundary=\"${boundary}\"`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
     "",
     `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
@@ -130,9 +130,9 @@ function buildMime(input: SendEmailInput, from: string) {
   for (const attachment of input.attachments ?? []) {
     lines.push(
       `--${boundary}`,
-      `Content-Type: ${attachment.contentType || "application/octet-stream"}; name=\"${safeHeader(attachment.filename)}\"`,
+      `Content-Type: ${attachment.contentType || "application/octet-stream"}; name="${safeHeader(attachment.filename)}"`,
       "Content-Transfer-Encoding: base64",
-      `Content-Disposition: attachment; filename=\"${safeHeader(attachment.filename)}\"`,
+      `Content-Disposition: attachment; filename="${safeHeader(attachment.filename)}"`,
       "",
       wrapBase64(attachment.content),
     );
@@ -203,7 +203,11 @@ export async function sendEmail(input: SendEmailInput) {
     });
     const raw = await response.text();
     let payload: any = {};
-    try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = { raw }; }
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      payload = { raw };
+    }
     if (!response.ok) throw new Error(`EMAIL_SEND_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`);
     return { provider: status.provider, id: payload?.id ? String(payload.id) : null, from: status.from };
   }
