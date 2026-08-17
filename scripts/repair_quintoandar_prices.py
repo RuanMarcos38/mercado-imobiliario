@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,12 @@ def is_purchase_card(item: dict[str, Any]) -> bool:
     return any(term in title for term in PURCHASE_TITLE_TERMS) or "/comprar/" in url
 
 
+def is_collection_page(url: str) -> bool:
+    """QuintoAndar /condominios/... pages are neighborhood collections, not a property."""
+    normalized = url.lower().split("?", 1)[0].rstrip("/")
+    return "/condominios/" in normalized
+
+
 def needs_repair(item: dict[str, Any]) -> bool:
     if str(item.get("source_code") or "").lower() != CODE:
         return False
@@ -58,10 +65,32 @@ def needs_repair(item: dict[str, Any]) -> bool:
     return price is None or price <= 0 or price < MIN_PLAUSIBLE_PURCHASE_PRICE
 
 
+def official_purchase_unavailable(url: str, rules: list[str]) -> bool:
+    """Confirm from the public QuintoAndar overview when Compra is explicitly unavailable.
+
+    The generic page contains rental values and marketing amounts elsewhere. This guard
+    runs before accepting an implausibly low parsed value, preventing a later R$ amount
+    from being mistaken for the purchase price when the overview says `Compra -`.
+    """
+    if not discovery.robots_allowed(url, rules):
+        return False
+    status, _final_url, data, _content_type = discovery.fetch(url, timeout=18)
+    if status != 200 or not data:
+        return False
+    text = data.decode("utf-8", errors="replace")
+    plain = discovery.clean_text(text) or ""
+    return bool(
+        re.search(
+            r"(?:Valores a partir de|Média das últimas negociações).{0,500}?"
+            r"\bCompra\b\s*(?:-|–|—|indispon[ií]vel|não disponível)",
+            plain,
+            re.I,
+        )
+    )
+
+
 def merge_price(item: dict[str, Any], fresh: dict[str, Any]) -> dict[str, Any]:
     updated = dict(item)
-    # parse_listing/extract_price explicitly prioritizes Compra/Valor de compra and
-    # returns None when the official combined page says purchase is unavailable.
     updated["price"] = fresh.get("price")
 
     # Keep useful fresh fields without erasing existing information when the public
@@ -89,6 +118,10 @@ def merge_price(item: dict[str, Any], fresh: dict[str, Any]) -> dict[str, Any]:
     metadata.update(fresh.get("metadata") or {})
     metadata["purchase_price_repair"] = True
     metadata["purchase_price_checked_at"] = discovery.utc_now()
+    if fresh.get("price") is None:
+        metadata["purchase_price_available"] = False
+    else:
+        metadata["purchase_price_available"] = True
     updated["metadata"] = metadata
     return updated
 
@@ -120,6 +153,7 @@ def main() -> int:
 
     repaired = 0
     cleared_unavailable = 0
+    removed_collections = 0
     failed = 0
     removed = set(payload.get("removed_urls") or [])
 
@@ -128,6 +162,14 @@ def main() -> int:
         url = str(item.get("source_url") or "").strip()
         if not url:
             failed += 1
+            continue
+
+        # A neighborhood/collection page can contain counts and average values that
+        # look like a property price. It must never be rendered as an individual card.
+        if is_collection_page(url):
+            removed.add(url)
+            items[index] = None
+            removed_collections += 1
             continue
 
         fresh, was_removed = discovery.parse_listing(url, DOMAIN, CODE, NAME, rules)
@@ -141,6 +183,14 @@ def main() -> int:
 
         previous_price = as_price(item.get("price"))
         new_price = as_price(fresh.get("price"))
+
+        # If the parser still found a tiny amount, confirm whether the official
+        # overview explicitly says purchase is unavailable before publishing it.
+        if new_price is not None and 0 < new_price < MIN_PLAUSIBLE_PURCHASE_PRICE:
+            if official_purchase_unavailable(url, rules):
+                fresh["price"] = None
+                new_price = None
+
         items[index] = merge_price(item, fresh)
         if new_price is None:
             cleared_unavailable += 1
@@ -148,7 +198,10 @@ def main() -> int:
             repaired += 1
 
         if position % 25 == 0:
-            print(f"checked={position}/{len(targets)} repaired={repaired} unavailable={cleared_unavailable} failed={failed}")
+            print(
+                f"checked={position}/{len(targets)} repaired={repaired} "
+                f"unavailable={cleared_unavailable} collections={removed_collections} failed={failed}"
+            )
         time.sleep(0.12)
 
     payload["items"] = [item for item in items if isinstance(item, dict)]
@@ -158,11 +211,20 @@ def main() -> int:
         source["price_repair_checked"] = len(targets)
         source["price_repair_updated"] = repaired
         source["price_repair_unavailable"] = cleared_unavailable
+        source["price_repair_removed_collections"] = removed_collections
         source["price_repair_failed"] = failed
         source["price_repair_at"] = discovery.utc_now()
 
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+
+    remaining_numeric_low = 0
+    for item in payload["items"]:
+        if not isinstance(item, dict) or not needs_repair(item):
+            continue
+        current = as_price(item.get("price"))
+        if current is not None and 0 < current < MIN_PLAUSIBLE_PURCHASE_PRICE:
+            remaining_numeric_low += 1
 
     print(
         json.dumps(
@@ -171,8 +233,9 @@ def main() -> int:
                 "targets": len(targets),
                 "repaired": repaired,
                 "purchase_unavailable": cleared_unavailable,
+                "removed_collections": removed_collections,
                 "failed": failed,
-                "remaining": sum(1 for item in payload["items"] if needs_repair(item)),
+                "remaining_numeric_low": remaining_numeric_low,
             },
             ensure_ascii=False,
         )
