@@ -5,14 +5,13 @@ import { evolutionGatewayConfig, getTenantEvolutionInstance } from "@/lib/evolut
 import { sendEvolutionMediaMessage, type EvolutionMediaType } from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
-
-const MAX_BASE64_CHARS = 12_000_000;
+import { whatsappParameters } from "@/lib/platform-parameters.server";
 
 const mediaSchema = z.object({
   conversationId: z.string().uuid(),
   fileName: z.string().trim().min(1).max(180),
   mimeType: z.string().trim().min(1).max(120),
-  base64: z.string().min(1).max(MAX_BASE64_CHARS),
+  base64: z.string().min(1),
   caption: z.string().trim().max(1024).optional(),
 });
 
@@ -27,6 +26,13 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => mediaSchema.parse(data))
   .handler(async ({ data, context }) => {
+    const parameters = whatsappParameters();
+    const maxBytes = parameters.maxAttachmentMb * 1024 * 1024;
+    const estimatedBytes = Math.floor((data.base64.length * 3) / 4);
+    if (estimatedBytes > maxBytes) {
+      throw new Error(`O arquivo deve ter no máximo ${parameters.maxAttachmentMb} MB.`);
+    }
+
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
     const instanceName = await getTenantEvolutionInstance(db, tenantId);
