@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
+import { platformBaseUrl, speedToLeadParameters } from "@/lib/platform-parameters.server";
 
 export type NormalizedInboundLead = {
   source: string;
@@ -16,10 +17,7 @@ export type NormalizedInboundLead = {
 type FieldMap = Record<string, string>;
 
 function baseUrl() {
-  return (
-    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ||
-    "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-  );
+  return platformBaseUrl();
 }
 
 function leadWebhookSecret() {
@@ -225,13 +223,16 @@ async function chooseAssignee(tenantId: string, preferredUserId?: string | null)
   const preferred = preferredUserId ? users.find((user) => user.id === preferredUserId) : null;
   if (preferred) return preferred;
 
-  const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const parameters = speedToLeadParameters();
+  const since = new Date(
+    Date.now() - parameters.distributionLookbackHours * 60 * 60_000,
+  ).toISOString();
   const recentResult = await db
     .from("leads")
     .select("user_id,created_at")
     .eq("tenant_id", tenantId)
     .gte("created_at", since)
-    .limit(5000);
+    .limit(parameters.maxDistributionSample);
   if (recentResult.error) throw new Error(recentResult.error.message);
 
   const load = new Map<string, number>();
