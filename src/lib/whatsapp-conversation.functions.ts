@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
+import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 
 const startConversationSchema = z.object({
-  phone: z.string().trim().min(8).max(20),
+  phone: z.string().trim().min(8).max(24),
   contactName: z.string().trim().max(120).optional(),
 });
 
@@ -14,8 +15,8 @@ export const startWhatsAppConversation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
-    const phone = data.phone.replace(/\D/g, "");
-    if (phone.length < 8) throw new Error("Informe um número de WhatsApp válido.");
+    const phone = normalizeWhatsAppPhone(data.phone);
+    if (!phone) throw new Error(whatsappPhoneErrorMessage(data.phone));
 
     const { data: existing, error: findError } = await db
       .from("whatsapp_conversations")
@@ -38,5 +39,5 @@ export const startWhatsAppConversation = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { id: created.id as string, created: true };
+    return { id: created.id as string, created: true, phone };
   });
