@@ -34,8 +34,11 @@ create table if not exists public.property_search_index (
 
 alter table public.property_search_index enable row level security;
 drop policy if exists "public read property search index" on public.property_search_index;
-create policy "public read property search index"
-on public.property_search_index for select to anon, authenticated using (true);
+drop policy if exists "authenticated read property search index" on public.property_search_index;
+revoke select on public.property_search_index from anon;
+grant select on public.property_search_index to authenticated;
+create policy "authenticated read property search index"
+on public.property_search_index for select to authenticated using (true);
 
 create index if not exists idx_property_search_state on public.property_search_index(location_state);
 create index if not exists idx_property_search_city on public.property_search_index(location_city);
