@@ -3,8 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Facebook,
-  Instagram,
+  Camera,
   Link2,
   LogOut,
   MessageCircle,
@@ -30,20 +29,21 @@ export const Route = createFileRoute("/_authenticated/midias-sociais")({
 });
 
 type Channel = "all" | "facebook" | "instagram";
+type Conversation = {
+  id: string;
+  conversationId: string;
+  channel: "facebook" | "instagram";
+  pageId: string;
+  accountName: string;
+  contactId: string;
+  contactName: string;
+  lastMessage: string;
+  updatedTime: string | null;
+};
 
-type Conversation = Awaited<ReturnType<typeof listSocialConversations>> extends never
-  ? never
-  : {
-      id: string;
-      conversationId: string;
-      channel: "facebook" | "instagram";
-      pageId: string;
-      accountName: string;
-      contactId: string;
-      contactName: string;
-      lastMessage: string;
-      updatedTime: string | null;
-    };
+function ChannelIcon({ channel, className = "h-4 w-4" }: { channel: "facebook" | "instagram"; className?: string }) {
+  return channel === "instagram" ? <Camera className={className} /> : <MessageCircle className={className} />;
+}
 
 function SocialInboxPage() {
   const statusFn = useServerFn(getMetaSocialStatus);
@@ -69,7 +69,6 @@ function SocialInboxPage() {
     enabled: Boolean(status.data?.connected),
     refetchInterval: status.data?.connected ? 15_000 : false,
   });
-
   const selected = (conversations.data ?? []).find((item) => item.id === selectedId) ?? null;
   const messages = useQuery({
     queryKey: ["social-messages", selected?.id],
@@ -201,8 +200,8 @@ function SocialInboxPage() {
 
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <ChannelButton active={channel === "all"} onClick={() => setChannel("all")} label="Todas" />
-                <ChannelButton active={channel === "facebook"} onClick={() => setChannel("facebook")} label="Facebook" icon={<Facebook className="h-3.5 w-3.5" />} />
-                <ChannelButton active={channel === "instagram"} onClick={() => setChannel("instagram")} label="Instagram" icon={<Instagram className="h-3.5 w-3.5" />} />
+                <ChannelButton active={channel === "facebook"} onClick={() => setChannel("facebook")} label="Facebook" icon={<MessageCircle className="h-3.5 w-3.5" />} />
+                <ChannelButton active={channel === "instagram"} onClick={() => setChannel("instagram")} label="Instagram" icon={<Camera className="h-3.5 w-3.5" />} />
               </div>
 
               <div className="mt-3 flex gap-2">
@@ -217,18 +216,12 @@ function SocialInboxPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {!status.data?.connected && (
-                <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">
-                  Conecte sua conta Meta para carregar Messenger e Instagram Direct.
-                </div>
-              )}
-              {status.data?.connected && filtered.length === 0 && !conversations.isFetching && (
-                <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">Nenhuma conversa encontrada.</div>
-              )}
+              {!status.data?.connected && <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">Conecte sua conta Meta para carregar Messenger e Instagram Direct.</div>}
+              {status.data?.connected && filtered.length === 0 && !conversations.isFetching && <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">Nenhuma conversa encontrada.</div>}
               {filtered.map((conversation: Conversation) => (
                 <button key={conversation.id} type="button" onClick={() => setSelectedId(conversation.id)} className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}>
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${conversation.channel === "instagram" ? "bg-pink-500/10 text-pink-600" : "bg-blue-500/10 text-blue-600"}`}>
-                    {conversation.channel === "instagram" ? <Instagram className="h-5 w-5" /> : <Facebook className="h-5 w-5" />}
+                    <ChannelIcon channel={conversation.channel} className="h-5 w-5" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
@@ -250,8 +243,7 @@ function SocialInboxPage() {
                   <div className="min-w-0">
                     <p className="truncate font-black">{selected.contactName || "Contato"}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--mi-text-soft)]">
-                      {selected.channel === "instagram" ? <Instagram className="h-3.5 w-3.5" /> : <Facebook className="h-3.5 w-3.5" />}
-                      {selected.accountName}
+                      <ChannelIcon channel={selected.channel} className="h-3.5 w-3.5" /> {selected.accountName}
                     </p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => void messages.refetch()} className="rounded-xl border-[var(--mi-border)]">
