@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
 import { documentParameters } from "@/lib/platform-parameters.server";
+import { emailRuntimeStatus, sendEmail } from "@/lib/smtp-email.server";
 
 const CATEGORIES = [
   "identificacao_comprador",
@@ -24,12 +25,16 @@ const sendSchema = z.object({
 
 export const getEmailCcaStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => ({
-    configured: Boolean(process.env["RESEND_API_KEY"]?.trim() && process.env["EMAIL_FROM"]?.trim()),
-    defaultRecipient: process.env["CCA_EMAIL_TO"]?.trim() || null,
-    from: process.env["EMAIL_FROM"]?.trim() || null,
-    maxAttachmentMb: documentParameters().emailAttachmentMaxMb,
-  }));
+  .handler(async () => {
+    const runtime = emailRuntimeStatus();
+    return {
+      configured: runtime.configured,
+      provider: runtime.provider,
+      defaultRecipient: process.env["CCA_EMAIL_TO"]?.trim() || null,
+      from: runtime.from,
+      maxAttachmentMb: documentParameters().emailAttachmentMaxMb,
+    };
+  });
 
 export const listEmailCcaLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -51,9 +56,8 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => sendSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env["RESEND_API_KEY"]?.trim();
-    const from = process.env["EMAIL_FROM"]?.trim();
-    if (!apiKey || !from) throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
+    const runtime = emailRuntimeStatus();
+    if (!runtime.configured) throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
 
     const parameters = documentParameters();
     const bucket = parameters.ccaBucket;
@@ -118,37 +122,17 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "User-Agent": "MercadoImobi/1.0",
-      },
-      body: JSON.stringify({
-        from,
-        to: [data.to],
-        subject: data.subject,
-        text: `${data.message}\n\n${details}\n\nDocumentos anexados: ${files.length}.`,
-        attachments,
-      }),
-      signal: AbortSignal.timeout(parameters.emailRequestTimeoutMs),
+    const result = await sendEmail({
+      to: data.to,
+      subject: data.subject,
+      text: `${data.message}\n\n${details}\n\nDocumentos anexados: ${files.length}.`,
+      attachments,
     });
-    const text = await response.text();
-    let payload: any = {};
-    try {
-      payload = text ? JSON.parse(text) : {};
-    } catch {
-      payload = { raw: text };
-    }
-    if (!response.ok) {
-      throw new Error(
-        `EMAIL_SEND_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`,
-      );
-    }
+
     return {
       success: true,
-      emailId: payload?.id ? String(payload.id) : null,
+      emailId: result.id,
+      provider: result.provider,
       attachmentCount: files.length,
       recipient: data.to,
     };
