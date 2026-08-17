@@ -893,7 +893,7 @@ function PropertyCard({
                 <Tag className="mr-1 h-3 w-3" /> Preço atrativo
               </Badge>
             ) : bestValue ? (
-              <Badge className="border-0 bg-blue-600 text-[10px] text-white">Menor valor</Badge>
+              <Badge className="border-0 bg-blue-600 text-[10px] text-white">Melhor valor/m²</Badge>
             ) : property.listing_market !== "caixa" ? (
               <Badge className="border-0 bg-blue-600 text-[10px] text-white">Mercado</Badge>
             ) : null}
@@ -1294,43 +1294,89 @@ function CompareLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+function comparableGroupKey(item: PropertySearchItem) {
+  const location = [item.location_city, item.location_state]
+    .filter(Boolean)
+    .join("|")
+    .trim()
+    .toLowerCase();
+  const type = (item.property_type || "imóvel").trim().toLowerCase();
+  return `${location || "brasil"}|${type}`;
+}
+
+function comparablePricePerSqm(item: PropertySearchItem) {
+  if (
+    item.is_auction ||
+    item.price == null ||
+    item.price <= 0 ||
+    item.area_sqm == null ||
+    item.area_sqm <= 0
+  )
+    return null;
+  return item.price / item.area_sqm;
+}
+
 function calculateOpportunityKeys(items: PropertySearchItem[]) {
-  const official = new Set(
+  const highlighted = new Set(
     items
       .filter((item) => item.discount_percent != null && item.discount_percent >= 10)
       .map((item) => propertyKey(item)),
   );
-  const comparable = items
-    .filter(
-      (item) =>
-        item.price != null &&
-        item.price > 0 &&
-        item.area_sqm != null &&
-        item.area_sqm > 0 &&
-        !item.is_auction,
-    )
-    .map((item) => ({ key: propertyKey(item), value: item.price! / item.area_sqm! }))
-    .sort((a, b) => a.value - b.value);
+  const groups = new Map<string, Array<{ key: string; value: number }>>();
 
-  if (comparable.length < 5) return official;
-  const middle = Math.floor(comparable.length / 2);
-  const median =
-    comparable.length % 2 === 0
-      ? (comparable[middle - 1]!.value + comparable[middle]!.value) / 2
-      : comparable[middle]!.value;
-  const threshold = median * 0.85;
-  for (const item of comparable.filter((entry) => entry.value <= threshold)) official.add(item.key);
-  return official;
+  for (const item of items) {
+    const value = comparablePricePerSqm(item);
+    if (value == null) continue;
+    const group = comparableGroupKey(item);
+    const current = groups.get(group) ?? [];
+    current.push({ key: propertyKey(item), value });
+    groups.set(group, current);
+  }
+
+  for (const comparables of groups.values()) {
+    if (comparables.length < 4) continue;
+    const ordered = [...comparables].sort((a, b) => a.value - b.value);
+    const middle = Math.floor(ordered.length / 2);
+    const median =
+      ordered.length % 2 === 0
+        ? (ordered[middle - 1]!.value + ordered[middle]!.value) / 2
+        : ordered[middle]!.value;
+    const threshold = median * 0.85;
+    for (const entry of ordered) {
+      if (entry.value <= threshold) highlighted.add(entry.key);
+    }
+  }
+  return highlighted;
 }
 
 function calculateBestValueKeys(items: PropertySearchItem[]) {
-  return new Set(
-    items
-      .filter((item) => item.price != null && item.price > 0)
-      .sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER))
-      .slice(0, 3)
-      .map((item) => propertyKey(item)),
-  );
+  const groups = new Map<string, Array<{ key: string; value: number }>>();
+  const allComparable: Array<{ key: string; value: number }> = [];
+
+  for (const item of items) {
+    const value = comparablePricePerSqm(item);
+    if (value == null) continue;
+    const entry = { key: propertyKey(item), value };
+    allComparable.push(entry);
+    const group = comparableGroupKey(item);
+    const current = groups.get(group) ?? [];
+    current.push(entry);
+    groups.set(group, current);
+  }
+
+  const best = new Set<string>();
+  for (const comparables of groups.values()) {
+    if (comparables.length < 2) continue;
+    const first = [...comparables].sort((a, b) => a.value - b.value)[0];
+    if (first) best.add(first.key);
+  }
+
+  if (best.size === 0) {
+    for (const entry of allComparable.sort((a, b) => a.value - b.value).slice(0, 3)) {
+      best.add(entry.key);
+    }
+  }
+  return best;
 }
 
 function formatPrice(value: number | null) {

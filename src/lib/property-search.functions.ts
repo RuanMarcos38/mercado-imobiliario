@@ -351,7 +351,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
 
     const limit = input.limit ?? 30;
     const offset = input.offset ?? 0;
-    const fetchLimit = Math.min(60, Math.max(limit, limit * 2));
+    const fetchLimit = limit;
     indexQuery = indexQuery.range(offset, offset + fetchLimit - 1);
     propertyQuery = propertyQuery.range(offset, offset + fetchLimit - 1);
 
@@ -429,10 +429,9 @@ export const searchRealProperties = createServerFn({ method: "POST" })
         .sort()
         .at(-1) ?? null;
 
-    const total = Math.max(
-      items.length,
-      (indexResult.count ?? 0) + (propertyResult.count ?? 0) + configuredLiveItems.length,
-    );
+    const indexedTotal = indexResult.count ?? 0;
+    const legacyTotal = propertyResult.count ?? 0;
+    const total = Math.max(items.length, indexedTotal, legacyTotal, configuredLiveItems.length);
     return { items, total, latestTimestamp, offset, limit };
   });
 
