@@ -60,9 +60,8 @@ async function testOpenAi(): Promise<DiagnosticItem> {
 
 async function testWhatsApp(db: any, tenantId: string): Promise<DiagnosticItem> {
   try {
-    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } = await import(
-      "@/lib/evolution-instance.server"
-    );
+    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } =
+      await import("@/lib/evolution-instance.server");
     const gateway = evolutionGatewayConfig();
     const instance = await getTenantEvolutionInstance(db, tenantId);
     if (!gateway || !instance)
@@ -79,7 +78,9 @@ async function testWhatsApp(db: any, tenantId: string): Promise<DiagnosticItem> 
       { method: "GET" },
     );
     const payload = await response.json().catch(() => ({}));
-    const raw = String(payload?.instance?.state ?? payload?.state ?? payload?.status ?? "").toLowerCase();
+    const raw = String(
+      payload?.instance?.state ?? payload?.state ?? payload?.status ?? "",
+    ).toLowerCase();
     const online = response.ok && ["open", "connected", "online"].includes(raw);
     return {
       key: "whatsapp",
@@ -122,7 +123,10 @@ async function testEmail(): Promise<DiagnosticItem> {
       label: "E-mail / CCA",
       configured: true,
       ok: false,
-      detail: error instanceof Error ? `Falha no provedor de e-mail: ${error.message.slice(0, 180)}` : "Falha ao consultar o provedor de e-mail.",
+      detail:
+        error instanceof Error
+          ? `Falha no provedor de e-mail: ${error.message.slice(0, 180)}`
+          : "Falha ao consultar o provedor de e-mail.",
     };
   }
 }

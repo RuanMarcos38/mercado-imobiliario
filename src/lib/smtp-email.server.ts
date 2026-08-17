@@ -20,13 +20,18 @@ function smtpConfig() {
   const password = process.env["SMTP_PASSWORD"]?.trim() || process.env["SMTP_PASS"]?.trim() || "";
   const host = process.env["SMTP_HOST"]?.trim() || DEFAULT_SMTP_HOST;
   const parsedPort = Number(process.env["SMTP_PORT"]?.trim() || DEFAULT_SMTP_PORT);
-  const port = Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535 ? parsedPort : DEFAULT_SMTP_PORT;
+  const port =
+    Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535
+      ? parsedPort
+      : DEFAULT_SMTP_PORT;
   return { configured: Boolean(user && password && from), host, port, user, password, from };
 }
 
 export function emailRuntimeStatus() {
   const smtp = smtpConfig();
-  const resend = Boolean(process.env["RESEND_API_KEY"]?.trim() && (process.env["EMAIL_FROM"]?.trim() || DEFAULT_FROM));
+  const resend = Boolean(
+    process.env["RESEND_API_KEY"]?.trim() && (process.env["EMAIL_FROM"]?.trim() || DEFAULT_FROM),
+  );
   return {
     configured: smtp.configured || resend,
     provider: smtp.configured ? "smtp-hostinger" : resend ? "resend" : "none",
@@ -36,7 +41,10 @@ export function emailRuntimeStatus() {
   } as const;
 }
 
-function readResponse(socket: TLSSocket, timeoutMs: number): Promise<{ code: number; raw: string }> {
+function readResponse(
+  socket: TLSSocket,
+  timeoutMs: number,
+): Promise<{ code: number; raw: string }> {
   return new Promise((resolve, reject) => {
     let buffer = "";
     const timer = setTimeout(() => cleanup(new Error("SMTP_RESPONSE_TIMEOUT")), timeoutMs);
@@ -98,7 +106,12 @@ async function authenticate(socket: TLSSocket, timeoutMs: number) {
 }
 
 function wrapBase64(value: string) {
-  return value.replace(/\s+/g, "").match(/.{1,76}/g)?.join("\r\n") || "";
+  return (
+    value
+      .replace(/\s+/g, "")
+      .match(/.{1,76}/g)
+      ?.join("\r\n") || ""
+  );
 }
 
 function encodeHeader(value: string) {
@@ -162,7 +175,13 @@ export async function verifyEmailRuntime() {
       headers: { Authorization: `Bearer ${apiKey}`, "User-Agent": "MercadoImobi/1.0" },
       signal: AbortSignal.timeout(documentParameters().emailRequestTimeoutMs),
     });
-    return { configured: true, ok: response.ok, provider: status.provider, from: status.from, httpStatus: response.status };
+    return {
+      configured: true,
+      ok: response.ok,
+      provider: status.provider,
+      from: status.from,
+      httpStatus: response.status,
+    };
   }
 
   return { configured: false, ok: false, provider: "none" as const, from: status.from };
@@ -180,7 +199,8 @@ export async function sendEmail(input: SendEmailInput) {
       await command(socket, "DATA", [354], timeoutMs);
       socket.write(`${buildMime(input, status.from)}\r\n.\r\n`);
       const accepted = await readResponse(socket, timeoutMs);
-      if (accepted.code !== 250) throw new Error(`SMTP_${accepted.code}:${accepted.raw.slice(0, 240)}`);
+      if (accepted.code !== 250)
+        throw new Error(`SMTP_${accepted.code}:${accepted.raw.slice(0, 240)}`);
       await command(socket, "QUIT", [221], timeoutMs).catch(() => undefined);
       return { provider: status.provider, id: accepted.raw, from: status.from };
     } finally {
@@ -198,7 +218,13 @@ export async function sendEmail(input: SendEmailInput) {
         "Content-Type": "application/json",
         "User-Agent": "MercadoImobi/1.0",
       },
-      body: JSON.stringify({ from: status.from, to: [input.to], subject: input.subject, text: input.text, attachments: input.attachments ?? [] }),
+      body: JSON.stringify({
+        from: status.from,
+        to: [input.to],
+        subject: input.subject,
+        text: input.text,
+        attachments: input.attachments ?? [],
+      }),
       signal: AbortSignal.timeout(documentParameters().emailRequestTimeoutMs),
     });
     const raw = await response.text();
@@ -208,8 +234,15 @@ export async function sendEmail(input: SendEmailInput) {
     } catch {
       payload = { raw };
     }
-    if (!response.ok) throw new Error(`EMAIL_SEND_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`);
-    return { provider: status.provider, id: payload?.id ? String(payload.id) : null, from: status.from };
+    if (!response.ok)
+      throw new Error(
+        `EMAIL_SEND_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`,
+      );
+    return {
+      provider: status.provider,
+      id: payload?.id ? String(payload.id) : null,
+      from: status.from,
+    };
   }
 
   throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");

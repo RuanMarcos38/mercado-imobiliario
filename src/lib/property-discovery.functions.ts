@@ -54,7 +54,9 @@ export const listDiscoveredPropertyDomains = createServerFn({ method: "GET" })
     const db = context.supabase as any;
     const { data, error } = await db
       .from("property_discovered_domains")
-      .select("id,domain,business_name,city,state,status,feed_url,last_checked_at,last_property_seen_at,metadata")
+      .select(
+        "id,domain,business_name,city,state,status,feed_url,last_checked_at,last_property_seen_at,metadata",
+      )
       .order("last_checked_at", { ascending: false, nullsFirst: false })
       .limit(200);
     if (error) throw new Error(error.message);

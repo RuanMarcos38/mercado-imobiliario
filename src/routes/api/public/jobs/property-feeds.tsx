@@ -3,7 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 async function handler(request: Request) {
   const secret = process.env["PROPERTY_FEED_SYNC_SECRET"];
   if (!secret) {
-    return Response.json({ ok: false, message: "Atualização automática ainda não ativada." }, { status: 503 });
+    return Response.json(
+      { ok: false, message: "Atualização automática ainda não ativada." },
+      { status: 503 },
+    );
   }
 
   const supplied =

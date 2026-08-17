@@ -116,9 +116,7 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
       return Number.isFinite(created) && created >= sinceMetrics;
     });
     const answered = recent.filter((item) => item.responseSeconds !== null);
-    const values = answered
-      .map((item) => item.responseSeconds as number)
-      .sort((a, b) => a - b);
+    const values = answered.map((item) => item.responseSeconds as number).sort((a, b) => a - b);
     const averageSeconds = values.length
       ? values.reduce((sum, value) => sum + value, 0) / values.length
       : null;
@@ -153,7 +151,9 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
         const userLeads = recent.filter((item) => item.lead.user_id === userId);
         const answeredUser = userLeads.filter((item) => item.responseSeconds !== null);
         const seconds = answeredUser.map((item) => item.responseSeconds as number);
-        const avg = seconds.length ? seconds.reduce((sum, value) => sum + value, 0) / seconds.length : null;
+        const avg = seconds.length
+          ? seconds.reduce((sum, value) => sum + value, 0) / seconds.length
+          : null;
         const within = answeredUser.filter(
           (item) => (item.responseSeconds as number) <= parameters.slaSeconds,
         ).length;
@@ -165,7 +165,9 @@ export const getSpeedToLeadSnapshot = createServerFn({ method: "GET" })
           unanswered: userLeads.length - answeredUser.length,
           averageSeconds: avg,
           averageLabel: secondsLabel(avg),
-          withinSlaPct: answeredUser.length ? Math.round((within / answeredUser.length) * 100) : null,
+          withinSlaPct: answeredUser.length
+            ? Math.round((within / answeredUser.length) * 100)
+            : null,
         };
       })
       .sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
@@ -221,7 +223,8 @@ export const createSpeedToLeadTestLead = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => testLeadSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
-    const { ingestLeadForTenant, normalizeLeadPayload } = await import("@/lib/lead-operations.server");
+    const { ingestLeadForTenant, normalizeLeadPayload } =
+      await import("@/lib/lead-operations.server");
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const lead = normalizeLeadPayload(
       {

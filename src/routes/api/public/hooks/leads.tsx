@@ -5,10 +5,18 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 async function requestPayload(request: Request): Promise<unknown> {
   const contentType = request.headers.get("content-type") || "";
   if (contentType.includes("application/json")) return request.json().catch(() => ({}));
-  if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+  if (
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType.includes("multipart/form-data")
+  ) {
     const form = await request.formData().catch(() => null);
     if (!form) return {};
-    return Object.fromEntries([...form.entries()].map(([key, value]) => [key, typeof value === "string" ? value : value.name]));
+    return Object.fromEntries(
+      [...form.entries()].map(([key, value]) => [
+        key,
+        typeof value === "string" ? value : value.name,
+      ]),
+    );
   }
   const text = await request.text().catch(() => "");
   if (!text) return {};
@@ -29,11 +37,8 @@ async function handleLeadWebhook(request: Request) {
     return Response.json({ ok: false, error: "invalid_webhook_url" }, { status: 401 });
   }
 
-  const {
-    ingestLeadForTenant,
-    normalizeLeadPayload,
-    verifyLeadWebhookSignature,
-  } = await import("@/lib/lead-operations.server");
+  const { ingestLeadForTenant, normalizeLeadPayload, verifyLeadWebhookSignature } =
+    await import("@/lib/lead-operations.server");
 
   let authorized = false;
   try {
@@ -47,7 +52,11 @@ async function handleLeadWebhook(request: Request) {
   const lead = normalizeLeadPayload(payload, source);
   if (!lead.phone && !lead.email) {
     return Response.json(
-      { ok: false, error: "lead_contact_missing", message: "Informe telefone/WhatsApp ou e-mail do lead." },
+      {
+        ok: false,
+        error: "lead_contact_missing",
+        message: "Informe telefone/WhatsApp ou e-mail do lead.",
+      },
       { status: 422 },
     );
   }

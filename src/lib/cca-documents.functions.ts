@@ -154,7 +154,8 @@ export const removeCcaDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { tenantId } = await assertLeadOwnership(context, data.leadId);
     const base = `${prefix(tenantId, context.userId, data.leadId)}/`;
-    if (!data.path.startsWith(base) || data.path.includes("..")) throw new Error("Documento inválido.");
+    if (!data.path.startsWith(base) || data.path.includes(".."))
+      throw new Error("Documento inválido.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const bucket = documentParameters().ccaBucket;
     const result = await supabaseAdmin.storage.from(bucket).remove([data.path]);

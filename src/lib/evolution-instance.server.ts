@@ -42,7 +42,12 @@ export function evolutionGatewayDiagnostics() {
   return {
     configured: Boolean(evolutionGatewayConfig()),
     hasUrl: Boolean(
-      firstEnv(["EVOLUTION_API_URL", "EVOLUTION_URL", "EVOLUTION_SERVER_URL", "EVOLUTION_BASE_URL"]),
+      firstEnv([
+        "EVOLUTION_API_URL",
+        "EVOLUTION_URL",
+        "EVOLUTION_SERVER_URL",
+        "EVOLUTION_BASE_URL",
+      ]),
     ),
     hasApiKey: Boolean(
       firstEnv(["EVOLUTION_API_KEY", "EVOLUTION_GLOBAL_API_KEY", "AUTHENTICATION_API_KEY"]),

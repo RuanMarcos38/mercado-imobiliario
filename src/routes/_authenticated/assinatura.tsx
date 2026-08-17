@@ -68,14 +68,19 @@ function SubscriptionPage() {
       <div className="mx-auto max-w-[1200px]">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Assinantes</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+              Assinantes
+            </p>
             <h1 className="mt-2 text-3xl font-black">Plano e acesso à plataforma</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--mi-text-muted)]">
-              Acompanhe sua assinatura, período de acesso e cobrança sem sair do ambiente do MercadoImobi.
+              Acompanhe sua assinatura, período de acesso e cobrança sem sair do ambiente do
+              MercadoImobi.
             </p>
           </div>
           <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] px-5 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--mi-text-soft)]">Status</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--mi-text-soft)]">
+              Status
+            </p>
             <p className="mt-1 text-sm font-black text-blue-600">
               {statusLabel[currentStatus] ?? "Aguardando contratação"}
             </p>
@@ -90,7 +95,9 @@ function SubscriptionPage() {
               </span>
               <div>
                 <h2 className="text-lg font-black">Sua assinatura</h2>
-                <p className="text-xs text-[var(--mi-text-muted)]">Cobrança recorrente e controle de acesso.</p>
+                <p className="text-xs text-[var(--mi-text-muted)]">
+                  Cobrança recorrente e controle de acesso.
+                </p>
               </div>
             </div>
 
@@ -99,8 +106,14 @@ function SubscriptionPage() {
             ) : (
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <Metric label="Situação" value={statusLabel[currentStatus] ?? "Sem assinatura"} />
-                <Metric label="Fim do período" value={date(subscription?.currentPeriodEnd ?? subscription?.trialEnd)} />
-                <Metric label="Gateway" value={overview.data?.configured ? "Configurado" : "Aguardando configuração"} />
+                <Metric
+                  label="Fim do período"
+                  value={date(subscription?.currentPeriodEnd ?? subscription?.trialEnd)}
+                />
+                <Metric
+                  label="Gateway"
+                  value={overview.data?.configured ? "Configurado" : "Aguardando configuração"}
+                />
               </div>
             )}
 
@@ -118,7 +131,8 @@ function SubscriptionPage() {
 
             {!overview.data?.configured && (
               <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-sm leading-6 text-[var(--mi-text-muted)]">
-                A área de assinantes já está pronta. O botão de pagamento será habilitado quando as credenciais do gateway forem configuradas no EasyPanel.
+                A área de assinantes já está pronta. O botão de pagamento será habilitado quando as
+                credenciais do gateway forem configuradas no EasyPanel.
               </div>
             )}
           </section>
@@ -129,10 +143,16 @@ function SubscriptionPage() {
               <h2 className="font-black">Acesso protegido</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-[var(--mi-text-muted)]">
-              A assinatura fica vinculada ao seu usuário. Dados de CRM, conversas, documentos e configurações continuam isolados da conta de outros assinantes.
+              A assinatura fica vinculada ao seu usuário. Dados de CRM, conversas, documentos e
+              configurações continuam isolados da conta de outros assinantes.
             </p>
             <div className="mt-5 space-y-3 text-sm">
-              {["Ambiente individual por organização", "Cobrança recorrente", "Controle de status da conta", "Portal de autoatendimento"].map((item) => (
+              {[
+                "Ambiente individual por organização",
+                "Cobrança recorrente",
+                "Controle de status da conta",
+                "Portal de autoatendimento",
+              ].map((item) => (
                 <div key={item} className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <span>{item}</span>
@@ -152,11 +172,15 @@ function SubscriptionPage() {
               {overview.data?.plans.map((plan) => (
                 <div key={plan.id} className="rounded-2xl border border-[var(--mi-border)] p-5">
                   <p className="font-black">{plan.name}</p>
-                  <p className="mt-2 text-2xl font-black text-blue-600">{money(plan.priceMonthly)}<span className="text-xs font-medium text-[var(--mi-text-soft)]">/mês</span></p>
+                  <p className="mt-2 text-2xl font-black text-blue-600">
+                    {money(plan.priceMonthly)}
+                    <span className="text-xs font-medium text-[var(--mi-text-soft)]">/mês</span>
+                  </p>
                   <div className="mt-4 space-y-2">
                     {plan.features.map((feature) => (
                       <p key={feature} className="flex gap-2 text-xs text-[var(--mi-text-muted)]">
-                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" /> {feature}
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />{" "}
+                        {feature}
                       </p>
                     ))}
                   </div>
@@ -173,7 +197,9 @@ function SubscriptionPage() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--mi-text-soft)]">
+        {label}
+      </p>
       <p className="mt-2 text-sm font-black">{value}</p>
     </div>
   );

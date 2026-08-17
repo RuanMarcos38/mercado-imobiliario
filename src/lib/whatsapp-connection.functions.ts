@@ -61,23 +61,19 @@ function webhookUrl(): string {
 async function configureWebhook(config: EvolutionGatewayConfig, instance: string) {
   const url = webhookUrl();
   const secret = process.env["WHATSAPP_WEBHOOK_SECRET"]?.trim();
-  const response = await evolutionRequest(
-    config,
-    `/webhook/set/${encodeURIComponent(instance)}`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        webhook: {
-          enabled: true,
-          url,
-          headers: secret ? { "x-webhook-secret": secret } : {},
-          byEvents: false,
-          base64: false,
-          events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
-        },
-      }),
-    },
-  );
+  const response = await evolutionRequest(config, `/webhook/set/${encodeURIComponent(instance)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      webhook: {
+        enabled: true,
+        url,
+        headers: secret ? { "x-webhook-secret": secret } : {},
+        byEvents: false,
+        base64: false,
+        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+      },
+    }),
+  });
 
   if (!response.ok) {
     return {
@@ -137,14 +133,17 @@ async function ensureTenantInstance(input: {
         qrcode: true,
       }),
     });
-    if (response.status === 401 || response.status === 403) throw new Error("EVOLUTION_API_AUTH_FAILED");
+    if (response.status === 401 || response.status === 403)
+      throw new Error("EVOLUTION_API_AUTH_FAILED");
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message =
         payload && typeof payload === "object"
           ? String((payload as Record<string, unknown>)["message"] ?? "")
           : "";
-      throw new Error(`EVOLUTION_INSTANCE_CREATE_FAILED:${response.status}:${message.slice(0, 180)}`);
+      throw new Error(
+        `EVOLUTION_INSTANCE_CREATE_FAILED:${response.status}:${message.slice(0, 180)}`,
+      );
     }
     created = true;
     qr = extractQr(payload);

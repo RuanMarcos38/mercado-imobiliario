@@ -6,7 +6,7 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Bot,
@@ -29,9 +29,11 @@ import {
   Workflow,
   X,
 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveTenantContext, type TenantContext } from "@/lib/tenant";
+import { recordUserActivity, touchUserPresence } from "@/lib/user-activity.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
@@ -123,8 +125,51 @@ function AuthenticatedLayout() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const touchPresenceFn = useServerFn(touchUserPresence);
+  const recordActivityFn = useServerFn(recordUserActivity);
+  const presenceSessionId = useRef("");
+
+  useEffect(() => {
+    const existing = sessionStorage.getItem("mercadoimobi:presenceSessionId");
+    const sessionId = existing || crypto.randomUUID();
+    sessionStorage.setItem("mercadoimobi:presenceSessionId", sessionId);
+    presenceSessionId.current = sessionId;
+    const heartbeat = () =>
+      touchPresenceFn({
+        data: { sessionId, path: window.location.pathname, userAgent: navigator.userAgent },
+      }).catch(() => undefined);
+    void heartbeat();
+    if (!sessionStorage.getItem(`mercadoimobi:sessionLogged:${sessionId}`)) {
+      sessionStorage.setItem(`mercadoimobi:sessionLogged:${sessionId}`, "1");
+      void recordActivityFn({
+        data: { sessionId, eventType: "session_start", path: window.location.pathname },
+      }).catch(() => undefined);
+    }
+    const interval = window.setInterval(() => void heartbeat(), 30_000);
+    return () => window.clearInterval(interval);
+  }, [recordActivityFn, touchPresenceFn]);
+
+  useEffect(() => {
+    const sessionId = presenceSessionId.current;
+    if (!sessionId) return;
+    void touchPresenceFn({
+      data: { sessionId, path: location.pathname, userAgent: navigator.userAgent },
+    }).catch(() => undefined);
+    void recordActivityFn({
+      data: { sessionId, eventType: "route_view", path: location.pathname },
+    }).catch(() => undefined);
+  }, [location.pathname, recordActivityFn, touchPresenceFn]);
 
   const signOut = async () => {
+    if (presenceSessionId.current) {
+      await recordActivityFn({
+        data: {
+          sessionId: presenceSessionId.current,
+          eventType: "sign_out",
+          path: location.pathname,
+        },
+      }).catch(() => undefined);
+    }
     await supabase.auth.signOut();
     void navigate({ to: "/" });
   };
