@@ -21,6 +21,20 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Adapt patch to current search implementation
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('scripts/apply-urgent-search-presence.py')
+          text = p.read_text()
+          needle = '''replace_once(
+    "src/lib/property-search.functions.ts",
+    "    const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);",'''
+          if needle in text:
+              start = text.index(needle)
+              end = text.index('\n\n# 3) Auditor:', start)
+              text = text[:start] + "# Priorização de mercado já existe em sortItems(..., input.market)." + text[end:]
+              p.write_text(text)
       - name: Apply idempotent patch
         run: python scripts/apply-urgent-search-presence.py
       - run: npm ci
