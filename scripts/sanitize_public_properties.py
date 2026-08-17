@@ -3,8 +3,8 @@
 
 The public discovery crawler intentionally reads only public pages, but mixed-content
 portals (especially classifieds and editorial sections) can expose vehicle, product,
-service, or news pages in the same sitemap. This sanitizer is the final allow-list
-boundary before data is published to the platform.
+service, news, blog, or guide pages in the same sitemap. This sanitizer is the final
+allow-list boundary before data is published to the platform.
 """
 
 from __future__ import annotations
@@ -32,9 +32,17 @@ ALLOWED_PROPERTY_TYPES = (
     "sala", "galpao", "predio", "chacara", "sitio", "fazenda", "empreendimento",
 )
 
+# Editorial/institutional paths are never property listings, even when their article
+# title contains words such as "apartamento", "imóvel" or "mercado imobiliário".
+NON_LISTING_PATH_TERMS = (
+    "/blog/", "/blogs/", "/noticia/", "/noticias/", "/news/", "/artigo/",
+    "/artigos/", "/conteudo/", "/conteudos/", "/dicas/", "/guia/", "/guias/",
+    "/revista/", "/imprensa/", "/institucional/", "/ajuda/", "/faq/",
+)
+
 # Strong negatives are intentionally focused on categories that cannot be a property.
-# They are evaluated primarily against title + URL so incidental words in long page
-# descriptions do not wrongly remove a legitimate property.
+# They are evaluated against title + URL so incidental words in a long property
+# description do not wrongly remove a legitimate listing.
 NON_PROPERTY_TERMS = (
     "honda", "toyota", "volkswagen", "chevrolet", "fiat", "hyundai", "renault",
     "nissan", "ford", "jeep", "bmw", "mercedes", "audi", "kia", "peugeot",
@@ -114,9 +122,13 @@ def is_real_estate(item: dict[str, Any]) -> bool:
     property_type = normalize(item.get("property_type"))
     title_url = f"{title} {url}"
 
-    # A strong automotive/product/news match is a hard rejection unless the record
-    # carries an explicit, recognized property type. This prevents pages such as
-    # "Honda Civic...", "Haval H6..." and motorcycle news from entering the index.
+    # Blog, news, guide and institutional pages are content, not listings. This is
+    # the root cause of the automotive/news cards previously seen in MercadoImobi.
+    if any(term in url for term in NON_LISTING_PATH_TERMS):
+        return False
+
+    # A strong automotive/product match is a hard rejection unless the record carries
+    # an explicit recognized property type and does not come from an editorial path.
     if has_term(title_url, NON_PROPERTY_TERMS) and not has_term(property_type, ALLOWED_PROPERTY_TYPES):
         return False
 
@@ -163,6 +175,8 @@ def self_test() -> None:
         {"title": "Honda Civic Si 2008: o melhor esportivo nacional?", "source_url": "https://example.com/carros/honda-civic", "price": 3, "images": ["x"]},
         {"title": "Mercado de motos cresce 15% e emira novo recorde em 2026", "source_url": "https://example.com/noticias/motos", "price": 550, "images": ["x"]},
         {"title": "iPhone 17 Pro usado em excelente estado", "source_url": "https://example.com/anuncio/998", "price": 5000, "images": ["x"]},
+        {"title": "Apartamentos compactos puxam a valorização em 2026", "source_url": "https://example.com/blog/mercado-imobiliario/apartamentos-compactos", "property_type": "Apartamento", "price": 8199},
+        {"title": "Vale mais a pena comprar ou alugar um imóvel em 2026?", "source_url": "https://example.com/blog/mercado-imobiliario/comprar-ou-alugar-imovel", "price": 200},
     ]
     assert all(is_real_estate(item) for item in valid), "valid real-estate fixture was rejected"
     assert not any(is_real_estate(item) for item in invalid), "non-property fixture was accepted"
