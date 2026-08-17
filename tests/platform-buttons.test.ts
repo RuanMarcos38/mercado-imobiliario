@@ -52,10 +52,26 @@ describe("MercadoImobi platform controls", () => {
   it("keeps dashboard and search on all properties, while auctions remain separate", () => {
     expect(source("src/routes/_authenticated/dashboard.tsx")).toContain('initialMarket="all"');
     expect(source("src/routes/_authenticated/buscar.tsx")).toContain('initialMarket="all"');
-    expect(source("src/routes/_authenticated/leiloes.tsx")).toContain('initialMarket="caixa"');
+    expect(source("src/routes/_authenticated/leiloes.tsx")).toContain('initialMarket="auction"');
+
     const search = source("src/lib/property-search.functions.ts");
+    expect(search).toContain('input.market === "market"');
+    expect(search).toContain('input.market === "caixa"');
+    expect(search).toContain('input.market === "auction"');
     expect(search).toContain('input.market === "all"');
     expect(search).toContain('order("listing_market", { ascending: false })');
+    expect(search).toContain("const fetchLimit = limit;");
+    expect(search).not.toContain("Math.min(60, Math.max(limit, limit * 2))");
+  });
+
+  it("highlights negotiations from verified discount and comparable value per square meter", () => {
+    const workspace = source("src/components/property/PropertyWorkspace.tsx");
+    expect(workspace).toContain("Melhor valor/m²");
+    expect(workspace).toContain("comparableGroupKey");
+    expect(workspace).toContain("comparablePricePerSqm");
+    expect(workspace).toContain("median * 0.85");
+    expect(workspace).toContain("discount_percent >= 10");
+    expect(workspace).not.toContain(">Menor valor</Badge>");
   });
 
   it("keeps alert, flow, assistant and atendimento actions connected", () => {
