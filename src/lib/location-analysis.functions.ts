@@ -9,10 +9,12 @@ const analysisSchema = z.object({
   neighborhood: z.string().trim().max(120).optional(),
   city: z.string().trim().min(2).max(120),
   state: z.string().trim().length(2),
+  requestNonce: z.number().int().nonnegative().optional(),
 });
 
 export interface LocationAnalysisResult {
   query: { address: string; neighborhood: string; city: string; state: string };
+  analyzedAt: string;
   coordinates: { lat: number; lng: number } | null;
   score: number;
   classification: string;
@@ -77,7 +79,7 @@ async function googleGeocode(query: string, key: string) {
   url.searchParams.set("key", key);
   url.searchParams.set("language", "pt-BR");
   url.searchParams.set("region", "br");
-  const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+  const response = await fetch(url, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
   if (!response.ok) return null;
   const payload = object(await response.json().catch(() => ({})));
   const results = Array.isArray(payload["results"]) ? payload["results"] : [];
@@ -98,6 +100,7 @@ async function osmGeocode(query: string) {
   const response = await fetch(url, {
     headers: { "User-Agent": "MercadoImobi/1.0 location-analysis" },
     signal: AbortSignal.timeout(12_000),
+    cache: "no-store",
   });
   if (!response.ok) return null;
   const payload = (await response.json().catch(() => [])) as unknown;
@@ -120,6 +123,7 @@ async function googleNearbyCount(
       "Content-Type": "application/json",
       "X-Goog-Api-Key": key,
       "X-Goog-FieldMask": "places.id",
+      "Cache-Control": "no-cache",
     },
     body: JSON.stringify({
       includedTypes: types,
@@ -134,6 +138,7 @@ async function googleNearbyCount(
       },
     }),
     signal: AbortSignal.timeout(12_000),
+    cache: "no-store",
   });
   if (!response.ok) return 0;
   const payload = object(await response.json().catch(() => ({})));
@@ -155,9 +160,11 @@ async function osmNearbyCounts(coordinates: { lat: number; lng: number }, radius
     headers: {
       "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
       "User-Agent": "MercadoImobi/1.0 location-analysis",
+      "Cache-Control": "no-cache",
     },
     body: new URLSearchParams({ data: query }),
     signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
   });
   if (!response.ok) return null;
   const payload = object(await response.json().catch(() => ({})));
@@ -183,7 +190,7 @@ async function osmNearbyCounts(coordinates: { lat: number; lng: number }, radius
 async function getMunicipality(city: string, state: string) {
   const response = await fetch(
     `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(state.toUpperCase())}/municipios`,
-    { signal: AbortSignal.timeout(12_000) },
+    { signal: AbortSignal.timeout(12_000), cache: "no-store" },
   );
   if (!response.ok) return null;
   const municipalities = (await response.json().catch(() => [])) as unknown;
@@ -198,7 +205,7 @@ async function getMunicipality(city: string, state: string) {
 async function getPopulation2022(municipalityId: string) {
   if (!municipalityId) return null;
   const url = `https://servicodados.ibge.gov.br/api/v3/agregados/4714/periodos/2022/variaveis/93?localidades=N6[${encodeURIComponent(municipalityId)}]`;
-  const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+  const response = await fetch(url, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
   if (!response.ok) return null;
   const payload = (await response.json().catch(() => [])) as unknown;
   if (!Array.isArray(payload) || !payload.length) return null;
@@ -335,14 +342,16 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
             ? "Potencial em desenvolvimento"
             : "Dados insuficientes ou região que exige cautela";
 
-    const marketScope = market.scope === "bairro" ? `do bairro ${neighborhood}` : `de ${data.city}`;
-    const summary = `${classification}. A leitura combina infraestrutura mapeada, atividade e preços reais dos anúncios ${marketScope} disponíveis no índice MercadoImobi e dados oficiais do IBGE. O índice serve para apoiar a decisão e não representa garantia de valorização futura.`;
-    const sources = ["MercadoImobi — agregação segura do índice de anúncios", "IBGE — Localidades e Censo 2022"];
+    const scopeLabel = market.scope === "bairro" ? "bairro informado" : "município";
+    const summary = `${classification}. A leitura usa ${market.sampleSize} anúncios do ${scopeLabel}, infraestrutura próxima e dados oficiais do município. Os valores são evidências observadas na base e não garantia de valorização futura.`;
+    const sources = ["MercadoImobi — estatística agregada do índice de anúncios"];
+    if (municipality) sources.push("IBGE — Localidades e Censo 2022");
     if (infrastructureProvider === "google") sources.push("Google Maps Platform — Geocoding e Places");
     if (infrastructureProvider === "openstreetmap") sources.push("OpenStreetMap — Nominatim e Overpass");
 
     return {
       query: { address, neighborhood, city: data.city, state },
+      analyzedAt: new Date().toISOString(),
       coordinates,
       score: components.total,
       classification,
@@ -367,6 +376,6 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
       },
       sources,
       caveat:
-        "Os preços apresentados são estatísticas dos anúncios capturados pelo MercadoImobi, não laudos de avaliação. O recorte de bairro é usado quando há pelo menos 3 anúncios compatíveis; abaixo disso, a análise recua automaticamente para o município. Infraestrutura representa pontos mapeados no provedor disponível e pode não incluir estabelecimentos ainda não cadastrados. Valorização futura depende também de oferta, demanda, obras, zoneamento, crédito e economia.",
+        "Índice indicativo baseado nas evidências disponíveis. Preços anunciados não equivalem necessariamente a preços de transação. Valorização depende de oferta, demanda, obras, zoneamento, crédito, economia e outros fatores. Confirme decisões relevantes com avaliação técnica local.",
     };
   });
