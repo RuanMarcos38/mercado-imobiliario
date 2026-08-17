@@ -109,7 +109,11 @@ function textVariants(value: string): string[] {
   return Array.from(new Set([original, normalized].filter(Boolean)));
 }
 
-function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"]) {
+function sortItems(
+  items: PropertySearchItem[],
+  sort: PropertySearchInput["sort"],
+  market: PropertySearchInput["market"] = "all",
+) {
   if (sort === "price_asc") {
     return items.sort(
       (a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER),
@@ -118,6 +122,14 @@ function sortItems(items: PropertySearchItem[], sort: PropertySearchInput["sort"
   if (sort === "price_desc") return items.sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
   if (sort === "area_desc") return items.sort((a, b) => (b.area_sqm ?? -1) - (a.area_sqm ?? -1));
   return items.sort((a, b) => {
+    // Regra de produto: em "Todos", imóveis do mercado/construtoras aparecem antes da CAIXA.
+    // A CAIXA continua disponível, mas não pode monopolizar a primeira página quando houver
+    // anúncios privados compatíveis com a região pesquisada.
+    if (market === "all") {
+      const aMarket = a.listing_market === "caixa" ? 0 : 1;
+      const bMarket = b.listing_market === "caixa" ? 0 : 1;
+      if (aMarket !== bMarket) return bMarket - aMarket;
+    }
     const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
     const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
     return bTime - aTime;
@@ -143,8 +155,15 @@ function matchesSearch(item: PropertySearchItem, input: PropertySearchInput): bo
     );
     if (!haystack.includes(neighborhood)) return false;
   }
-  if (input.state && normalizeSearchText(item.location_state) !== normalizeSearchText(input.state))
-    return false;
+  if (input.state) {
+    const itemState = normalizeSearchText(item.location_state);
+    const requestedState = normalizeSearchText(input.state);
+    // Fontes oficiais de construtoras frequentemente publicam páginas por cidade sem preencher UF
+    // em metadados estruturados. Quando a cidade foi explicitamente pesquisada e já casou acima,
+    // não descartamos o anúncio apenas porque a UF veio vazia. Se a fonte informou UF, ela deve casar.
+    if (itemState && itemState !== requestedState) return false;
+    if (!itemState && !input.city) return false;
+  }
   if (input.propertyType) {
     const expected = normalizeSearchText(input.propertyType);
     const actual = normalizeSearchText(item.property_type);
@@ -289,7 +308,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
         propertyQuery = propertyQuery.or(expression);
       }
     }
-    if (input.state) {
+    if (input.state && !input.city) {
       const state = input.state.toUpperCase();
       indexQuery = indexQuery.eq("location_state", state);
       propertyQuery = propertyQuery.eq("location_state", state);
@@ -427,7 +446,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       deduped.set(key, item);
     }
 
-    const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);
+    const items = sortItems(Array.from(deduped.values()), input.sort, input.market).slice(0, limit);
     const latestTimestamp =
       items
         .map((item) => item.updated_at)
@@ -448,7 +467,7 @@ const savedSearchSchema = z.object({
 
 export const savePropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => savedSearchSchema.parse(data))
+  .inputValidator((data: unknown) => savedSearchSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const criteria = JSON.parse(JSON.stringify(data.criteria));
     const { error } = await context.supabase.from("search_configurations").insert({
@@ -529,7 +548,7 @@ export const listFavoriteProperties = createServerFn({ method: "GET" })
 
 export const setPropertyFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => favoriteMutationSchema.parse(data))
+  .inputValidator((data: unknown) => favoriteMutationSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const propertyKey = favoriteKey(data.property);
     if (!data.favorite) {
@@ -559,13 +578,14 @@ const savedSearchUpdateSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(80),
 });
+
 export const renameSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => savedSearchUpdateSchema.parse(data))
+  .inputValidator((data: unknown) => savedSearchUpdateSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("search_configurations")
-      .update({ name: data.name, updated_at: new Date().toISOString() })
+      .update({ name: data.name })
       .eq("id", data.id)
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
@@ -573,9 +593,10 @@ export const renameSavedPropertySearch = createServerFn({ method: "POST" })
   });
 
 const savedSearchDeleteSchema = z.object({ id: z.string().uuid() });
+
 export const deleteSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => savedSearchDeleteSchema.parse(data))
+  .inputValidator((data: unknown) => savedSearchDeleteSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("search_configurations")
