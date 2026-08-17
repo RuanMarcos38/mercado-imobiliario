@@ -49,7 +49,9 @@ export const disconnectMetaSocialAccount = createServerFn({ method: "POST" })
 
 export const listSocialConversations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ channel: channelSchema.default("all") }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ channel: channelSchema.default("all") }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { listMetaSocialConversations } = await import("@/lib/meta-social.server");

@@ -97,7 +97,8 @@ export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
       }
     }
 
-    if (!files.length) throw new Error("Anexe os documentos do cliente no CRM antes de enviar ao CCA.");
+    if (!files.length)
+      throw new Error("Anexe os documentos do cliente no CRM antes de enviar ao CCA.");
     if (rawSize > maxRawAttachmentBytes) {
       throw new Error(
         `O dossiê ultrapassa ${parameters.emailAttachmentMaxMb} MB. Divida os documentos em mais de um envio.`,

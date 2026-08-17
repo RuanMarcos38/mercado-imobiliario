@@ -25,7 +25,9 @@ function verifyStripeSignature(rawBody: string, signatureHeader: string, secret:
   return signatures.some((signature) => {
     try {
       const candidate = Buffer.from(signature, "hex");
-      return candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer);
+      return (
+        candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer)
+      );
     } catch {
       return false;
     }
@@ -143,7 +145,10 @@ async function handleStripeWebhook(request: Request) {
         typeof eventObject["subscription"] === "string" ? eventObject["subscription"] : null,
       current_period_start: new Date().toISOString(),
     });
-    await db.from("profiles").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", userId);
+    await db
+      .from("profiles")
+      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .eq("id", userId);
     return Response.json({ ok: true });
   }
 
@@ -162,8 +167,7 @@ async function handleStripeWebhook(request: Request) {
       status,
       stripe_customer_id:
         typeof eventObject["customer"] === "string" ? eventObject["customer"] : null,
-      stripe_subscription_id:
-        typeof eventObject["id"] === "string" ? eventObject["id"] : null,
+      stripe_subscription_id: typeof eventObject["id"] === "string" ? eventObject["id"] : null,
       current_period_start: unixDate(eventObject["current_period_start"]),
       current_period_end: unixDate(eventObject["current_period_end"]),
       trial_end: unixDate(eventObject["trial_end"]),

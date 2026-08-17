@@ -18,9 +18,9 @@ export interface DiscoveryCandidate {
 function validPublicUrl(value: string) {
   try {
     const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol)) return null;
-    const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
-    if (!hostname || hostname === 'localhost' || hostname.endsWith('.local')) return null;
+    if (!["http:", "https:"].includes(url.protocol)) return null;
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (!hostname || hostname === "localhost" || hostname.endsWith(".local")) return null;
     if (/^(10|127|169\.254|192\.168)\./.test(hostname)) return null;
     return { url: url.toString(), hostname };
   } catch {
@@ -33,29 +33,29 @@ export async function discoverPublicPropertySources(input: {
   state?: string;
   query?: string;
 }): Promise<{ configured: boolean; candidates: DiscoveryCandidate[]; summary: string }> {
-  const apiKey = process.env['OPENAI_API_KEY'];
-  if (!apiKey) return { configured: false, candidates: [], summary: '' };
-  const model = process.env['OPENAI_MODEL'] || 'gpt-5.6';
-  const location = [input.city, input.state].filter(Boolean).join(' - ') || 'Brasil';
-  const focus = input.query?.trim() || 'imóveis à venda e para locação';
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) return { configured: false, candidates: [], summary: "" };
+  const model = process.env["OPENAI_MODEL"] || "gpt-5.6";
+  const location = [input.city, input.state].filter(Boolean).join(" - ") || "Brasil";
+  const focus = input.query?.trim() || "imóveis à venda e para locação";
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       model,
-      tools: [{ type: 'web_search' }],
+      tools: [{ type: "web_search" }],
       input: [
         {
-          role: 'user',
+          role: "user",
           content:
             `Pesquise na web fontes públicas e atuais de ${focus} em ${location}. ` +
-            'Priorize sites oficiais de imobiliárias, construtoras e portais imobiliários. ' +
-            'Não tente contornar login, CAPTCHA, bloqueio, paywall ou área privada. ' +
-            'Liste somente fontes públicas relevantes que poderiam ser conectadas por API, XML, JSON, webhook ou parceria autorizada.',
+            "Priorize sites oficiais de imobiliárias, construtoras e portais imobiliários. " +
+            "Não tente contornar login, CAPTCHA, bloqueio, paywall ou área privada. " +
+            "Liste somente fontes públicas relevantes que poderiam ser conectadas por API, XML, JSON, webhook ou parceria autorizada.",
         },
       ],
       store: false,
@@ -70,9 +70,9 @@ export async function discoverPublicPropertySources(input: {
 
   for (const item of payload.output ?? []) {
     for (const content of item.content ?? []) {
-      if (content.type === 'output_text' && content.text) textParts.push(content.text.trim());
+      if (content.type === "output_text" && content.text) textParts.push(content.text.trim());
       for (const annotation of content.annotations ?? []) {
-        if (annotation.type !== 'url_citation' || !annotation.url) continue;
+        if (annotation.type !== "url_citation" || !annotation.url) continue;
         const publicUrl = validPublicUrl(annotation.url);
         if (!publicUrl) continue;
         const key = `${publicUrl.hostname}|${publicUrl.url}`;
@@ -90,6 +90,6 @@ export async function discoverPublicPropertySources(input: {
   return {
     configured: true,
     candidates: Array.from(candidates.values()).slice(0, 100),
-    summary: textParts.join('\n').slice(0, 8000),
+    summary: textParts.join("\n").slice(0, 8000),
   };
 }

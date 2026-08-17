@@ -15,11 +15,8 @@ export const getPlatformParameterOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requirePlatformAdmin(context);
-    const {
-      integrationReadiness,
-      platformBaseUrl,
-      platformParameterDefinitions,
-    } = await import("@/lib/platform-parameters.server");
+    const { integrationReadiness, platformBaseUrl, platformParameterDefinitions } =
+      await import("@/lib/platform-parameters.server");
 
     const definitions = platformParameterDefinitions();
     return {

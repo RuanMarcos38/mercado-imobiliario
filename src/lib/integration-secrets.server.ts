@@ -63,11 +63,7 @@ function decrypt<T>(buffer: Buffer): T {
   if (envelope.v !== 1 || !envelope.iv || !envelope.tag || !envelope.data) {
     throw new Error("INTEGRATION_SECRET_INVALID");
   }
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    keyBytes(),
-    Buffer.from(envelope.iv, "base64"),
-  );
+  const decipher = createDecipheriv("aes-256-gcm", keyBytes(), Buffer.from(envelope.iv, "base64"));
   decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(envelope.data, "base64")),

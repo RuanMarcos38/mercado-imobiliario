@@ -126,7 +126,9 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    transition: background-color 160ms ease, color 160ms ease;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
   }
 }
 

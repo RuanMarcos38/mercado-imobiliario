@@ -3,10 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
-import {
-  externalServiceParameters,
-  platformBaseUrl,
-} from "@/lib/platform-parameters.server";
+import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 
 const callSchema = z.object({
   agentPhone: z.string().trim().min(8).max(30),
@@ -19,7 +16,8 @@ function normalizeE164(value: string) {
   const digits = trimmed.replace(/\D/g, "");
   if (!digits) return null;
   if (trimmed.startsWith("+") && digits.length >= 10 && digits.length <= 15) return `+${digits}`;
-  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) return `+55${digits}`;
+  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55"))
+    return `+55${digits}`;
   if (digits.length >= 12 && digits.length <= 15) return `+${digits}`;
   return null;
 }
@@ -43,7 +41,9 @@ function appBaseUrl() {
 }
 
 function voiceSecret() {
-  return process.env["VOICE_WEBHOOK_SECRET"]?.trim() || process.env["TWILIO_AUTH_TOKEN"]?.trim() || "";
+  return (
+    process.env["VOICE_WEBHOOK_SECRET"]?.trim() || process.env["TWILIO_AUTH_TOKEN"]?.trim() || ""
+  );
 }
 
 export function createVoiceBridgeToken(customerPhone: string) {
@@ -51,7 +51,9 @@ export function createVoiceBridgeToken(customerPhone: string) {
   if (!secret) throw new Error("VOICE_WEBHOOK_SECRET_MISSING");
   const { voiceBridgeTokenMinutes } = externalServiceParameters();
   const exp = Date.now() + voiceBridgeTokenMinutes * 60_000;
-  const payload = Buffer.from(JSON.stringify({ to: customerPhone, exp }), "utf8").toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ to: customerPhone, exp }), "utf8").toString(
+    "base64url",
+  );
   const signature = createHmac("sha256", secret).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -64,8 +66,12 @@ export function verifyVoiceBridgeToken(token: string) {
   const expected = createHmac("sha256", secret).update(payload).digest("base64url");
   const left = Buffer.from(signature);
   const right = Buffer.from(expected);
-  if (left.length !== right.length || !timingSafeEqual(left, right)) throw new Error("VOICE_TOKEN_INVALID");
-  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { to?: string; exp?: number };
+  if (left.length !== right.length || !timingSafeEqual(left, right))
+    throw new Error("VOICE_TOKEN_INVALID");
+  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+    to?: string;
+    exp?: number;
+  };
   if (!parsed.to || !parsed.exp || parsed.exp < Date.now()) throw new Error("VOICE_TOKEN_EXPIRED");
   const to = normalizeE164(parsed.to);
   if (!to) throw new Error("VOICE_NUMBER_INVALID");
@@ -78,7 +84,9 @@ export const getDialerStatus = createServerFn({ method: "GET" })
     const config = twilioConfig();
     return {
       configured: Boolean(config),
-      callerNumber: config?.fromNumber ? `${config.fromNumber.slice(0, 4)}••••${config.fromNumber.slice(-3)}` : null,
+      callerNumber: config?.fromNumber
+        ? `${config.fromNumber.slice(0, 4)}••••${config.fromNumber.slice(-3)}`
+        : null,
     };
   });
 
@@ -126,7 +134,9 @@ export const startDialerCall = createServerFn({ method: "POST" })
       payload = { raw: text };
     }
     if (!response.ok) {
-      throw new Error(`TWILIO_CALL_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`);
+      throw new Error(
+        `TWILIO_CALL_FAILED:${response.status}:${String(payload?.message ?? payload?.raw ?? "").slice(0, 220)}`,
+      );
     }
     return {
       success: true,
@@ -147,7 +157,9 @@ export async function testTwilioRuntime() {
     const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}.json`,
       {
-        headers: { Authorization: `Basic ${Buffer.from(`${authUser}:${authPass}`).toString("base64")}` },
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${authUser}:${authPass}`).toString("base64")}`,
+        },
         signal: AbortSignal.timeout(diagnosticTimeoutMs),
       },
     );

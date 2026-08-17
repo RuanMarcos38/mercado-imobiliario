@@ -4,10 +4,7 @@ import {
   readIntegrationSecret,
   writeIntegrationSecret,
 } from "@/lib/integration-secrets.server";
-import {
-  externalServiceParameters,
-  platformBaseUrl,
-} from "@/lib/platform-parameters.server";
+import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 
 const SECRET_NAME = "meta-social";
 
@@ -287,9 +284,7 @@ export async function listMetaSocialConversations(input: {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
   if (!config) return [] as SocialConversation[];
   const channels: SocialChannel[] =
-    !input.channel || input.channel === "all"
-      ? ["facebook", "instagram"]
-      : [input.channel];
+    !input.channel || input.channel === "all" ? ["facebook", "instagram"] : [input.channel];
   const jobs = config.pages.flatMap((page) =>
     channels.map((channel) => fetchConversationsForPage(page, channel)),
   );

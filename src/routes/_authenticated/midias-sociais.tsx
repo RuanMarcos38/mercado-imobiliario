@@ -41,8 +41,18 @@ type Conversation = {
   updatedTime: string | null;
 };
 
-function ChannelIcon({ channel, className = "h-4 w-4" }: { channel: "facebook" | "instagram"; className?: string }) {
-  return channel === "instagram" ? <Camera className={className} /> : <MessageCircle className={className} />;
+function ChannelIcon({
+  channel,
+  className = "h-4 w-4",
+}: {
+  channel: "facebook" | "instagram";
+  className?: string;
+}) {
+  return channel === "instagram" ? (
+    <Camera className={className} />
+  ) : (
+    <MessageCircle className={className} />
+  );
 }
 
 function SocialInboxPage() {
@@ -158,10 +168,13 @@ function SocialInboxPage() {
       <div className="mx-auto max-w-[1500px]">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Omnichannel</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+              Omnichannel
+            </p>
             <h1 className="mt-1 text-2xl font-black">Facebook e Instagram</h1>
             <p className="mt-1 text-sm text-[var(--mi-text-muted)]">
-              Centralize as conversas das páginas e perfis profissionais conectados, sem misturar contas de outros usuários.
+              Centralize as conversas das páginas e perfis profissionais conectados, sem misturar
+              contas de outros usuários.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -171,11 +184,18 @@ function SocialInboxPage() {
               </Button>
             </Link>
             {status.data?.connected ? (
-              <Button variant="outline" onClick={() => void disconnect()} className="rounded-xl border-[var(--mi-border)] text-rose-600">
+              <Button
+                variant="outline"
+                onClick={() => void disconnect()}
+                className="rounded-xl border-[var(--mi-border)] text-rose-600"
+              >
                 <LogOut className="mr-2 h-4 w-4" /> Desconectar Meta
               </Button>
             ) : (
-              <Button onClick={connect} className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700">
+              <Button
+                onClick={connect}
+                className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
+              >
                 <Link2 className="mr-2 h-4 w-4" /> Conectar Facebook e Instagram
               </Button>
             )}
@@ -189,47 +209,109 @@ function SocialInboxPage() {
                 <div>
                   <p className="font-black">Conversas</p>
                   <p className="mt-0.5 text-[11px] text-[var(--mi-text-soft)]">
-                    {status.data?.connected ? `${status.data.pages.length} página(s) conectada(s)` : "Nenhuma conta conectada"}
+                    {status.data?.connected
+                      ? `${status.data.pages.length} página(s) conectada(s)`
+                      : "Nenhuma conta conectada"}
                   </p>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black ${status.data?.connected ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700"}`}>
-                  {status.data?.connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black ${status.data?.connected ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700"}`}
+                >
+                  {status.data?.connected ? (
+                    <Wifi className="h-3.5 w-3.5" />
+                  ) : (
+                    <WifiOff className="h-3.5 w-3.5" />
+                  )}
                   {status.data?.connected ? "ONLINE" : "OFFLINE"}
                 </span>
               </div>
 
               <div className="mt-4 grid grid-cols-3 gap-2">
-                <ChannelButton active={channel === "all"} onClick={() => setChannel("all")} label="Todas" />
-                <ChannelButton active={channel === "facebook"} onClick={() => setChannel("facebook")} label="Facebook" icon={<MessageCircle className="h-3.5 w-3.5" />} />
-                <ChannelButton active={channel === "instagram"} onClick={() => setChannel("instagram")} label="Instagram" icon={<Camera className="h-3.5 w-3.5" />} />
+                <ChannelButton
+                  active={channel === "all"}
+                  onClick={() => setChannel("all")}
+                  label="Todas"
+                />
+                <ChannelButton
+                  active={channel === "facebook"}
+                  onClick={() => setChannel("facebook")}
+                  label="Facebook"
+                  icon={<MessageCircle className="h-3.5 w-3.5" />}
+                />
+                <ChannelButton
+                  active={channel === "instagram"}
+                  onClick={() => setChannel("instagram")}
+                  label="Instagram"
+                  icon={<Camera className="h-3.5 w-3.5" />}
+                />
               </div>
 
               <div className="mt-3 flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar conversa" className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] pl-9 pr-3 text-sm outline-none focus:border-blue-500" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar conversa"
+                    className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] pl-9 pr-3 text-sm outline-none focus:border-blue-500"
+                  />
                 </div>
-                <Button size="icon" variant="outline" onClick={() => void conversations.refetch()} className="h-10 w-10 rounded-xl border-[var(--mi-border)]">
-                  <RefreshCw className={`h-4 w-4 ${conversations.isFetching ? "animate-spin" : ""}`} />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => void conversations.refetch()}
+                  className="h-10 w-10 rounded-xl border-[var(--mi-border)]"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${conversations.isFetching ? "animate-spin" : ""}`}
+                  />
                 </Button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {!status.data?.connected && <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">Conecte sua conta Meta para carregar Messenger e Instagram Direct.</div>}
-              {status.data?.connected && filtered.length === 0 && !conversations.isFetching && <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">Nenhuma conversa encontrada.</div>}
+              {!status.data?.connected && (
+                <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">
+                  Conecte sua conta Meta para carregar Messenger e Instagram Direct.
+                </div>
+              )}
+              {status.data?.connected && filtered.length === 0 && !conversations.isFetching && (
+                <div className="p-5 text-center text-sm text-[var(--mi-text-soft)]">
+                  Nenhuma conversa encontrada.
+                </div>
+              )}
               {filtered.map((conversation: Conversation) => (
-                <button key={conversation.id} type="button" onClick={() => setSelectedId(conversation.id)} className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}>
-                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${conversation.channel === "instagram" ? "bg-pink-500/10 text-pink-600" : "bg-blue-500/10 text-blue-600"}`}>
+                <button
+                  key={conversation.id}
+                  type="button"
+                  onClick={() => setSelectedId(conversation.id)}
+                  className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}
+                >
+                  <span
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${conversation.channel === "instagram" ? "bg-pink-500/10 text-pink-600" : "bg-blue-500/10 text-blue-600"}`}
+                  >
                     <ChannelIcon channel={conversation.channel} className="h-5 w-5" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-black">{conversation.contactName || "Contato"}</span>
-                      {conversation.updatedTime && <span className="shrink-0 text-[10px] text-[var(--mi-text-soft)]">{new Date(conversation.updatedTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>}
+                      <span className="truncate text-sm font-black">
+                        {conversation.contactName || "Contato"}
+                      </span>
+                      {conversation.updatedTime && (
+                        <span className="shrink-0 text-[10px] text-[var(--mi-text-soft)]">
+                          {new Date(conversation.updatedTime).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
                     </span>
-                    <span className="mt-0.5 block truncate text-[10px] font-bold uppercase tracking-wide text-[var(--mi-text-soft)]">{conversation.accountName}</span>
-                    <span className="mt-1 block truncate text-xs text-[var(--mi-text-muted)]">{conversation.lastMessage || "Mensagem de mídia"}</span>
+                    <span className="mt-0.5 block truncate text-[10px] font-bold uppercase tracking-wide text-[var(--mi-text-soft)]">
+                      {conversation.accountName}
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-[var(--mi-text-muted)]">
+                      {conversation.lastMessage || "Mensagem de mídia"}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -243,37 +325,99 @@ function SocialInboxPage() {
                   <div className="min-w-0">
                     <p className="truncate font-black">{selected.contactName || "Contato"}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--mi-text-soft)]">
-                      <ChannelIcon channel={selected.channel} className="h-3.5 w-3.5" /> {selected.accountName}
+                      <ChannelIcon channel={selected.channel} className="h-3.5 w-3.5" />{" "}
+                      {selected.accountName}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => void messages.refetch()} className="rounded-xl border-[var(--mi-border)]">
-                    <RefreshCw className={`mr-2 h-3.5 w-3.5 ${messages.isFetching ? "animate-spin" : ""}`} /> Atualizar
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void messages.refetch()}
+                    className="rounded-xl border-[var(--mi-border)]"
+                  >
+                    <RefreshCw
+                      className={`mr-2 h-3.5 w-3.5 ${messages.isFetching ? "animate-spin" : ""}`}
+                    />{" "}
+                    Atualizar
                   </Button>
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-5 py-5">
                   <div className="space-y-3">
                     {(messages.data ?? []).map((message) => (
-                      <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}>
+                      <div
+                        key={message.id}
+                        className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}
+                        >
                           {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
                           {message.attachments?.length > 0 && (
                             <div className="mt-2 space-y-1 text-xs">
-                              {message.attachments.map((attachment, index) => attachment.url ? <a key={`${attachment.type}-${index}`} href={attachment.url} target="_blank" rel="noreferrer" className="block font-bold underline">Abrir {attachment.type}</a> : <span key={`${attachment.type}-${index}`} className="block">{attachment.type}</span>)}
+                              {message.attachments.map((attachment, index) =>
+                                attachment.url ? (
+                                  <a
+                                    key={`${attachment.type}-${index}`}
+                                    href={attachment.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="block font-bold underline"
+                                  >
+                                    Abrir {attachment.type}
+                                  </a>
+                                ) : (
+                                  <span key={`${attachment.type}-${index}`} className="block">
+                                    {attachment.type}
+                                  </span>
+                                ),
+                              )}
                             </div>
                           )}
-                          {message.createdTime && <p className={`mt-1 text-right text-[10px] ${message.direction === "outbound" ? "text-blue-100" : "text-[var(--mi-text-soft)]"}`}>{new Date(message.createdTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>}
+                          {message.createdTime && (
+                            <p
+                              className={`mt-1 text-right text-[10px] ${message.direction === "outbound" ? "text-blue-100" : "text-[var(--mi-text-soft)]"}`}
+                            >
+                              {new Date(message.createdTime).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
-                    {(messages.data?.length ?? 0) === 0 && !messages.isFetching && <div className="py-20 text-center text-sm text-[var(--mi-text-soft)]">Ainda não há mensagens disponíveis nesta conversa.</div>}
+                    {(messages.data?.length ?? 0) === 0 && !messages.isFetching && (
+                      <div className="py-20 text-center text-sm text-[var(--mi-text-soft)]">
+                        Ainda não há mensagens disponíveis nesta conversa.
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <footer className="border-t border-[var(--mi-border)] p-4">
                   <div className="flex items-end gap-2">
-                    <textarea value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder={`Responder pelo ${selected.channel === "instagram" ? "Instagram" : "Facebook"}`} className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500" />
-                    <Button size="icon" onClick={() => void send()} disabled={sending || !text.trim()} className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700"><Send className="h-4 w-4" /></Button>
+                    <textarea
+                      value={text}
+                      onChange={(event) => setText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void send();
+                        }
+                      }}
+                      rows={1}
+                      placeholder={`Responder pelo ${selected.channel === "instagram" ? "Instagram" : "Facebook"}`}
+                      className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                    <Button
+                      size="icon"
+                      onClick={() => void send()}
+                      disabled={sending || !text.trim()}
+                      className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
                   </div>
                 </footer>
               </>
@@ -282,8 +426,14 @@ function SocialInboxPage() {
                 <div>
                   <MessageCircle className="mx-auto h-11 w-11 text-[var(--mi-text-soft)]" />
                   <h2 className="mt-3 text-lg font-black">Central de mídias sociais</h2>
-                  <p className="mt-1 max-w-md text-sm text-[var(--mi-text-soft)]">Selecione uma conversa para responder sem sair do MercadoImobi.</p>
-                  {!status.data?.connected && <Button onClick={connect} className="mt-5 rounded-xl bg-blue-600 text-white"><Link2 className="mr-2 h-4 w-4" /> Conectar Meta</Button>}
+                  <p className="mt-1 max-w-md text-sm text-[var(--mi-text-soft)]">
+                    Selecione uma conversa para responder sem sair do MercadoImobi.
+                  </p>
+                  {!status.data?.connected && (
+                    <Button onClick={connect} className="mt-5 rounded-xl bg-blue-600 text-white">
+                      <Link2 className="mr-2 h-4 w-4" /> Conectar Meta
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -294,6 +444,25 @@ function SocialInboxPage() {
   );
 }
 
-function ChannelButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon?: React.ReactNode }) {
-  return <button type="button" onClick={onClick} className={`flex h-9 items-center justify-center gap-1 rounded-xl border px-2 text-[11px] font-black transition ${active ? "border-blue-500/30 bg-blue-500/10 text-blue-600" : "border-[var(--mi-border)] bg-[var(--mi-surface)] text-[var(--mi-text-muted)]"}`}>{icon}{label}</button>;
+function ChannelButton({
+  active,
+  onClick,
+  label,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-9 items-center justify-center gap-1 rounded-xl border px-2 text-[11px] font-black transition ${active ? "border-blue-500/30 bg-blue-500/10 text-blue-600" : "border-[var(--mi-border)] bg-[var(--mi-surface)] text-[var(--mi-text-muted)]"}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
 }
