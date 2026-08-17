@@ -10,6 +10,8 @@ type EvolutionConfig = {
   instance: string;
 };
 
+const DEFAULT_MERCADOIMOBI_URL = "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br";
+
 function evolutionConfig(): EvolutionConfig | null {
   const baseUrl = process.env["EVOLUTION_API_URL"]?.trim().replace(/\/$/, "");
   const apiKey = process.env["EVOLUTION_API_KEY"]?.trim();
@@ -44,24 +46,17 @@ function normalizeState(payload: unknown): EvolutionState {
   return "error";
 }
 
-function webhookUrl(): string | null {
+function webhookUrl(): string {
   const explicit = process.env["WHATSAPP_WEBHOOK_URL"]?.trim();
   if (explicit) return explicit;
 
-  const appBaseUrl = process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "");
-  return appBaseUrl ? `${appBaseUrl}/api/public/hooks/whatsapp` : null;
+  const appBaseUrl =
+    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ?? DEFAULT_MERCADOIMOBI_URL;
+  return `${appBaseUrl}/api/public/hooks/whatsapp`;
 }
 
 async function configureWebhook(config: EvolutionConfig) {
   const url = webhookUrl();
-  if (!url) {
-    return {
-      configured: false,
-      url: null as string | null,
-      warning: "WHATSAPP_WEBHOOK_URL_MISSING" as string | null,
-    };
-  }
-
   const secret = process.env["WHATSAPP_WEBHOOK_SECRET"]?.trim();
   const response = await evolutionRequest(
     config,
@@ -85,7 +80,7 @@ async function configureWebhook(config: EvolutionConfig) {
     return {
       configured: false,
       url,
-      warning: `EVOLUTION_WEBHOOK_HTTP_${response.status}`,
+      warning: `EVOLUTION_WEBHOOK_HTTP_${response.status}` as string | null,
     };
   }
 
