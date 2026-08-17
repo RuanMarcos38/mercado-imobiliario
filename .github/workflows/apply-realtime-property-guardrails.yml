@@ -89,4 +89,6 @@ jobs:
           git add src/lib/property-search.functions.ts src/lib/property-listing-quality.ts tests/property-listing-quality.test.ts supabase/migrations/20260817190000_enforce_fresh_real_estate_only_index.sql
           git diff --cached --quiet && exit 0
           git commit -m "feat: enforce fresh real-estate-only listings"
+          git fetch origin main
+          git rebase origin/main
           git push origin HEAD:main
