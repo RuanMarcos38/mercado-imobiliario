@@ -1,38 +1,35 @@
 # Diagnóstico de Publicação — MercadoImobi
 
-Atualizado em 16/08/2026.
+Atualizado em 17/08/2026.
 
 ## Código
 
-- `main` e `production` foram validados e promovidos pelo workflow obrigatório.
-- Build Nitro/Node concluído com sucesso.
-- Smoke test retornou `status=operational`.
-- Índice: 25.407 imóveis em 27 UFs.
-- Release do backend validado: `2026.08.16-search-platform-r2`.
+- `main` deve ser promovido para `production` somente pelo workflow obrigatório após lint, testes, auditoria, build e smoke test.
+- A navegação visível permanece focada em pesquisa imobiliária, alertas, atendimento, fluxos, assistente IA, diagnóstico e fontes de imóveis.
+- CRM, Facebook/Instagram, E-mail/CCA e Discador podem permanecer como rotas internas de compatibilidade, mas não fazem parte da navegação principal do MercadoImobi.
+- Dashboard e Buscar imóveis usam o modo `all`; Leilões CAIXA usam exclusivamente o modo `auction`.
+- A interface destaca oportunidades com desconto comprovado pela fonte e imóveis com preço por m² abaixo de comparáveis da mesma região/tipo.
+- Subsídios permanecem separados e nunca compõem o preço exibido do imóvel.
 
 ## Banco / sincronização
 
-- A sincronização CAIXA foi corrigida para registrar o horário real de atualização.
-- O cron executa `public.refresh_caixa_property_index_tracked()` a cada hora.
-- A execução atual foi registrada em `property_scan_runs`.
+- O índice imobiliário é a base canônica da pesquisa nacional e possui paginação para navegar por todo o inventário.
+- A sincronização CAIXA registra o horário real de atualização e mantém leilões como modalidade separada.
+- Fontes públicas e conectadas entram na pesquisa geral quando existem dados reais indexados.
 
-## Bloqueio atual de publicação
+## Validação
 
-O diagnóstico externo do GitHub Actions confirmou:
+A versão somente é considerada pronta quando o workflow obrigatório concluir com sucesso:
 
-1. `https://mercadoimobi.rdmconsultoriaimobiliaria.com.br/api/public/status` não está entregando o backend Node do MercadoImobi. O conteúdo retornado corresponde ao bridge estático antigo da Hostinger e contém redirecionamento para `https://mercado-imobiliario-r2r.lovable.app/`.
-2. O host testado a partir da identificação visível do serviço EasyPanel, `https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host/api/public/status`, respondeu com página HTML `Not Found`, não com o JSON do backend MercadoImobi.
-3. Portanto, os commits do GitHub estão corretos, mas a rota pública ainda não está ligada ao serviço Node/Docker atualizado.
+- instalação limpa das dependências;
+- verificação de arquivos privados;
+- formatação e lint;
+- suíte completa de testes, incluindo chatbot e botões críticos;
+- auditoria de dependências de produção;
+- build Nitro/Node;
+- smoke test de `/api/public/status` e índice imobiliário real;
+- promoção de `main` para `production`.
 
-## Configuração necessária no EasyPanel/Hostinger
+## Publicação
 
-- EasyPanel Source: GitHub `RuanMarcos38/mercado-imobiliario`.
-- Branch: `production` (ou `main`, desde que seja a branch configurada no Auto Deploy).
-- Build: `Dockerfile` na raiz.
-- Porta interna: `3000`.
-- Healthcheck: `/api/public/status`.
-- Ativar Auto Deploy do GitHub ou usar o Deployment Trigger URL do serviço.
-- Associar o domínio `mercadoimobi.rdmconsultoriaimobiliaria.com.br` ao serviço App do EasyPanel.
-- Remover o arquivo/bridge estático da Hostinger que redireciona para o Lovable, ou remover o domínio dessa hospedagem antiga para que ele não intercepte o tráfego.
-
-A aplicação só deve ser considerada publicada quando `/api/public/status` no domínio definitivo retornar JSON com `status: operational` e o marcador de release atual.
+A aplicação publicada deve expor `/api/public/status` com JSON e `status: operational`. O domínio definitivo e o host EasyPanel precisam apontar para o serviço Node/Docker atual, sem redirecionamento para o projeto Lovable antigo.
