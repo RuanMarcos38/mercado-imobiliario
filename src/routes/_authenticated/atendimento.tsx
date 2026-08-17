@@ -29,7 +29,7 @@ import {
   markWhatsAppConversationRead,
   sendWhatsAppText,
   type WhatsAppConversation,
-} from "@/lib/whatsapp.functions";
+} from "@/lib/whatsapp-tenant.functions";
 import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
 import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
@@ -65,13 +65,15 @@ function AtendimentoPage() {
   const [showQr, setShowQr] = useState(false);
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const connection = useQuery({
     queryKey: ["whatsapp-connection"],
     queryFn: () => statusFn(),
-    refetchInterval: 30_000,
+    refetchInterval: showQr ? 4_000 : 30_000,
   });
   const aiStatus = useQuery({ queryKey: ["ai-runtime-status"], queryFn: () => aiStatusFn() });
   const conversations = useQuery({
@@ -104,17 +106,6 @@ function AtendimentoPage() {
   }, []);
 
   useEffect(() => {
-    // Reapply/repair the Evolution webhook whenever Atendimento opens. This is
-    // intentionally silent: a connected WhatsApp must keep receiving inbound
-    // messages even if the instance was connected before the webhook env was set.
-    void prepareFn()
-      .then((prepared) => {
-        if (prepared.configured) void connection.refetch();
-      })
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
     const channel = supabase
       .channel("mercadoimobi-atendimento-live")
       .on(
@@ -141,6 +132,40 @@ function AtendimentoPage() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages.data?.length, selectedId]);
 
+  useEffect(() => {
+    if (!showQr) return;
+    if (connection.data?.connected) {
+      setShowQr(false);
+      setQrBase64(null);
+      setQrCode(null);
+      setPairingCode(null);
+      toast.success("WhatsApp conectado com sucesso.");
+      void conversations.refetch();
+    }
+  }, [showQr, connection.data?.connected]);
+
+  useEffect(() => {
+    if (!showQr || connection.data?.connected) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const qr = await qrFn();
+        if (cancelled) return;
+        if (qr.base64) setQrBase64(qr.base64);
+        if (qr.code) setQrCode(qr.code);
+        if (qr.pairingCode) setPairingCode(qr.pairingCode);
+      } catch {
+        // O QR expira e é renovado pela Evolution; a próxima tentativa continua o polling.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 4_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [showQr, connection.data?.connected]);
+
   const selected = (conversations.data ?? []).find((item) => item.id === selectedId) ?? null;
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -154,20 +179,54 @@ function AtendimentoPage() {
     );
   }, [conversations.data, search]);
 
-  const connect = async () => {
+  const refreshQr = async () => {
+    setQrLoading(true);
     try {
-      const prepared = await prepareFn();
-      if (!prepared.configured) {
-        toast.info("A conexão do WhatsApp ainda precisa ser ativada no servidor.");
-        return;
-      }
       const qr = await qrFn();
       setQrBase64(qr.base64);
       setQrCode(qr.code);
-      setShowQr(true);
+      setPairingCode(qr.pairingCode);
       await connection.refetch();
     } catch {
-      toast.error("Não foi possível iniciar a conexão agora.");
+      toast.error("Ainda não foi possível gerar o QR Code. Tente novamente em alguns segundos.");
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const connect = async () => {
+    setShowQr(true);
+    setQrLoading(true);
+    setQrBase64(null);
+    setQrCode(null);
+    setPairingCode(null);
+    try {
+      const prepared = await prepareFn();
+      if (!prepared.configured) {
+        setShowQr(false);
+        toast.info("O gateway do WhatsApp ainda precisa ser ativado no servidor.");
+        return;
+      }
+      if (prepared.connected) {
+        setShowQr(false);
+        await connection.refetch();
+        toast.success("Seu WhatsApp já está conectado.");
+        return;
+      }
+      if (prepared.qrBase64) setQrBase64(prepared.qrBase64);
+      if (prepared.qrCode) setQrCode(prepared.qrCode);
+      if (prepared.pairingCode) setPairingCode(prepared.pairingCode);
+      if (!prepared.qrBase64 && !prepared.qrCode) await refreshQr();
+      await connection.refetch();
+    } catch (error) {
+      setShowQr(false);
+      toast.error(
+        error instanceof Error
+          ? `Não foi possível iniciar a conexão: ${error.message}`
+          : "Não foi possível iniciar a conexão agora.",
+      );
+    } finally {
+      setQrLoading(false);
     }
   };
 
@@ -245,6 +304,14 @@ function AtendimentoPage() {
                 {connection.data?.connected ? "Conectado" : "Desconectado"}
               </span>
             </div>
+            {!connection.data?.connected && (
+              <Button
+                onClick={() => void connect()}
+                className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
+              >
+                <Link2 className="mr-2 h-4 w-4" /> Conectar meu WhatsApp por QR Code
+              </Button>
+            )}
             <div className="mt-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
@@ -454,6 +521,11 @@ function AtendimentoPage() {
                 <p className="mt-1 text-sm text-[var(--mi-text-soft)]">
                   As mensagens recebidas pelo WhatsApp aparecerão aqui em tempo real.
                 </p>
+                {!connection.data?.connected && (
+                  <Button onClick={() => void connect()} className="mt-5 rounded-xl bg-emerald-600 text-white">
+                    <Link2 className="mr-2 h-4 w-4" /> Conectar WhatsApp
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -464,35 +536,53 @@ function AtendimentoPage() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-950 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black">Conectar WhatsApp</h2>
-              <button type="button" onClick={() => setShowQr(false)}>
+              <h2 className="text-lg font-black">Conectar meu WhatsApp</h2>
+              <button type="button" onClick={() => setShowQr(false)} aria-label="Fechar">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <p className="mt-2 text-sm text-slate-600">
-              Abra o WhatsApp no celular, vá em Aparelhos conectados e leia o QR Code.
+              No WhatsApp do celular, abra Configurações → Aparelhos conectados → Conectar aparelho e leia o QR Code abaixo.
             </p>
             <div className="mt-5 grid min-h-60 place-items-center rounded-2xl bg-slate-50 p-4">
               {qrBase64 ? (
                 <img
                   src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`}
-                  alt="QR Code do WhatsApp"
+                  alt="QR Code para conectar o WhatsApp"
                   className="h-56 w-56"
                 />
               ) : qrCode ? (
-                <div className="break-all rounded-xl bg-white p-3 text-xs text-slate-600">
-                  {qrCode}
-                </div>
+                <div className="break-all rounded-xl bg-white p-3 text-xs text-slate-600">{qrCode}</div>
               ) : (
-                <p className="text-sm text-slate-500">Aguardando QR Code...</p>
+                <div className="text-center">
+                  <RefreshCw className={`mx-auto h-7 w-7 text-slate-400 ${qrLoading ? "animate-spin" : ""}`} />
+                  <p className="mt-3 text-sm text-slate-500">Gerando QR Code seguro para esta conta...</p>
+                </div>
               )}
             </div>
+            {pairingCode && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Código de pareamento</p>
+                <p className="mt-1 font-mono text-xl font-black tracking-[0.18em]">{pairingCode}</p>
+              </div>
+            )}
+            <p className="mt-3 text-center text-xs text-slate-500">
+              O status é atualizado automaticamente. Após a leitura, esta janela fecha quando a conexão estiver online.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => void refreshQr()}
+              disabled={qrLoading}
+              className="mt-4 h-10 w-full rounded-xl"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${qrLoading ? "animate-spin" : ""}`} /> Atualizar QR Code
+            </Button>
             <Button
               onClick={() => {
                 setShowQr(false);
                 void connection.refetch();
               }}
-              className="mt-4 h-11 w-full rounded-xl bg-blue-600 font-black text-white"
+              className="mt-2 h-11 w-full rounded-xl bg-blue-600 font-black text-white"
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao atendimento
             </Button>
