@@ -1,0 +1,224 @@
+name: One-time MercadoImobi backend auditor hotfix
+
+on:
+  push:
+    branches:
+      - fix/backend-auditor-runtime-20260817
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch backend auditor to use authenticated RLS runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/lib/backend-auditor.functions.ts")
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly 1 match, found {count}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+          '''async function testAuthRuntime(admin: any, userId: string) {
+            return timed(async () => {
+              const result = await admin.auth.admin.getUserById(userId);
+              const ok = !result.error && Boolean(result.data?.user?.id);
+              return {
+                key: "auth-runtime",
+                label: "Autenticação Supabase",
+                category: "Segurança",
+                critical: true,
+                configured: true,
+                status: ok ? ("pass" as const) : ("fail" as const),
+                detail: ok ? "Usuário autenticado validado pelo backend administrativo." : `Falha de autenticação: ${result.error?.message ?? "usuário não encontrado"}.`,
+              };
+            });
+          }
+          ''',
+          '''async function testAuthRuntime(db: any, userId: string) {
+            return timed(async () => {
+              const result = await db.auth.getUser();
+              const resolvedUserId = result.data?.user?.id ?? null;
+              const ok = !result.error && resolvedUserId === userId;
+              return {
+                key: "auth-runtime",
+                label: "Autenticação Supabase",
+                category: "Segurança",
+                critical: true,
+                configured: true,
+                status: ok ? ("pass" as const) : ("fail" as const),
+                detail: ok
+                  ? "Sessão autenticada validada pelo backend com RLS ativo."
+                  : `Falha de autenticação: ${result.error?.message ?? "sessão não corresponde ao usuário autenticado"}.`,
+              };
+            });
+          }
+          ''',
+          "auth runtime",
+          )
+
+          replace_once(
+          '''async function testStorage(admin: any) {
+            return timed(async () => {
+              const bucket = documentParameters().ccaBucket;
+              const result = await admin.storage.getBucket(bucket);
+              if (result.data) {
+                return {
+                  key: "storage-cca",
+                  label: "Storage privado de documentos",
+                  category: "Documentos / CCA",
+                  critical: false,
+                  configured: true,
+                  status: "pass" as const,
+                  detail: `Bucket privado ${bucket} disponível.`,
+                };
+              }
+              return {
+                key: "storage-cca",
+                label: "Storage privado de documentos",
+                category: "Documentos / CCA",
+                critical: false,
+                configured: true,
+                status: "warn" as const,
+                detail: "Bucket ainda não existe. O backend o cria automaticamente no primeiro upload de documento.",
+              };
+            });
+          }
+          ''',
+          '''async function testStorage() {
+            return timed(async () => {
+              const bucket = documentParameters().ccaBucket;
+              if (!process.env["SUPABASE_SERVICE_ROLE_KEY"]?.trim()) {
+                return {
+                  key: "storage-cca",
+                  label: "Storage privado de documentos",
+                  category: "Documentos / CCA",
+                  critical: false,
+                  configured: false,
+                  status: "not_configured" as const,
+                  detail: "Verificação administrativa do Storage requer SUPABASE_SERVICE_ROLE_KEY no runtime do servidor; o backend principal continua usando a sessão autenticada com RLS.",
+                };
+              }
+
+              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+              const result = await supabaseAdmin.storage.getBucket(bucket);
+              if (result.data) {
+                return {
+                  key: "storage-cca",
+                  label: "Storage privado de documentos",
+                  category: "Documentos / CCA",
+                  critical: false,
+                  configured: true,
+                  status: "pass" as const,
+                  detail: `Bucket privado ${bucket} disponível.`,
+                };
+              }
+              if (result.error && !String(result.error.message ?? "").toLowerCase().includes("not found")) {
+                return {
+                  key: "storage-cca",
+                  label: "Storage privado de documentos",
+                  category: "Documentos / CCA",
+                  critical: false,
+                  configured: true,
+                  status: "warn" as const,
+                  detail: `Storage respondeu com alerta: ${String(result.error.message ?? result.error)}.`,
+                };
+              }
+              return {
+                key: "storage-cca",
+                label: "Storage privado de documentos",
+                category: "Documentos / CCA",
+                critical: false,
+                configured: true,
+                status: "warn" as const,
+                detail: "Bucket ainda não existe. O backend o cria automaticamente no primeiro upload de documento.",
+              };
+            });
+          }
+          ''',
+          "storage runtime",
+          )
+
+          replace_once(
+          '''    } catch (error) {
+                return {
+                  key: "lead-webhook",
+                  label: "Captação assinada de leads",
+                  category: "Speed to Lead",
+                  critical: true,
+                  configured: false,
+                  status: "fail" as const,
+                  detail: error instanceof Error ? error.message : "Falha no teste de assinatura do webhook.",
+                };
+              }
+          ''',
+          '''    } catch (error) {
+                const detail = error instanceof Error ? error.message : "Falha no teste de assinatura do webhook.";
+                const missingSecret = detail.includes("LEAD_WEBHOOK_SECRET_MISSING");
+                return {
+                  key: "lead-webhook",
+                  label: "Captação assinada de leads",
+                  category: "Speed to Lead",
+                  critical: true,
+                  configured: false,
+                  status: missingSecret ? ("not_configured" as const) : ("fail" as const),
+                  detail: missingSecret
+                    ? "LEAD_WEBHOOK_SECRET ainda não está disponível neste runtime; a captação permanece bloqueada até o segredo seguro ser configurado."
+                    : detail,
+                };
+              }
+          ''',
+          "lead webhook missing-secret classification",
+          )
+
+          replace_once(
+          '''    const tenantId = await requireTenantId(context.supabase, context.userId);
+              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+              const db = supabaseAdmin as any;
+          ''',
+          '''    const tenantId = await requireTenantId(context.supabase, context.userId);
+              // A auditoria já roda dentro de uma sessão autenticada. Usar esse cliente
+              // preserva RLS/tenant e evita transformar a ausência de service role em
+              // dezenas de falsos "Teste inesperado" no backend principal.
+              const db = context.supabase as any;
+          ''',
+          "authenticated database client",
+          )
+
+          replace_once(
+          '''      testStorage(db),
+          ''',
+          '''      testStorage(),
+          ''',
+          "storage invocation",
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Remove one-time workflow and commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/backend-auditor.functions.ts
+          git rm .github/workflows/one-time-backend-auditor-hotfix.yml
+          git commit -m "Fix backend auditor Supabase runtime checks"
+          git push origin HEAD
