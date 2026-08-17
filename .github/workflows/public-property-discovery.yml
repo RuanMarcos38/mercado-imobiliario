@@ -3,7 +3,7 @@ name: MercadoImobi public property discovery
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 * * * *"
+    - cron: "*/15 * * * *"
   push:
     paths:
       - "scripts/public_property_discovery.py"
