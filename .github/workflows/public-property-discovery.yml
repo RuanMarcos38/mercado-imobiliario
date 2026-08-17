@@ -8,6 +8,7 @@ on:
     paths:
       - "scripts/public_property_discovery.py"
       - "scripts/repair_quintoandar_prices.py"
+      - "scripts/sanitize_public_properties.py"
       - ".github/workflows/public-property-discovery.yml"
 
 permissions:
@@ -66,6 +67,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Validate real-estate-only classifier
+        run: python scripts/sanitize_public_properties.py --self-test
+
       - name: Discover public listings
         run: |
           python scripts/public_property_discovery.py \
@@ -80,6 +84,11 @@ jobs:
         run: |
           python scripts/repair_quintoandar_prices.py \
             --input "public-quintoandar.json"
+
+      - name: Enforce real-estate-only output
+        run: |
+          python scripts/sanitize_public_properties.py \
+            --input "public-${{ matrix.code }}.json"
 
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
@@ -112,6 +121,7 @@ jobs:
           sources = {}
           items_by_url = {}
           removed = set()
+          filtered_non_properties = 0
           for path in sorted(glob.glob("discoveries/public-*.json")):
               with open(path, encoding="utf-8") as handle:
                   payload = json.load(handle)
@@ -119,6 +129,7 @@ jobs:
               code = source.get("code")
               if code:
                   sources[code] = source
+              filtered_non_properties += int(source.get("filtered_non_properties") or 0)
               for item in payload.get("items") or []:
                   url = item.get("source_url")
                   if url:
@@ -132,11 +143,15 @@ jobs:
               "generated_at": datetime.now(timezone.utc).isoformat(),
               "sources": sources,
               "removed_urls": sorted(removed),
+              "filtered_non_properties": filtered_non_properties,
               "items": list(items_by_url.values()),
           }
           with open("public-properties.json", "w", encoding="utf-8") as handle:
               json.dump(output, handle, ensure_ascii=False, separators=(",", ":"))
-          print(f"SOURCES={len(sources)} ITEMS={len(items_by_url)} REMOVED={len(removed)}")
+          print(
+              f"SOURCES={len(sources)} ITEMS={len(items_by_url)} "
+              f"REMOVED={len(removed)} FILTERED_NON_PROPERTIES={filtered_non_properties}"
+          )
 
       - name: Publish discovery snapshot
         shell: bash
