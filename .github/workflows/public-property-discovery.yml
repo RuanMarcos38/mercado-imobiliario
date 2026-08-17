@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - "scripts/public_property_discovery.py"
+      - "scripts/repair_quintoandar_prices.py"
       - ".github/workflows/public-property-discovery.yml"
 
 permissions:
@@ -73,6 +74,12 @@ jobs:
             --domain "${{ matrix.domain }}" \
             --batch-size 24 \
             --output "public-${{ matrix.code }}.json"
+
+      - name: Sweep stale QuintoAndar purchase prices
+        if: matrix.code == 'quintoandar'
+        run: |
+          python scripts/repair_quintoandar_prices.py \
+            --input "public-quintoandar.json"
 
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
