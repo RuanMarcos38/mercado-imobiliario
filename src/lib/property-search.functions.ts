@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isFreshRealEstateListing } from "@/lib/property-listing-quality";
 
 const searchSchema = z.object({
   city: z.string().trim().max(120).optional(),
@@ -228,7 +229,7 @@ async function fetchConfiguredLiveSource(
         discount_percent: item.discount_percent ?? null,
         evaluation_value: item.evaluation_value ?? null,
       }))
-      .filter((item) => matchesSearch(item, input));
+      .filter((item) => isFreshRealEstateListing(item) && matchesSearch(item, input));
   } catch {
     return [];
   }
@@ -241,7 +242,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     let indexQuery = context.supabase
       .from("property_search_index")
       .select(
-        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata",
+        "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,scanned_at,last_seen_at,listing_market,is_auction,sale_mode,contact_name,contact_phone,contact_whatsapp,contact_email,metadata",
         { count: "exact" },
       );
 
@@ -251,6 +252,10 @@ export const searchRealProperties = createServerFn({ method: "POST" })
         "id,title,description,price,location_address,location_city,location_state,property_type,bedrooms,bathrooms,area_sqm,images,is_verified,source_portal,source_url,updated_at",
         { count: "exact" },
       );
+
+    const freshnessCutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();
+    indexQuery = indexQuery.gte("last_seen_at", freshnessCutoff);
+    propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);
 
     if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");
     if (input.market === "caixa") indexQuery = indexQuery.eq("listing_market", "caixa");
@@ -383,7 +388,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       is_verified: item.is_verified,
       source_portal: item.source_portal,
       source_url: item.source_url,
-      updated_at: item.scanned_at,
+      updated_at: item.last_seen_at ?? item.scanned_at,
       listing_market: item.listing_market,
       is_auction: Boolean(item.is_auction),
       sale_mode: item.sale_mode,
@@ -415,6 +420,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
 
     const deduped = new Map<string, PropertySearchItem>();
     for (const item of [...configuredLiveItems, ...indexed, ...saved]) {
+      if (!isFreshRealEstateListing(item)) continue;
       if (!matchesSearch(item, input)) continue;
       const key = keyFor(item);
       if (!key || deduped.has(key)) continue;

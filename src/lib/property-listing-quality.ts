@@ -72,23 +72,29 @@ export function isRealEstateListing(input: {
   } catch {
     return false;
   }
-  if (!['http:', 'https:'].includes(url.protocol) || !hostAllowed(url.hostname)) return false;
+  if (!["http:", "https:"].includes(url.protocol) || !hostAllowed(url.hostname)) return false;
 
-  const context = normalize([input.property_type, input.title, input.description].filter(Boolean).join(" "));
+  const context = normalize(
+    [input.property_type, input.title, input.description].filter(Boolean).join(" "),
+  );
   const hasPropertyContext = REAL_ESTATE_TERMS.some((term) => context.includes(term));
   if (!hasPropertyContext) return false;
 
   // OLX possui várias categorias; nela o contexto imobiliário é obrigatório e nunca é inferido só pelo domínio.
-  if (url.hostname === "olx.com.br" || url.hostname.endsWith(".olx.com.br")) return hasPropertyContext;
+  if (url.hostname === "olx.com.br" || url.hostname.endsWith(".olx.com.br"))
+    return hasPropertyContext;
   return true;
 }
 
-export function isFreshRealEstateListing(input: {
-  source_url: string | null | undefined;
-  title?: string | null;
-  description?: string | null;
-  property_type?: string | null;
-  updated_at?: string | null;
-}, nowMs = Date.now()) {
+export function isFreshRealEstateListing(
+  input: {
+    source_url: string | null | undefined;
+    title?: string | null;
+    description?: string | null;
+    property_type?: string | null;
+    updated_at?: string | null;
+  },
+  nowMs = Date.now(),
+) {
   return isRealEstateListing(input) && isFreshListing(input.updated_at, nowMs);
 }

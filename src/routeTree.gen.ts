@@ -15,14 +15,37 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
-import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
+import { Route as AuthenticatedAlertasRouteImport } from './routes/_authenticated/alertas'
+import { Route as AuthenticatedAnaliseLocalizacaoRouteImport } from './routes/_authenticated/analise-localizacao'
+import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
+import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
+import { Route as AuthenticatedAtendimentoRouteImport } from './routes/_authenticated/atendimento'
+import { Route as AuthenticatedBuscarRouteImport } from './routes/_authenticated/buscar'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedVpsRouteImport } from './routes/_authenticated/vps'
+import { Route as AuthenticatedDiagnosticoRouteImport } from './routes/_authenticated/diagnostico'
+import { Route as AuthenticatedDiscadorRouteImport } from './routes/_authenticated/discador'
+import { Route as AuthenticatedEmailCcaRouteImport } from './routes/_authenticated/email-cca'
+import { Route as AuthenticatedFluxosRouteImport } from './routes/_authenticated/fluxos'
+import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenticated/integracoes'
+import { Route as AuthenticatedLeiloesRouteImport } from './routes/_authenticated/leiloes'
+import { Route as AuthenticatedMidiasSociaisRouteImport } from './routes/_authenticated/midias-sociais'
+import { Route as AuthenticatedSpeedToLeadRouteImport } from './routes/_authenticated/speed-to-lead'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as Char91DotlovableOauthConsentChar93RouteImport } from './routes/[.lovable.oauth.consent]'
+import { Route as AuthenticatedAdminParametrosRouteImport } from './routes/_authenticated/admin/parametros'
+import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
 import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings/security'
 import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
+import { Route as ApiPublicHooksLeadsRouteImport } from './routes/api/public/hooks/leads'
 import { Route as ApiPublicHooksN8nWebhookRouteImport } from './routes/api/public/hooks/n8n-webhook'
+import { Route as ApiPublicHooksPropertiesRouteImport } from './routes/api/public/hooks/properties'
+import { Route as ApiPublicHooksStripeRouteImport } from './routes/api/public/hooks/stripe'
+import { Route as ApiPublicHooksWhatsappRouteImport } from './routes/api/public/hooks/whatsapp'
+import { Route as ApiPublicJobsPropertyDiscoveryRouteImport } from './routes/api/public/jobs/property-discovery'
+import { Route as ApiPublicJobsPropertyFeedsRouteImport } from './routes/api/public/jobs/property-feeds'
+import { Route as ApiPublicOauthMetaRouteImport } from './routes/api/public/oauth/meta'
+import { Route as ApiPublicVoiceBridgeRouteImport } from './routes/api/public/voice/bridge'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,9 +78,41 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+const AuthenticatedAlertasRoute = AuthenticatedAlertasRouteImport.update({
+  id: '/alertas',
+  path: '/alertas',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAnaliseLocalizacaoRoute =
+  AuthenticatedAnaliseLocalizacaoRouteImport.update({
+    id: '/analise-localizacao',
+    path: '/analise-localizacao',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAssistenteRoute = AuthenticatedAssistenteRouteImport.update({
+  id: '/assistente',
+  path: '/assistente',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAtendimentoRoute =
+  AuthenticatedAtendimentoRouteImport.update({
+    id: '/atendimento',
+    path: '/atendimento',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedBuscarRoute = AuthenticatedBuscarRouteImport.update({
+  id: '/buscar',
+  path: '/buscar',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -65,11 +120,50 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedVpsRoute = AuthenticatedVpsRouteImport.update({
-  id: '/vps',
-  path: '/vps',
+const AuthenticatedDiagnosticoRoute =
+  AuthenticatedDiagnosticoRouteImport.update({
+    id: '/diagnostico',
+    path: '/diagnostico',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDiscadorRoute = AuthenticatedDiscadorRouteImport.update({
+  id: '/discador',
+  path: '/discador',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedEmailCcaRoute = AuthenticatedEmailCcaRouteImport.update({
+  id: '/email-cca',
+  path: '/email-cca',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedFluxosRoute = AuthenticatedFluxosRouteImport.update({
+  id: '/fluxos',
+  path: '/fluxos',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedIntegracoesRoute =
+  AuthenticatedIntegracoesRouteImport.update({
+    id: '/integracoes',
+    path: '/integracoes',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLeiloesRoute = AuthenticatedLeiloesRouteImport.update({
+  id: '/leiloes',
+  path: '/leiloes',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedMidiasSociaisRoute =
+  AuthenticatedMidiasSociaisRouteImport.update({
+    id: '/midias-sociais',
+    path: '/midias-sociais',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSpeedToLeadRoute =
+  AuthenticatedSpeedToLeadRouteImport.update({
+    id: '/speed-to-lead',
+    path: '/speed-to-lead',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -82,6 +176,18 @@ const Char91DotlovableOauthConsentChar93Route =
     path: '/[.lovable/oauth/consent]',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAdminParametrosRoute =
+  AuthenticatedAdminParametrosRouteImport.update({
+    id: '/admin/parametros',
+    path: '/admin/parametros',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminUsuariosRoute =
+  AuthenticatedAdminUsuariosRouteImport.update({
+    id: '/admin/usuarios',
+    path: '/admin/usuarios',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSettingsSecurityRoute =
   AuthenticatedSettingsSecurityRouteImport.update({
     id: '/settings/security',
@@ -93,12 +199,55 @@ const ApiPublicStatusRoute = ApiPublicStatusRouteImport.update({
   path: '/api/public/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksLeadsRoute = ApiPublicHooksLeadsRouteImport.update({
+  id: '/api/public/hooks/leads',
+  path: '/api/public/hooks/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksN8nWebhookRoute =
   ApiPublicHooksN8nWebhookRouteImport.update({
     id: '/api/public/hooks/n8n-webhook',
     path: '/api/public/hooks/n8n-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksPropertiesRoute =
+  ApiPublicHooksPropertiesRouteImport.update({
+    id: '/api/public/hooks/properties',
+    path: '/api/public/hooks/properties',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksStripeRoute = ApiPublicHooksStripeRouteImport.update({
+  id: '/api/public/hooks/stripe',
+  path: '/api/public/hooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksWhatsappRoute = ApiPublicHooksWhatsappRouteImport.update({
+  id: '/api/public/hooks/whatsapp',
+  path: '/api/public/hooks/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicJobsPropertyDiscoveryRoute =
+  ApiPublicJobsPropertyDiscoveryRouteImport.update({
+    id: '/api/public/jobs/property-discovery',
+    path: '/api/public/jobs/property-discovery',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicJobsPropertyFeedsRoute =
+  ApiPublicJobsPropertyFeedsRouteImport.update({
+    id: '/api/public/jobs/property-feeds',
+    path: '/api/public/jobs/property-feeds',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicOauthMetaRoute = ApiPublicOauthMetaRouteImport.update({
+  id: '/api/public/oauth/meta',
+  path: '/api/public/oauth/meta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicVoiceBridgeRoute = ApiPublicVoiceBridgeRouteImport.update({
+  id: '/api/public/voice/bridge',
+  path: '/api/public/voice/bridge',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -106,14 +255,37 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/audit': typeof AuthenticatedAuditRoute
+  '/alertas': typeof AuthenticatedAlertasRoute
+  '/analise-localizacao': typeof AuthenticatedAnaliseLocalizacaoRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
+  '/assistente': typeof AuthenticatedAssistenteRoute
+  '/atendimento': typeof AuthenticatedAtendimentoRoute
+  '/buscar': typeof AuthenticatedBuscarRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/vps': typeof AuthenticatedVpsRoute
+  '/diagnostico': typeof AuthenticatedDiagnosticoRoute
+  '/discador': typeof AuthenticatedDiscadorRoute
+  '/email-cca': typeof AuthenticatedEmailCcaRoute
+  '/fluxos': typeof AuthenticatedFluxosRoute
+  '/integracoes': typeof AuthenticatedIntegracoesRoute
+  '/leiloes': typeof AuthenticatedLeiloesRoute
+  '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
+  '/admin/parametros': typeof AuthenticatedAdminParametrosRoute
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/api/public/status': typeof ApiPublicStatusRoute
+  '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
+  '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
+  '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
+  '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
+  '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
+  '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -121,14 +293,37 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/audit': typeof AuthenticatedAuditRoute
+  '/alertas': typeof AuthenticatedAlertasRoute
+  '/analise-localizacao': typeof AuthenticatedAnaliseLocalizacaoRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
+  '/assistente': typeof AuthenticatedAssistenteRoute
+  '/atendimento': typeof AuthenticatedAtendimentoRoute
+  '/buscar': typeof AuthenticatedBuscarRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/vps': typeof AuthenticatedVpsRoute
+  '/diagnostico': typeof AuthenticatedDiagnosticoRoute
+  '/discador': typeof AuthenticatedDiscadorRoute
+  '/email-cca': typeof AuthenticatedEmailCcaRoute
+  '/fluxos': typeof AuthenticatedFluxosRoute
+  '/integracoes': typeof AuthenticatedIntegracoesRoute
+  '/leiloes': typeof AuthenticatedLeiloesRoute
+  '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
+  '/admin/parametros': typeof AuthenticatedAdminParametrosRoute
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/api/public/status': typeof ApiPublicStatusRoute
+  '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
+  '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
+  '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
+  '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
+  '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
+  '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -138,14 +333,37 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/_authenticated/audit': typeof AuthenticatedAuditRoute
+  '/_authenticated/alertas': typeof AuthenticatedAlertasRoute
+  '/_authenticated/analise-localizacao': typeof AuthenticatedAnaliseLocalizacaoRoute
+  '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
+  '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
+  '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
+  '/_authenticated/buscar': typeof AuthenticatedBuscarRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/vps': typeof AuthenticatedVpsRoute
+  '/_authenticated/diagnostico': typeof AuthenticatedDiagnosticoRoute
+  '/_authenticated/discador': typeof AuthenticatedDiscadorRoute
+  '/_authenticated/email-cca': typeof AuthenticatedEmailCcaRoute
+  '/_authenticated/fluxos': typeof AuthenticatedFluxosRoute
+  '/_authenticated/integracoes': typeof AuthenticatedIntegracoesRoute
+  '/_authenticated/leiloes': typeof AuthenticatedLeiloesRoute
+  '/_authenticated/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/_authenticated/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
+  '/_authenticated/admin/parametros': typeof AuthenticatedAdminParametrosRoute
+  '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/api/public/status': typeof ApiPublicStatusRoute
+  '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
+  '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
+  '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
+  '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
+  '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
+  '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,14 +373,37 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
-    | '/audit'
+    | '/alertas'
+    | '/analise-localizacao'
+    | '/assinatura'
+    | '/assistente'
+    | '/atendimento'
+    | '/buscar'
+    | '/crm'
     | '/dashboard'
-    | '/vps'
+    | '/diagnostico'
+    | '/discador'
+    | '/email-cca'
+    | '/fluxos'
+    | '/integracoes'
+    | '/leiloes'
+    | '/midias-sociais'
+    | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
+    | '/admin/parametros'
+    | '/admin/usuarios'
     | '/settings/security'
     | '/api/public/status'
+    | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
+    | '/api/public/hooks/properties'
+    | '/api/public/hooks/stripe'
+    | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/property-discovery'
+    | '/api/public/jobs/property-feeds'
+    | '/api/public/oauth/meta'
+    | '/api/public/voice/bridge'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -170,14 +411,37 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
-    | '/audit'
+    | '/alertas'
+    | '/analise-localizacao'
+    | '/assinatura'
+    | '/assistente'
+    | '/atendimento'
+    | '/buscar'
+    | '/crm'
     | '/dashboard'
-    | '/vps'
+    | '/diagnostico'
+    | '/discador'
+    | '/email-cca'
+    | '/fluxos'
+    | '/integracoes'
+    | '/leiloes'
+    | '/midias-sociais'
+    | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
+    | '/admin/parametros'
+    | '/admin/usuarios'
     | '/settings/security'
     | '/api/public/status'
+    | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
+    | '/api/public/hooks/properties'
+    | '/api/public/hooks/stripe'
+    | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/property-discovery'
+    | '/api/public/jobs/property-feeds'
+    | '/api/public/oauth/meta'
+    | '/api/public/voice/bridge'
   id:
     | '__root__'
     | '/'
@@ -186,14 +450,37 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
-    | '/_authenticated/audit'
+    | '/_authenticated/alertas'
+    | '/_authenticated/analise-localizacao'
+    | '/_authenticated/assinatura'
+    | '/_authenticated/assistente'
+    | '/_authenticated/atendimento'
+    | '/_authenticated/buscar'
+    | '/_authenticated/crm'
     | '/_authenticated/dashboard'
-    | '/_authenticated/vps'
+    | '/_authenticated/diagnostico'
+    | '/_authenticated/discador'
+    | '/_authenticated/email-cca'
+    | '/_authenticated/fluxos'
+    | '/_authenticated/integracoes'
+    | '/_authenticated/leiloes'
+    | '/_authenticated/midias-sociais'
+    | '/_authenticated/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
+    | '/_authenticated/admin/parametros'
+    | '/_authenticated/admin/usuarios'
     | '/_authenticated/settings/security'
     | '/api/public/status'
+    | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
+    | '/api/public/hooks/properties'
+    | '/api/public/hooks/stripe'
+    | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/property-discovery'
+    | '/api/public/jobs/property-feeds'
+    | '/api/public/oauth/meta'
+    | '/api/public/voice/bridge'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -206,7 +493,15 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   Char91DotlovableOauthConsentChar93Route: typeof Char91DotlovableOauthConsentChar93Route
   ApiPublicStatusRoute: typeof ApiPublicStatusRoute
+  ApiPublicHooksLeadsRoute: typeof ApiPublicHooksLeadsRoute
   ApiPublicHooksN8nWebhookRoute: typeof ApiPublicHooksN8nWebhookRoute
+  ApiPublicHooksPropertiesRoute: typeof ApiPublicHooksPropertiesRoute
+  ApiPublicHooksStripeRoute: typeof ApiPublicHooksStripeRoute
+  ApiPublicHooksWhatsappRoute: typeof ApiPublicHooksWhatsappRoute
+  ApiPublicJobsPropertyDiscoveryRoute: typeof ApiPublicJobsPropertyDiscoveryRoute
+  ApiPublicJobsPropertyFeedsRoute: typeof ApiPublicJobsPropertyFeedsRoute
+  ApiPublicOauthMetaRoute: typeof ApiPublicOauthMetaRoute
+  ApiPublicVoiceBridgeRoute: typeof ApiPublicVoiceBridgeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -253,11 +548,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/audit': {
-      id: '/_authenticated/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AuthenticatedAuditRouteImport
+    '/_authenticated/alertas': {
+      id: '/_authenticated/alertas'
+      path: '/alertas'
+      fullPath: '/alertas'
+      preLoaderRoute: typeof AuthenticatedAlertasRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/analise-localizacao': {
+      id: '/_authenticated/analise-localizacao'
+      path: '/analise-localizacao'
+      fullPath: '/analise-localizacao'
+      preLoaderRoute: typeof AuthenticatedAnaliseLocalizacaoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/assinatura': {
+      id: '/_authenticated/assinatura'
+      path: '/assinatura'
+      fullPath: '/assinatura'
+      preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/assistente': {
+      id: '/_authenticated/assistente'
+      path: '/assistente'
+      fullPath: '/assistente'
+      preLoaderRoute: typeof AuthenticatedAssistenteRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/atendimento': {
+      id: '/_authenticated/atendimento'
+      path: '/atendimento'
+      fullPath: '/atendimento'
+      preLoaderRoute: typeof AuthenticatedAtendimentoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/buscar': {
+      id: '/_authenticated/buscar'
+      path: '/buscar'
+      fullPath: '/buscar'
+      preLoaderRoute: typeof AuthenticatedBuscarRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
@@ -267,11 +604,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vps': {
-      id: '/_authenticated/vps'
-      path: '/vps'
-      fullPath: '/vps'
-      preLoaderRoute: typeof AuthenticatedVpsRouteImport
+    '/_authenticated/diagnostico': {
+      id: '/_authenticated/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof AuthenticatedDiagnosticoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/discador': {
+      id: '/_authenticated/discador'
+      path: '/discador'
+      fullPath: '/discador'
+      preLoaderRoute: typeof AuthenticatedDiscadorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/email-cca': {
+      id: '/_authenticated/email-cca'
+      path: '/email-cca'
+      fullPath: '/email-cca'
+      preLoaderRoute: typeof AuthenticatedEmailCcaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/fluxos': {
+      id: '/_authenticated/fluxos'
+      path: '/fluxos'
+      fullPath: '/fluxos'
+      preLoaderRoute: typeof AuthenticatedFluxosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/integracoes': {
+      id: '/_authenticated/integracoes'
+      path: '/integracoes'
+      fullPath: '/integracoes'
+      preLoaderRoute: typeof AuthenticatedIntegracoesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/leiloes': {
+      id: '/_authenticated/leiloes'
+      path: '/leiloes'
+      fullPath: '/leiloes'
+      preLoaderRoute: typeof AuthenticatedLeiloesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/midias-sociais': {
+      id: '/_authenticated/midias-sociais'
+      path: '/midias-sociais'
+      fullPath: '/midias-sociais'
+      preLoaderRoute: typeof AuthenticatedMidiasSociaisRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/speed-to-lead': {
+      id: '/_authenticated/speed-to-lead'
+      path: '/speed-to-lead'
+      fullPath: '/speed-to-lead'
+      preLoaderRoute: typeof AuthenticatedSpeedToLeadRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/.mcp/invoke-tool/$tool': {
@@ -288,6 +674,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotlovableOauthConsentChar93RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/parametros': {
+      id: '/_authenticated/admin/parametros'
+      path: '/admin/parametros'
+      fullPath: '/admin/parametros'
+      preLoaderRoute: typeof AuthenticatedAdminParametrosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/usuarios': {
+      id: '/_authenticated/admin/usuarios'
+      path: '/admin/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/settings/security': {
       id: '/_authenticated/settings/security'
       path: '/settings/security'
@@ -302,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/leads': {
+      id: '/api/public/hooks/leads'
+      path: '/api/public/hooks/leads'
+      fullPath: '/api/public/hooks/leads'
+      preLoaderRoute: typeof ApiPublicHooksLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/n8n-webhook': {
       id: '/api/public/hooks/n8n-webhook'
       path: '/api/public/hooks/n8n-webhook'
@@ -309,20 +716,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksN8nWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/properties': {
+      id: '/api/public/hooks/properties'
+      path: '/api/public/hooks/properties'
+      fullPath: '/api/public/hooks/properties'
+      preLoaderRoute: typeof ApiPublicHooksPropertiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/stripe': {
+      id: '/api/public/hooks/stripe'
+      path: '/api/public/hooks/stripe'
+      fullPath: '/api/public/hooks/stripe'
+      preLoaderRoute: typeof ApiPublicHooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/whatsapp': {
+      id: '/api/public/hooks/whatsapp'
+      path: '/api/public/hooks/whatsapp'
+      fullPath: '/api/public/hooks/whatsapp'
+      preLoaderRoute: typeof ApiPublicHooksWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/jobs/property-discovery': {
+      id: '/api/public/jobs/property-discovery'
+      path: '/api/public/jobs/property-discovery'
+      fullPath: '/api/public/jobs/property-discovery'
+      preLoaderRoute: typeof ApiPublicJobsPropertyDiscoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/jobs/property-feeds': {
+      id: '/api/public/jobs/property-feeds'
+      path: '/api/public/jobs/property-feeds'
+      fullPath: '/api/public/jobs/property-feeds'
+      preLoaderRoute: typeof ApiPublicJobsPropertyFeedsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/meta': {
+      id: '/api/public/oauth/meta'
+      path: '/api/public/oauth/meta'
+      fullPath: '/api/public/oauth/meta'
+      preLoaderRoute: typeof ApiPublicOauthMetaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/voice/bridge': {
+      id: '/api/public/voice/bridge'
+      path: '/api/public/voice/bridge'
+      fullPath: '/api/public/voice/bridge'
+      preLoaderRoute: typeof ApiPublicVoiceBridgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
+  AuthenticatedAlertasRoute: typeof AuthenticatedAlertasRoute
+  AuthenticatedAnaliseLocalizacaoRoute: typeof AuthenticatedAnaliseLocalizacaoRoute
+  AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
+  AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
+  AuthenticatedAtendimentoRoute: typeof AuthenticatedAtendimentoRoute
+  AuthenticatedBuscarRoute: typeof AuthenticatedBuscarRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedVpsRoute: typeof AuthenticatedVpsRoute
+  AuthenticatedDiagnosticoRoute: typeof AuthenticatedDiagnosticoRoute
+  AuthenticatedDiscadorRoute: typeof AuthenticatedDiscadorRoute
+  AuthenticatedEmailCcaRoute: typeof AuthenticatedEmailCcaRoute
+  AuthenticatedFluxosRoute: typeof AuthenticatedFluxosRoute
+  AuthenticatedIntegracoesRoute: typeof AuthenticatedIntegracoesRoute
+  AuthenticatedLeiloesRoute: typeof AuthenticatedLeiloesRoute
+  AuthenticatedMidiasSociaisRoute: typeof AuthenticatedMidiasSociaisRoute
+  AuthenticatedSpeedToLeadRoute: typeof AuthenticatedSpeedToLeadRoute
+  AuthenticatedAdminParametrosRoute: typeof AuthenticatedAdminParametrosRoute
+  AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAuditRoute: AuthenticatedAuditRoute,
+  AuthenticatedAlertasRoute: AuthenticatedAlertasRoute,
+  AuthenticatedAnaliseLocalizacaoRoute: AuthenticatedAnaliseLocalizacaoRoute,
+  AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
+  AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
+  AuthenticatedAtendimentoRoute: AuthenticatedAtendimentoRoute,
+  AuthenticatedBuscarRoute: AuthenticatedBuscarRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedVpsRoute: AuthenticatedVpsRoute,
+  AuthenticatedDiagnosticoRoute: AuthenticatedDiagnosticoRoute,
+  AuthenticatedDiscadorRoute: AuthenticatedDiscadorRoute,
+  AuthenticatedEmailCcaRoute: AuthenticatedEmailCcaRoute,
+  AuthenticatedFluxosRoute: AuthenticatedFluxosRoute,
+  AuthenticatedIntegracoesRoute: AuthenticatedIntegracoesRoute,
+  AuthenticatedLeiloesRoute: AuthenticatedLeiloesRoute,
+  AuthenticatedMidiasSociaisRoute: AuthenticatedMidiasSociaisRoute,
+  AuthenticatedSpeedToLeadRoute: AuthenticatedSpeedToLeadRoute,
+  AuthenticatedAdminParametrosRoute: AuthenticatedAdminParametrosRoute,
+  AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
 }
 
@@ -342,7 +828,15 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotlovableOauthConsentChar93Route:
     Char91DotlovableOauthConsentChar93Route,
   ApiPublicStatusRoute: ApiPublicStatusRoute,
+  ApiPublicHooksLeadsRoute: ApiPublicHooksLeadsRoute,
   ApiPublicHooksN8nWebhookRoute: ApiPublicHooksN8nWebhookRoute,
+  ApiPublicHooksPropertiesRoute: ApiPublicHooksPropertiesRoute,
+  ApiPublicHooksStripeRoute: ApiPublicHooksStripeRoute,
+  ApiPublicHooksWhatsappRoute: ApiPublicHooksWhatsappRoute,
+  ApiPublicJobsPropertyDiscoveryRoute: ApiPublicJobsPropertyDiscoveryRoute,
+  ApiPublicJobsPropertyFeedsRoute: ApiPublicJobsPropertyFeedsRoute,
+  ApiPublicOauthMetaRoute: ApiPublicOauthMetaRoute,
+  ApiPublicVoiceBridgeRoute: ApiPublicVoiceBridgeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
