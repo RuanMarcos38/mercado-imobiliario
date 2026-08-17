@@ -232,9 +232,16 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
     const queryText = [address, neighborhood, data.city, state, "Brasil"].filter(Boolean).join(", ");
     const googleKey = process.env["GOOGLE_MAPS_API_KEY"]?.trim();
 
+    const emptyMarket = {
+      sampleSize: 0,
+      medianPrice: null,
+      medianPricePerSqm: null,
+      recentListings90d: 0,
+      sourceCount: 0,
+    };
     const [municipality, market, coordinates] = await Promise.all([
       getMunicipality(data.city, state).catch(() => null),
-      getMarketEvidence(db, data.city, neighborhood),
+      getMarketEvidence(db, data.city, neighborhood).catch(() => emptyMarket),
       googleKey ? googleGeocode(queryText, googleKey).catch(() => null) : Promise.resolve(null),
     ]);
     const population = municipality ? await getPopulation2022(municipality.id).catch(() => null) : null;
