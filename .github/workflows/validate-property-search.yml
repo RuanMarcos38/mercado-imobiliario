@@ -133,7 +133,13 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
-          git add src
+          git add \
+            src/components/property/PropertyWorkspace.tsx \
+            src/lib/property-search.functions.ts \
+            src/lib/backend-auditor.functions.ts \
+            src/routes/_authenticated.tsx \
+            src/routes/_authenticated/admin/usuarios.tsx \
+            src/lib/user-activity.functions.ts
           if git diff --cached --quiet; then
             echo "Controlled patch already present and validated."
             exit 0
