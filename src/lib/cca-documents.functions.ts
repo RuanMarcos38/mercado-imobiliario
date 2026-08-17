@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
+import { documentParameters } from "@/lib/platform-parameters.server";
 
-const BUCKET = "cca-documents";
 export const CCA_DOCUMENT_CATEGORIES = [
   "identificacao_comprador",
   "renda_comprador",
@@ -31,7 +31,7 @@ const uploadSchema = leadSchema.extend({
   category: z.enum(CCA_DOCUMENT_CATEGORIES),
   fileName: z.string().trim().min(1).max(180),
   mimeType: z.string().trim().min(1).max(100),
-  size: z.number().int().positive().max(12 * 1024 * 1024),
+  size: z.number().int().positive(),
 });
 const removeSchema = leadSchema.extend({ path: z.string().min(1).max(1000) });
 
@@ -59,16 +59,19 @@ async function assertLeadOwnership(context: { supabase: any; userId: string }, l
 }
 
 async function ensureBucket(admin: any) {
-  const { data } = await admin.storage.getBucket(BUCKET);
-  if (data) return;
-  const created = await admin.storage.createBucket(BUCKET, {
+  const parameters = documentParameters();
+  const bucket = parameters.ccaBucket;
+  const { data } = await admin.storage.getBucket(bucket);
+  if (data) return bucket;
+  const created = await admin.storage.createBucket(bucket, {
     public: false,
-    fileSizeLimit: 12 * 1024 * 1024,
+    fileSizeLimit: parameters.ccaDocumentMaxMb * 1024 * 1024,
     allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
   });
   if (created.error && !String(created.error.message).toLowerCase().includes("already")) {
     throw new Error(created.error.message);
   }
+  return bucket;
 }
 
 function safeFileName(value: string) {
@@ -81,11 +84,12 @@ function prefix(tenantId: string, userId: string, leadId: string) {
   return `${tenantId}/${userId}/${leadId}`;
 }
 
-async function listFiles(admin: any, basePrefix: string): Promise<CcaDocument[]> {
+async function listFiles(admin: any, bucket: string, basePrefix: string): Promise<CcaDocument[]> {
   const documents: CcaDocument[] = [];
+  const ttlSeconds = documentParameters().ccaSignedUrlTtlSeconds;
   for (const category of CCA_DOCUMENT_CATEGORIES) {
     const folder = `${basePrefix}/${category}`;
-    const listed = await admin.storage.from(BUCKET).list(folder, {
+    const listed = await admin.storage.from(bucket).list(folder, {
       limit: 100,
       sortBy: { column: "created_at", order: "desc" },
     });
@@ -93,7 +97,7 @@ async function listFiles(admin: any, basePrefix: string): Promise<CcaDocument[]>
     for (const file of listed.data ?? []) {
       if (!file.name || !file.id) continue;
       const path = `${folder}/${file.name}`;
-      const signed = await admin.storage.from(BUCKET).createSignedUrl(path, 15 * 60);
+      const signed = await admin.storage.from(bucket).createSignedUrl(path, ttlSeconds);
       documents.push({
         path,
         name: file.name.replace(/^[0-9a-f-]{36}-/, ""),
@@ -118,16 +122,20 @@ export const createCcaUploadTarget = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(data.mimeType)) throw new Error("Tipo de arquivo não permitido.");
+    const parameters = documentParameters();
+    if (data.size > parameters.ccaDocumentMaxMb * 1024 * 1024) {
+      throw new Error(`O documento deve ter no máximo ${parameters.ccaDocumentMaxMb} MB.`);
+    }
     const { tenantId } = await assertLeadOwnership(context, data.leadId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await ensureBucket(supabaseAdmin);
+    const bucket = await ensureBucket(supabaseAdmin);
 
     const path = `${prefix(tenantId, context.userId, data.leadId)}/${data.category}/${crypto.randomUUID()}-${safeFileName(data.fileName)}`;
-    const result = await supabaseAdmin.storage.from(BUCKET).createSignedUploadUrl(path);
+    const result = await supabaseAdmin.storage.from(bucket).createSignedUploadUrl(path);
     if (result.error || !result.data?.token) {
       throw new Error(result.error?.message ?? "Não foi possível preparar o envio do documento.");
     }
-    return { bucket: BUCKET, path, token: result.data.token };
+    return { bucket, path, token: result.data.token, maxDocumentMb: parameters.ccaDocumentMaxMb };
   });
 
 export const listCcaDocuments = createServerFn({ method: "POST" })
@@ -136,8 +144,8 @@ export const listCcaDocuments = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<CcaDocument[]> => {
     const { tenantId } = await assertLeadOwnership(context, data.leadId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await ensureBucket(supabaseAdmin);
-    return listFiles(supabaseAdmin, prefix(tenantId, context.userId, data.leadId));
+    const bucket = await ensureBucket(supabaseAdmin);
+    return listFiles(supabaseAdmin, bucket, prefix(tenantId, context.userId, data.leadId));
   });
 
 export const removeCcaDocument = createServerFn({ method: "POST" })
@@ -148,7 +156,8 @@ export const removeCcaDocument = createServerFn({ method: "POST" })
     const base = `${prefix(tenantId, context.userId, data.leadId)}/`;
     if (!data.path.startsWith(base) || data.path.includes("..")) throw new Error("Documento inválido.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const result = await supabaseAdmin.storage.from(BUCKET).remove([data.path]);
+    const bucket = documentParameters().ccaBucket;
+    const result = await supabaseAdmin.storage.from(bucket).remove([data.path]);
     if (result.error) throw new Error(result.error.message);
     return { success: true };
   });
@@ -159,11 +168,13 @@ export const submitLeadToCca = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const endpoint = process.env["CCA_INTEGRATION_URL"]?.trim();
     const token = process.env["CCA_INTEGRATION_TOKEN"]?.trim();
+    const parameters = documentParameters();
     const { tenantId, lead } = await assertLeadOwnership(context, data.leadId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await ensureBucket(supabaseAdmin);
+    const bucket = await ensureBucket(supabaseAdmin);
     const documents = await listFiles(
       supabaseAdmin,
+      bucket,
       prefix(tenantId, context.userId, data.leadId),
     );
 
@@ -202,7 +213,7 @@ export const submitLeadToCca = createServerFn({ method: "POST" })
           url: document.signedUrl,
         })),
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(parameters.ccaRequestTimeoutMs),
     });
 
     const body = await response.text();
