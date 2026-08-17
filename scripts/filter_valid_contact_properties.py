@@ -39,9 +39,11 @@ def normalize_br_phone(value: Any) -> str | None:
     if len(set(digits)) <= 2:
         return None
     if len(digits) == 11:
-        if not subscriber.startswith("9") or subscriber[1] not in "6789":
+        # Brazilian mobile numbers have 9 digits after the DDD and begin with 9.
+        if not subscriber.startswith("9"):
             return None
     else:
+        # Geographic landlines begin with 2, 3, 4 or 5.
         if subscriber[0] not in "2345":
             return None
     return f"55{digits}"
@@ -70,8 +72,8 @@ def filter_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
                 rejected_urls.append(url)
             continue
         raw["contact_phone"] = normalized
-        if normalize_br_phone(raw.get("contact_whatsapp")):
-            raw["contact_whatsapp"] = normalize_br_phone(raw.get("contact_whatsapp"))
+        normalized_whatsapp = normalize_br_phone(raw.get("contact_whatsapp"))
+        raw["contact_whatsapp"] = normalized_whatsapp
         metadata = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
         metadata["contact_phone_valid"] = True
         metadata["contact_phone_e164"] = normalized
