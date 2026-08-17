@@ -188,22 +188,46 @@ async function testSearchHealth(db: any) {
 
 async function testPublicApplication() {
   return timed(async () => {
-    const url = platformBaseUrl();
+    const baseUrl = platformBaseUrl();
+    const statusUrl = new URL("/api/public/status", `${baseUrl}/`).toString();
     try {
-      const response = await fetch(url, {
+      const response = await fetch(statusUrl, {
         method: "GET",
+        redirect: "follow",
         headers: { "User-Agent": "MercadoImobi-Backend-Auditor/1.0" },
         signal: AbortSignal.timeout(externalServiceParameters().diagnosticTimeoutMs),
       });
-      const ok = response.status >= 200 && response.status < 500;
+      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      if (!response.ok || !contentType.includes("application/json")) {
+        return {
+          key: "public-app",
+          label: "Aplicação pública / roteamento",
+          category: "Infraestrutura",
+          critical: true,
+          configured: Boolean(baseUrl),
+          status: "fail" as const,
+          detail: `/api/public/status não entregou o backend MercadoImobi (HTTP ${response.status}, ${contentType || "sem content-type"}).`,
+        };
+      }
+      const payload = await response.json().catch(() => null);
+      const status = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+      const indexed = Number(status?.["indexedProperties"] ?? 0);
+      const states = Number(status?.["coveredStates"] ?? 0);
+      const ok =
+        status?.["status"] === "operational" &&
+        status?.["search"] === "available" &&
+        Number.isFinite(indexed) && indexed >= 1000 &&
+        Number.isFinite(states) && states >= 27;
       return {
         key: "public-app",
         label: "Aplicação pública / roteamento",
         category: "Infraestrutura",
         critical: true,
-        configured: Boolean(url),
+        configured: Boolean(baseUrl),
         status: ok ? ("pass" as const) : ("fail" as const),
-        detail: ok ? `Aplicação respondeu HTTP ${response.status}.` : `Aplicação respondeu HTTP ${response.status}.`,
+        detail: ok
+          ? `Backend público operacional: ${indexed.toLocaleString("pt-BR")} imóveis em ${states} UFs.`
+          : `O endpoint respondeu JSON, mas falhou no healthcheck (status=${String(status?.["status"] ?? "ausente")}, search=${String(status?.["search"] ?? "ausente")}, imóveis=${indexed}, UFs=${states}).`,
       };
     } catch {
       return {
@@ -211,9 +235,9 @@ async function testPublicApplication() {
         label: "Aplicação pública / roteamento",
         category: "Infraestrutura",
         critical: true,
-        configured: Boolean(url),
+        configured: Boolean(baseUrl),
         status: "fail" as const,
-        detail: "Não foi possível alcançar a URL pública configurada.",
+        detail: "Não foi possível validar /api/public/status no endereço público configurado.",
       };
     }
   });
