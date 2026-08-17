@@ -143,11 +143,12 @@ function AuthenticatedLayout() {
     typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
       ? user.user_metadata.full_name.trim()
       : user.email?.split("@")[0] || "Minha conta";
-  const initials = displayName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "MI";
+  const initials =
+    displayName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "MI";
 
   return (
     <div className="mi-shell min-h-screen">
@@ -254,11 +255,18 @@ function AuthenticatedLayout() {
                     onClick={() => setAccountOpen(false)}
                   />
                   {isAdmin && (
-                    <PopoverLink
-                      item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }}
-                      pathname={location.pathname}
-                      onClick={() => setAccountOpen(false)}
-                    />
+                    <>
+                      <PopoverLink
+                        item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }}
+                        pathname={location.pathname}
+                        onClick={() => setAccountOpen(false)}
+                      />
+                      <PopoverLink
+                        item={{ to: "/admin/parametros", label: "Parâmetros do sistema", icon: Settings }}
+                        pathname={location.pathname}
+                        onClick={() => setAccountOpen(false)}
+                      />
+                    </>
                   )}
                   <Link
                     to="/settings/security"
@@ -326,7 +334,12 @@ function AuthenticatedLayout() {
                 <MobileNavLink key={item.to} item={item} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
               ))}
               <MobileNavLink item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
-              {isAdmin && <MobileNavLink item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />}
+              {isAdmin && (
+                <>
+                  <MobileNavLink item={{ to: "/admin/usuarios", label: "Usuários e assinantes", icon: Users }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+                  <MobileNavLink item={{ to: "/admin/parametros", label: "Parâmetros do sistema", icon: Settings }} pathname={location.pathname} onClick={() => setMobileOpen(false)} />
+                </>
+              )}
               <Link to="/settings/security" onClick={() => setMobileOpen(false)} className="mi-mobile-link">
                 <Settings className="h-4 w-4" /> Configurações
               </Link>
