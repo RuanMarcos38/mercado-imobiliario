@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Activity,
@@ -50,6 +50,7 @@ function dateTime(value: string | null) {
 
 function LocationAnalysisPage() {
   const analyzeFn = useServerFn(analyzePropertyLocation);
+  const requestSequence = useRef(0);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<LocationAnalysisResult | null>(null);
   const [form, setForm] = useState({
@@ -60,13 +61,26 @@ function LocationAnalysisPage() {
   });
 
   const run = async () => {
+    const requestId = ++requestSequence.current;
+    const snapshot = {
+      address: form.address.trim(),
+      neighborhood: form.neighborhood.trim(),
+      city: form.city.trim(),
+      state: form.state.trim().toUpperCase(),
+      requestNonce: Date.now(),
+    };
+
     setLoading(true);
+    setResult(null);
     try {
-      setResult(await analyzeFn({ data: form }));
+      const nextResult = await analyzeFn({ data: snapshot });
+      if (requestId === requestSequence.current) setResult(nextResult);
     } catch (error) {
-      toast.error(String((error as Error)?.message ?? "Não foi possível analisar a localização."));
+      if (requestId === requestSequence.current) {
+        toast.error(String((error as Error)?.message ?? "Não foi possível analisar a localização."));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   };
 
@@ -116,13 +130,19 @@ function LocationAnalysisPage() {
               <Input value={form.state} maxLength={2} onChange={(event) => setForm({ ...form, state: event.target.value.toUpperCase() })} />
             </Field>
             <Button onClick={() => void run()} disabled={loading || form.city.trim().length < 2 || form.state.length !== 2} className="h-10">
-              <Search className="mr-2 h-4 w-4" /> {loading ? "Analisando..." : "Analisar"}
+              <Search className="mr-2 h-4 w-4" /> {loading ? "Atualizando..." : "Analisar"}
             </Button>
           </div>
         </section>
 
+        {loading && (
+          <div className="mt-6 rounded-[22px] border border-blue-500/20 bg-blue-600/[0.05] p-5 text-sm font-bold text-blue-700">
+            Consultando novamente mercado, infraestrutura e dados municipais para esta localização…
+          </div>
+        )}
+
         {result && (
-          <div className="mt-6 space-y-6">
+          <div key={result.analyzedAt} className="mt-6 space-y-6">
             <section className="grid gap-5 lg:grid-cols-[320px_1fr]">
               <div className="rounded-[28px] border border-blue-500/20 bg-blue-600/[0.06] p-6">
                 <p className="text-[10px] font-black uppercase tracking-[0.17em] text-blue-600">Índice de potencial</p>
@@ -134,6 +154,9 @@ function LocationAnalysisPage() {
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                   <div>
                     <div className="flex items-center gap-2"><MapPin className="h-5 w-5 text-blue-600" /><h2 className="text-lg font-black">Leitura da região</h2></div>
+                    <p className="mt-2 text-xs font-bold text-blue-600">
+                      Pesquisa atual: {result.query.neighborhood ? `${result.query.neighborhood}, ` : ""}{result.query.city}/{result.query.state} · atualizada em {dateTime(result.analyzedAt)}
+                    </p>
                     <p className="mt-3 max-w-4xl text-sm leading-7 text-[var(--mi-text-muted)]">{result.summary}</p>
                   </div>
                   <Button variant="outline" onClick={() => void copyReport()}>Copiar relatório</Button>
