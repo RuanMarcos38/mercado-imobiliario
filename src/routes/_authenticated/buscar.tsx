@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PropertyWorkspace } from "@/components/property/PropertyWorkspace";
+import { PropertyWorkspaceAtendimento } from "@/components/property/PropertyWorkspaceAtendimento";
 
 export const Route = createFileRoute("/_authenticated/buscar")({
   component: BuscarImoveisPage,
@@ -15,5 +15,5 @@ export const Route = createFileRoute("/_authenticated/buscar")({
 });
 
 function BuscarImoveisPage() {
-  return <PropertyWorkspace initialMarket="all" />;
+  return <PropertyWorkspaceAtendimento initialMarket="all" />;
 }
