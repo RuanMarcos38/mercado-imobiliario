@@ -1,0 +1,237 @@
+name: Apply urgent search and admin presence
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-urgent-search-presence.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch search, regional test and admin presence
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'pattern not found in {path}: {old[:100]!r}')
+              p.write_text(text.replace(old, new))
+
+          # 100 imóveis por página
+          replace('src/components/property/PropertyWorkspace.tsx',
+                  'type SortValue = "recent" | "price_asc" | "price_desc" | "area_desc";\n',
+                  'type SortValue = "recent" | "price_asc" | "price_desc" | "area_desc";\nconst PAGE_SIZE = 100;\n')
+          replace('src/components/property/PropertyWorkspace.tsx', '    limit: 48,', '    limit: PAGE_SIZE,')
+          replace('src/components/property/PropertyWorkspace.tsx', 'offset: (page - 1) * 48', 'offset: (page - 1) * PAGE_SIZE')
+          replace('src/components/property/PropertyWorkspace.tsx',
+                  'A busca consulta toda a base. Até 48 imóveis são carregados por vez para\n                      manter a navegação rápida.',
+                  'A busca consulta toda a base. Até {PAGE_SIZE} imóveis são carregados por página, com fontes de mercado priorizadas antes da CAIXA.')
+          replace('src/components/property/PropertyWorkspace.tsx', '(searchQuery.data?.total ?? 0) > 48', '(searchQuery.data?.total ?? 0) > PAGE_SIZE')
+          replace('src/components/property/PropertyWorkspace.tsx', 'Math.ceil((searchQuery.data?.total ?? 0) / 48)', 'Math.ceil((searchQuery.data?.total ?? 0) / PAGE_SIZE)')
+
+          # API permite 100 e prioriza mercado/fontes diversas em Todos + Mais recentes
+          replace('src/lib/property-search.functions.ts',
+                  'limit: z.number().int().min(1).max(60).optional().default(30),',
+                  'limit: z.number().int().min(1).max(100).optional().default(100),')
+          old = '''    const items = sortItems(Array.from(deduped.values()), input.sort).slice(0, limit);'''
+          new = '''    const dedupedItems = Array.from(deduped.values());
+    const items = (input.market === "all" && input.sort === "recent"
+      ? dedupedItems.sort((a, b) => {
+          const aCaixa = a.listing_market === "caixa" ? 1 : 0;
+          const bCaixa = b.listing_market === "caixa" ? 1 : 0;
+          if (aCaixa !== bCaixa) return aCaixa - bCaixa;
+          const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return bTime - aTime;
+        })
+      : sortItems(dedupedItems, input.sort)
+    ).slice(0, limit);'''
+          replace('src/lib/property-search.functions.ts', old, new)
+
+          # Auditor executa teste real da pesquisa de Joinville e exige mercado além de CAIXA
+          marker = 'async function testStorage() {'
+          addition = '''async function testJoinvilleSourceDiversity(db: any) {
+  return timed(async () => {
+    const result = await db.rpc("property_region_search_health", { p_city: "Joinville", p_state: "SC" });
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    const market = Number(row?.market ?? 0);
+    const caixa = Number(row?.caixa ?? 0);
+    const sources = Number(row?.sources ?? 0);
+    const marketSources = Array.isArray(row?.market_sources) ? row.market_sources.filter(Boolean) : [];
+    const ok = !result.error && market >= 3 && marketSources.length >= 2;
+    return {
+      key: "search-joinville-diversity",
+      label: "Teste IA de pesquisa — Joinville",
+      category: "Busca imobiliária",
+      critical: true,
+      configured: true,
+      status: ok ? ("pass" as const) : ("fail" as const),
+      detail: result.error
+        ? `Falha no teste regional: ${result.error.message}`
+        : ok
+          ? `Joinville retornou ${market} imóveis de mercado em ${marketSources.length} fontes (${marketSources.join(", ")}) + ${caixa} CAIXA.`
+          : `Joinville ainda não possui diversidade suficiente: mercado=${market}, fontes de mercado=${marketSources.length}, CAIXA=${caixa}, fontes totais=${sources}.`,
+    };
+  });
+}
+
+'''
+          replace('src/lib/backend-auditor.functions.ts', marker, addition + marker)
+          replace('src/lib/backend-auditor.functions.ts',
+                  '      testSearchHealth(db),\n      testStorage(),',
+                  '      testSearchHealth(db),\n      testJoinvilleSourceDiversity(db),\n      testStorage(),')
+
+          # Layout autenticado registra presença e histórico sem alterar navegação existente
+          replace('src/routes/_authenticated.tsx', 'import { useState } from "react";', 'import { useEffect, useRef, useState } from "react";')
+          replace('src/routes/_authenticated.tsx',
+                  'import { ThemeToggle } from "@/components/ThemeToggle";',
+                  'import { useServerFn } from "@tanstack/react-start";\nimport { ThemeToggle } from "@/components/ThemeToggle";')
+          replace('src/routes/_authenticated.tsx',
+                  'import { resolveTenantContext, type TenantContext } from "@/lib/tenant";',
+                  'import { resolveTenantContext, type TenantContext } from "@/lib/tenant";\nimport { recordUserActivity, touchUserPresence } from "@/lib/user-activity.functions";')
+          replace('src/routes/_authenticated.tsx',
+                  '  const [globalSearch, setGlobalSearch] = useState("");\n\n  const signOut = async () => {\n    await supabase.auth.signOut();',
+                  '''  const [globalSearch, setGlobalSearch] = useState("");
+  const touchPresenceFn = useServerFn(touchUserPresence);
+  const recordActivityFn = useServerFn(recordUserActivity);
+  const presenceSessionId = useRef("");
+
+  useEffect(() => {
+    const existing = sessionStorage.getItem("mercadoimobi:presenceSessionId");
+    const sessionId = existing || crypto.randomUUID();
+    sessionStorage.setItem("mercadoimobi:presenceSessionId", sessionId);
+    presenceSessionId.current = sessionId;
+    const payload = { sessionId, path: window.location.pathname, userAgent: navigator.userAgent };
+    void touchPresenceFn({ data: payload });
+    if (!sessionStorage.getItem(`mercadoimobi:sessionLogged:${sessionId}`)) {
+      sessionStorage.setItem(`mercadoimobi:sessionLogged:${sessionId}`, "1");
+      void recordActivityFn({ data: { sessionId, eventType: "session_start", path: window.location.pathname } });
+    }
+    const heartbeat = window.setInterval(() => {
+      void touchPresenceFn({ data: { sessionId, path: window.location.pathname, userAgent: navigator.userAgent } });
+    }, 30_000);
+    return () => window.clearInterval(heartbeat);
+  }, [recordActivityFn, touchPresenceFn]);
+
+  useEffect(() => {
+    const sessionId = presenceSessionId.current;
+    if (!sessionId) return;
+    void touchPresenceFn({ data: { sessionId, path: location.pathname, userAgent: navigator.userAgent } });
+    void recordActivityFn({ data: { sessionId, eventType: "route_view", path: location.pathname } });
+  }, [location.pathname, recordActivityFn, touchPresenceFn]);
+
+  const signOut = async () => {
+    if (presenceSessionId.current) {
+      await recordActivityFn({ data: { sessionId: presenceSessionId.current, eventType: "sign_out", path: location.pathname } }).catch(() => undefined);
+    }
+    await supabase.auth.signOut();''')
+
+          # Administração: online em tempo real + histórico de uso
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  'import { useMemo, useState } from "react";',
+                  'import { useEffect, useMemo, useState } from "react";')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  'import { KeyRound, Plus, RefreshCcw, Search, ShieldCheck, Users } from "lucide-react";',
+                  'import { Activity, Clock3, KeyRound, Plus, RefreshCcw, Search, ShieldCheck, Users } from "lucide-react";')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  'import { Button } from "@/components/ui/button";',
+                  'import { Button } from "@/components/ui/button";\nimport { supabase } from "@/integrations/supabase/client";')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  '} from "@/lib/platform-admin.functions";',
+                  '} from "@/lib/platform-admin.functions";\nimport { getAdminRealtimeUsage, listAdminActivityLogs } from "@/lib/user-activity.functions";')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  '  const users = useQuery({ queryKey: ["platform-users"], queryFn: () => listFn() });',
+                  '''  const usageFn = useServerFn(getAdminRealtimeUsage);
+  const activityFn = useServerFn(listAdminActivityLogs);
+  const users = useQuery({ queryKey: ["platform-users"], queryFn: () => listFn() });
+  const usage = useQuery({ queryKey: ["admin-realtime-usage"], queryFn: () => usageFn(), refetchInterval: 15_000 });
+  const activity = useQuery({ queryKey: ["admin-activity-logs"], queryFn: () => activityFn(), refetchInterval: 30_000 });''')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  '  const [query, setQuery] = useState("");',
+                  '''  useEffect(() => {
+    const channel = supabase
+      .channel("admin-user-presence")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_presence" }, () => {
+        void usage.refetch();
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, []);
+
+  const userById = useMemo(() => new Map((users.data ?? []).map((user) => [user.id, user])), [users.data]);
+  const [query, setQuery] = useState("");''')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  '<div className="mt-6 grid gap-3 sm:grid-cols-3">',
+                  '<div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">')
+          replace('src/routes/_authenticated/admin/usuarios.tsx',
+                  '          <Metric label="Assinaturas ativas" value={(users.data ?? []).filter((user) => user.subscriptionStatus === "active").length} />\n        </div>',
+                  '''          <Metric label="Assinaturas ativas" value={(users.data ?? []).filter((user) => user.subscriptionStatus === "active").length} />
+          <Metric label="Online agora" value={usage.data?.onlineUsers ?? 0} />
+          <Metric label="Sessões online" value={usage.data?.onlineSessions ?? 0} />
+        </div>''')
+          insert_before = '      <Dialog open={open} onOpenChange={setOpen}>'
+          admin_panels = '''      <section className="mt-6 grid gap-6 xl:grid-cols-2">
+        <div className="overflow-hidden rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)]">
+          <div className="flex items-center justify-between border-b border-[var(--mi-border)] p-4">
+            <div><p className="text-xs font-black">Usuários online em tempo real</p><p className="mt-1 text-[11px] text-[var(--mi-text-muted)]">Ativo = heartbeat recebido nos últimos 90 segundos.</p></div>
+            <Activity className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="max-h-[420px] overflow-auto">
+            {(usage.data?.sessions ?? []).map((session) => {
+              const user = userById.get(session.userId);
+              return <div key={`${session.userId}:${session.sessionId}`} className="flex items-center justify-between gap-3 border-t border-[var(--mi-border)] px-4 py-3 text-sm">
+                <div><p className="font-bold">{user?.fullName || user?.email || session.userId.slice(0,8)}</p><p className="text-xs text-[var(--mi-text-muted)]">{session.currentPath || "/"}</p></div>
+                <div className="text-right"><span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black text-emerald-700">ONLINE</span><p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">{new Date(session.lastSeenAt).toLocaleTimeString("pt-BR")}</p></div>
+              </div>;
+            })}
+            {!usage.isLoading && (usage.data?.sessions?.length ?? 0) === 0 && <p className="p-6 text-center text-sm text-[var(--mi-text-muted)]">Nenhum usuário online agora.</p>}
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)]">
+          <div className="flex items-center justify-between border-b border-[var(--mi-border)] p-4">
+            <div><p className="text-xs font-black">Histórico de uso</p><p className="mt-1 text-[11px] text-[var(--mi-text-muted)]">Sessões, páginas acessadas e saídas registradas.</p></div>
+            <Clock3 className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="max-h-[420px] overflow-auto">
+            {(activity.data ?? []).map((log) => {
+              const user = userById.get(log.userId);
+              return <div key={log.id} className="border-t border-[var(--mi-border)] px-4 py-3 text-sm">
+                <div className="flex items-center justify-between gap-3"><p className="font-bold">{user?.fullName || user?.email || log.userId.slice(0,8)}</p><span className="text-[10px] text-[var(--mi-text-soft)]">{new Date(log.createdAt).toLocaleString("pt-BR")}</span></div>
+                <p className="mt-1 text-xs text-[var(--mi-text-muted)]">{log.eventType} · {log.path || "—"}</p>
+              </div>;
+            })}
+            {!activity.isLoading && (activity.data?.length ?? 0) === 0 && <p className="p-6 text-center text-sm text-[var(--mi-text-muted)]">O histórico será preenchido conforme os usuários navegam.</p>}
+          </div>
+        </div>
+      </section>
+
+'''
+          replace('src/routes/_authenticated/admin/usuarios.tsx', insert_before, admin_panels + insert_before)
+
+      - run: npm ci
+      - run: npx prettier --write src/components/property/PropertyWorkspace.tsx src/lib/property-search.functions.ts src/lib/backend-auditor.functions.ts src/routes/_authenticated.tsx src/routes/_authenticated/admin/usuarios.tsx src/lib/user-activity.functions.ts
+      - run: npm run lint
+      - run: npm test -- --run
+      - run: npm run build
+      - name: Commit validated changes
+        run: |
+          git config user.name "RuanMarcos38"
+          git config user.email "ruanessencia8@gmail.com"
+          git add src
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: busca 100 por pagina, diversidade regional e usuarios online"
+          git push origin HEAD:main
