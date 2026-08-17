@@ -4,17 +4,17 @@ import { PropertyWorkspaceAtendimento } from "@/components/property/PropertyWork
 export const Route = createFileRoute("/_authenticated/leiloes")({
   component: LeiloesPage,
   head: () => ({
-    title: "CAIXA e Leilões | MercadoImobi",
+    title: "Leilões CAIXA | MercadoImobi",
     meta: [
       {
         name: "description",
         content:
-          "Oportunidades oficiais da CAIXA com modalidade de venda identificada, incluindo leilões, licitações e venda online.",
+          "Leilões oficiais da CAIXA separados da busca geral. As demais modalidades CAIXA continuam disponíveis em Todos e no filtro CAIXA.",
       },
     ],
   }),
 });
 
 function LeiloesPage() {
-  return <PropertyWorkspaceAtendimento initialMarket="caixa" />;
+  return <PropertyWorkspaceAtendimento initialMarket="auction" />;
 }
