@@ -48,9 +48,20 @@ function normalizeEvent(value: unknown): string {
 }
 
 function phoneFromJid(remoteJid: string): string | null {
-  if (!remoteJid || remoteJid.endsWith("@g.us")) return null;
+  if (!remoteJid || remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast")) return null;
   const phone = remoteJid.split("@")[0]?.replace(/\D/g, "") ?? "";
-  return phone.length >= 8 ? phone : null;
+  return phone.length >= 8 && phone.length <= 15 ? phone : null;
+}
+
+function bestRemoteJid(data: JsonObject, key: JsonObject): string {
+  const primary = String(key["remoteJid"] ?? data["remoteJid"] ?? "");
+  const alternate = String(key["remoteJidAlt"] ?? data["remoteJidAlt"] ?? "");
+
+  // Newer Baileys/Evolution versions may identify a contact with @lid and expose
+  // the real WhatsApp JID in remoteJidAlt. Prefer the phone JID when available.
+  if (primary.endsWith("@lid") && alternate) return alternate;
+  if (primary) return primary;
+  return alternate;
 }
 
 function unixToIso(value: unknown): string {
@@ -60,38 +71,88 @@ function unixToIso(value: unknown): string {
   return new Date(milliseconds).toISOString();
 }
 
+function instanceNameFromPayload(payload: JsonObject): string {
+  const rawInstance = payload["instance"];
+  if (typeof rawInstance === "string") return rawInstance;
+  const instanceObject = object(rawInstance);
+  const instanceData = object(payload["instanceData"]);
+  const data = object(payload["data"]);
+  return String(
+    instanceObject["instanceName"] ??
+      instanceObject["name"] ??
+      instanceData["instanceName"] ??
+      data["instance"] ??
+      data["instanceName"] ??
+      "",
+  );
+}
+
+function webhookAuthorized(request: Request, payload: JsonObject): boolean {
+  const configuredSecret = process.env["WHATSAPP_WEBHOOK_SECRET"]?.trim();
+  const evolutionApiKey = process.env["EVOLUTION_API_KEY"]?.trim();
+
+  // No webhook secret configured: preserve backward compatibility. The endpoint is
+  // still tied to a configured Evolution instance before any database write occurs.
+  if (!configuredSecret) return true;
+
+  const url = new URL(request.url);
+  const suppliedSecret =
+    request.headers.get("x-webhook-secret") ??
+    request.headers.get("x-api-key") ??
+    url.searchParams.get("secret");
+  if (suppliedSecret === configuredSecret) return true;
+
+  // Evolution includes its API key in the webhook envelope in current deployments.
+  // This fallback fixes instances whose existing webhook was created before custom
+  // headers were configured, without opening the endpoint to unauthenticated writes.
+  const payloadApiKey = typeof payload["apikey"] === "string" ? payload["apikey"].trim() : "";
+  if (evolutionApiKey && payloadApiKey === evolutionApiKey) return true;
+
+  const authorization = request.headers.get("authorization") ?? "";
+  if (evolutionApiKey && authorization === `Bearer ${evolutionApiKey}`) return true;
+
+  return false;
+}
+
 async function handleWebhook(request: Request) {
-  const configuredSecret = process.env["WHATSAPP_WEBHOOK_SECRET"];
-  if (configuredSecret) {
-    const url = new URL(request.url);
-    const supplied =
-      request.headers.get("x-webhook-secret") ??
-      request.headers.get("x-api-key") ??
-      url.searchParams.get("secret");
-    if (supplied !== configuredSecret) {
-      return new Response(JSON.stringify({ ok: false }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+  const payload = object(await request.json().catch(() => ({})));
+  if (!webhookAuthorized(request, payload)) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized_webhook" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
-  const payload = object(await request.json().catch(() => ({})));
   const event = normalizeEvent(payload["event"] ?? payload["type"]);
-  const instance = String(
-    payload["instance"] ?? object(payload["instanceData"])["instanceName"] ?? "",
-  );
-  if (!instance) return Response.json({ ok: true, ignored: true });
+  const receivedInstance = instanceNameFromPayload(payload);
+  const configuredInstance = process.env["EVOLUTION_INSTANCE"]?.trim() ?? "";
+  const instance = receivedInstance || configuredInstance;
+  if (!instance) return Response.json({ ok: true, ignored: true, reason: "instance_missing" });
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
-  const { data: connection } = await db
+
+  let { data: connection } = await db
     .from("whatsapp_connections")
-    .select("tenant_id,id")
+    .select("tenant_id,id,instance_name")
     .eq("instance_name", instance)
     .maybeSingle();
 
-  if (!connection?.tenant_id) return Response.json({ ok: true, ignored: true });
+  // Some Evolution releases/webhook providers may send the instance ID instead of
+  // its configured name. After webhook authentication succeeds, fall back to the
+  // server's configured instance so the event is not silently discarded.
+  if (!connection?.tenant_id && configuredInstance && configuredInstance !== instance) {
+    const fallback = await db
+      .from("whatsapp_connections")
+      .select("tenant_id,id,instance_name")
+      .eq("instance_name", configuredInstance)
+      .maybeSingle();
+    connection = fallback.data;
+  }
+
+  if (!connection?.tenant_id) {
+    return Response.json({ ok: true, ignored: true, reason: "connection_not_found" });
+  }
 
   if (event.includes("CONNECTION_UPDATE")) {
     const data = object(payload["data"]);
@@ -115,7 +176,7 @@ async function handleWebhook(request: Request) {
   }
 
   if (!event.includes("MESSAGES_UPSERT") && !event.includes("MESSAGE_UPSERT")) {
-    return Response.json({ ok: true, ignored: true });
+    return Response.json({ ok: true, ignored: true, reason: "event_not_supported", event });
   }
 
   const rawData = payload["data"];
@@ -126,7 +187,7 @@ async function handleWebhook(request: Request) {
   for (const entry of entries) {
     const data = object(entry);
     const key = object(data["key"]);
-    const remoteJid = String(key["remoteJid"] ?? data["remoteJid"] ?? "");
+    const remoteJid = bestRemoteJid(data, key);
     const phone = phoneFromJid(remoteJid);
     if (!phone) continue;
 
@@ -144,7 +205,7 @@ async function handleWebhook(request: Request) {
 
     let { data: conversation } = await db
       .from("whatsapp_conversations")
-      .select("id,unread_count")
+      .select("id,unread_count,phone_e164")
       .eq("tenant_id", connection.tenant_id)
       .eq("phone_e164", phone)
       .maybeSingle();
@@ -160,7 +221,7 @@ async function handleWebhook(request: Request) {
           last_message_at: sentAt,
           unread_count: fromMe ? 0 : 1,
         })
-        .select("id,unread_count")
+        .select("id,unread_count,phone_e164")
         .single();
       conversation = inserted.data;
     }
