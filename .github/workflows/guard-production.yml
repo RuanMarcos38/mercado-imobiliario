@@ -1,0 +1,29 @@
+name: MercadoImobi production guard
+
+on:
+  push:
+    branches: [production]
+
+permissions:
+  contents: write
+
+jobs:
+  guard:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject direct production mutation
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Restore production to validated main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main production
+          echo "Direct production push by ${GITHUB_ACTOR} is not an approved promotion. Restoring production to main."
+          git push --force-with-lease origin origin/main:refs/heads/production
