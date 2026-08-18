@@ -3,13 +3,12 @@ name: MercadoImobi public property discovery
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   push:
     paths:
       - "scripts/public_property_discovery.py"
       - "scripts/repair_quintoandar_prices.py"
       - "scripts/sanitize_public_properties.py"
-      - "scripts/filter_valid_contact_properties.py"
       - ".github/workflows/public-property-discovery.yml"
 
 permissions:
@@ -107,10 +106,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate real-estate and phone classifiers
-        run: |
-          python scripts/sanitize_public_properties.py --self-test
-          python scripts/filter_valid_contact_properties.py --self-test
+      - name: Validate real-estate classifier
+        run: python scripts/sanitize_public_properties.py --self-test
 
       - name: Discover public listings
         run: |
@@ -118,7 +115,7 @@ jobs:
             --code "${{ matrix.code }}" \
             --name "${{ matrix.name }}" \
             --domain "${{ matrix.domain }}" \
-            --batch-size 24 \
+            --batch-size 40 \
             --output "public-${{ matrix.code }}.json"
 
       - name: Sweep stale QuintoAndar purchase prices
@@ -132,11 +129,6 @@ jobs:
           python scripts/sanitize_public_properties.py \
             --input "public-${{ matrix.code }}.json"
 
-      - name: Enforce valid Brazilian contact phone
-        run: |
-          python scripts/filter_valid_contact_properties.py \
-            --input "public-${{ matrix.code }}.json"
-
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
@@ -145,6 +137,7 @@ jobs:
           retention-days: 1
 
   aggregate:
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     needs: discover
     steps:
@@ -169,7 +162,6 @@ jobs:
           items_by_url = {}
           removed = set()
           filtered_non_properties = 0
-          filtered_invalid_contact = 0
           for path in sorted(glob.glob("discoveries/public-*.json")):
               with open(path, encoding="utf-8") as handle:
                   payload = json.load(handle)
@@ -178,7 +170,6 @@ jobs:
               if code:
                   sources[code] = source
               filtered_non_properties += int(source.get("filtered_non_properties") or 0)
-              filtered_invalid_contact += int(source.get("filtered_invalid_contact") or 0)
               for item in payload.get("items") or []:
                   url = item.get("source_url")
                   if url:
@@ -193,15 +184,13 @@ jobs:
               "sources": sources,
               "removed_urls": sorted(removed),
               "filtered_non_properties": filtered_non_properties,
-              "filtered_invalid_contact": filtered_invalid_contact,
               "items": list(items_by_url.values()),
           }
           with open("public-properties.json", "w", encoding="utf-8") as handle:
               json.dump(output, handle, ensure_ascii=False, separators=(",", ":"))
           print(
               f"SOURCES={len(sources)} ITEMS={len(items_by_url)} "
-              f"REMOVED={len(removed)} FILTERED_NON_PROPERTIES={filtered_non_properties} "
-              f"FILTERED_INVALID_CONTACT={filtered_invalid_contact}"
+              f"REMOVED={len(removed)} FILTERED_NON_PROPERTIES={filtered_non_properties}"
           )
 
       - name: Publish discovery snapshot
