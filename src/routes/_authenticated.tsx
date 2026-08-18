@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Bot,
+  Calculator,
   ChevronDown,
   CreditCard,
   Gavel,
@@ -110,6 +111,7 @@ const primaryItems = [
 const toolItems = [
   { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
+  { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator },
   { to: "/fluxos", label: "Fluxos", icon: Workflow },
   { to: "/assistente", label: "Assistente IA", icon: Bot },
   { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck },
