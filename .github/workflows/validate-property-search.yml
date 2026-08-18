@@ -19,7 +19,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Verify no private environment file is tracked
+      - name: Verify tracked files and high-confidence secrets
         shell: bash
         run: |
           set -euo pipefail
@@ -64,9 +64,13 @@ jobs:
             echo "Private environment file found in repository"
             exit 1
           fi
+          if git grep -nEI '(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{30,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,})' -- ':!package-lock.json' ':!docs/**' ':!*.md'; then
+            echo "High-confidence secret pattern found in tracked source"
+            exit 1
+          fi
 
-      - name: Normalize source formatting
-        run: npx prettier --write .
+      - name: Verify source formatting
+        run: npx prettier --check .
 
       - name: Lint
         run: npm run lint
@@ -121,8 +125,6 @@ jobs:
             if (!Number.isFinite(status.coveredStates) || status.coveredStates < 27) {
               throw new Error(`coveredStates=${status.coveredStates}`);
             }
-          } else {
-            console.log('Search index is not installed in this Supabase project; core app smoke test remains valid.');
           }
           NODE
 
@@ -147,6 +149,42 @@ jobs:
           git commit -m "feat: busca 100 por pagina, diversidade regional e usuarios online"
           git push origin HEAD:refs/heads/${{ github.head_ref }}
 
+      - name: Real production healthcheck before promotion
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
+          EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
+          EASY="${EASY%/}"
+          healthy=0
+          for base in "$CUSTOM" "$EASY"; do
+            body=/tmp/live-status.json
+            if curl -fsS --connect-timeout 8 --max-time 20 "$base/api/public/status" -o "$body"; then
+              if node - "$body" <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const ok=p.status==='operational'
+            && p.search==='available'
+            && Number.isFinite(p.indexedProperties) && p.indexedProperties>=1000
+            && Number.isFinite(p.coveredStates) && p.coveredStates>=27;
+          process.exit(ok ? 0 : 1);
+          NODE
+              then
+                echo "Real MercadoImobi healthcheck passed at $base"
+                cat "$body"
+                healthy=1
+                break
+              fi
+            fi
+          done
+          if [ "$healthy" -ne 1 ]; then
+            echo "No real MercadoImobi endpoint passed the mandatory healthcheck; production promotion is blocked."
+            exit 1
+          fi
+
       - name: Promote validated main to production
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
@@ -156,7 +194,7 @@ jobs:
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git push --force-with-lease origin HEAD:refs/heads/production
 
-      - name: Diagnose public routing and EasyPanel
+      - name: Record public routing diagnostics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
         env:
@@ -166,48 +204,8 @@ jobs:
           set -uo pipefail
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
-          EASY="${EASY%/}"
-
-          inspect() {
-            local label="$1" base="$2" body="/tmp/${1}.body"
-            echo "===== $label: $base ====="
-            if ! curl -sS --connect-timeout 8 --max-time 15 "$base/api/public/status" -o "$body"; then
-              echo "::warning::$label não respondeu."
-              return 2
-            fi
-            if grep -qi 'mercado-imobiliario-r2r\.lovable\.app' "$body"; then
-              echo "::warning::$label está servindo o redirect antigo Hostinger -> Lovable."
-              return 3
-            fi
-            if node - "$body" <<'NODE'
-          const fs=require('fs');
-          const file=process.argv[2];
-          const p=JSON.parse(fs.readFileSync(file,'utf8'));
-          if(p.status!=='operational') process.exit(2);
-          console.log(`release=${p.release||'sem-marcador'}`);
-          console.log(`indexed=${p.indexedProperties||0}`);
-          console.log(`search=${p.search||'unknown'}`);
-          console.log(`sync=${p.synchronization?.state||'unknown'} age=${p.synchronization?.ageMinutes??'n/a'}min`);
-          console.log(`ai=${p.runtime?.ai||'unknown'} whatsapp=${p.runtime?.whatsapp||'unknown'} googleMaps=${p.runtime?.googleMaps||'unknown'}`);
-          NODE
-            then
-              echo "$label está servindo o backend MercadoImobi."
-              return 0
-            fi
-            echo "::warning::$label respondeu, mas não é o backend MercadoImobi esperado."
-            head -c 500 "$body" || true
+          for base in "$CUSTOM" "${EASY%/}"; do
+            echo "===== $base ====="
+            curl -sS --connect-timeout 8 --max-time 15 "$base/api/public/status" | head -c 1000 || true
             echo
-            return 4
-          }
-
-          custom_rc=0; easy_rc=0
-          inspect custom "$CUSTOM" || custom_rc=$?
-          inspect easypanel "$EASY" || easy_rc=$?
-          echo "custom_result=$custom_rc easypanel_result=$easy_rc"
-          if [ "$custom_rc" -eq 3 ]; then
-            echo "::warning::O domínio definitivo ainda está preso no arquivo estático antigo da Hostinger e não entrega o app atualizado do GitHub."
-          fi
-          if [ "$easy_rc" -eq 0 ] && [ "$custom_rc" -ne 0 ]; then
-            echo "::warning::O app novo está no EasyPanel; falta apenas encaminhar o domínio definitivo para esse serviço e remover o redirect antigo."
-          fi
-          exit 0
+          done
