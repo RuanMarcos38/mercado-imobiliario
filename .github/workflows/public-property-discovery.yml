@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - "scripts/public_property_discovery.py"
+      - "scripts/public_property_entrypoint_discovery.py"
       - "scripts/repair_quintoandar_prices.py"
       - "scripts/sanitize_public_properties.py"
       - ".github/workflows/public-property-discovery.yml"
@@ -83,8 +84,11 @@ jobs:
             name: A.Yoshii
             domain: ayoshii.com.br
           - code: direcional
-            name: Grupo Direcional
-            domain: grupodirecional.com
+            name: Direcional
+            domain: direcional.com.br
+          - code: riva
+            name: Riva Incorporadora
+            domain: rivaincorporadora.com.br
           - code: gafisa
             name: Gafisa
             domain: gafisa.com.br
@@ -117,6 +121,15 @@ jobs:
             --domain "${{ matrix.domain }}" \
             --batch-size 40 \
             --output "public-${{ matrix.code }}.json"
+
+      - name: Supplement discovery from official listing entrypoints
+        run: |
+          python scripts/public_property_entrypoint_discovery.py \
+            --code "${{ matrix.code }}" \
+            --name "${{ matrix.name }}" \
+            --domain "${{ matrix.domain }}" \
+            --limit 40 \
+            --input "public-${{ matrix.code }}.json"
 
       - name: Sweep stale QuintoAndar purchase prices
         if: matrix.code == 'quintoandar'
