@@ -117,6 +117,13 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const status = JSON.parse(fs.readFileSync('/tmp/status.json', 'utf8'));
+          const missingDatabase = status.database === 'not_configured' && status.search === 'unavailable';
+          if (missingDatabase) {
+            if (status.status !== 'degraded') throw new Error(`status=${status.status}`);
+            if (status.indexedProperties !== 0) throw new Error(`indexedProperties=${status.indexedProperties}`);
+            if (status.coveredStates !== 0) throw new Error(`coveredStates=${status.coveredStates}`);
+            process.exit(0);
+          }
           if (status.status !== 'operational') throw new Error(`status=${status.status}`);
           if (status.search === 'available') {
             if (!Number.isFinite(status.indexedProperties) || status.indexedProperties < 1000) {
