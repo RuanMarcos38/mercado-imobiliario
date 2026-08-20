@@ -3,6 +3,34 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type JsonObject = Record<string, unknown>;
+type Coordinates = { lat: number; lng: number };
+type LocationPrecision = "address" | "neighborhood" | "city";
+type ResolvedCoordinates = Coordinates & {
+  provider: "google" | "openstreetmap";
+  precision: LocationPrecision;
+  query: string;
+};
+type AmenityCounts = {
+  schools: number;
+  health: number;
+  supermarkets: number;
+  parks: number;
+  transit: number;
+};
+
+const EMPTY_AMENITIES: AmenityCounts = {
+  schools: 0,
+  health: 0,
+  supermarkets: 0,
+  parks: 0,
+  transit: 0,
+};
+
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.osm.ch/api/interpreter",
+];
 
 const analysisSchema = z.object({
   address: z.string().trim().max(250).optional(),
@@ -73,7 +101,46 @@ function finiteOrNull(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-async function googleGeocode(query: string, key: string) {
+export function buildLocationGeocodeCandidates(input: {
+  address?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+}): Array<{ query: string; precision: LocationPrecision }> {
+  const address = input.address?.trim() ?? "";
+  const neighborhood = input.neighborhood?.trim() ?? "";
+  const city = input.city.trim();
+  const state = input.state.trim().toUpperCase();
+  const seen = new Set<string>();
+  const candidates: Array<{ query: string; precision: LocationPrecision }> = [];
+  const push = (parts: string[], precision: LocationPrecision) => {
+    const query = parts.filter(Boolean).join(", ");
+    const key = normalizeText(query);
+    if (!query || seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ query, precision });
+  };
+
+  if (address && neighborhood) push([address, neighborhood, city, state, "Brasil"], "address");
+  if (address) push([address, city, state, "Brasil"], "address");
+  if (neighborhood) push([neighborhood, city, state, "Brasil"], "neighborhood");
+  if (!address && !neighborhood) push(["Centro", city, state, "Brasil"], "city");
+  push([city, state, "Brasil"], "city");
+  return candidates;
+}
+
+export function hasAmenitySignal(amenities: AmenityCounts) {
+  return (
+    amenities.schools +
+      amenities.health +
+      amenities.supermarkets +
+      amenities.parks +
+      amenities.transit >
+    0
+  );
+}
+
+async function googleGeocode(query: string, key: string): Promise<Coordinates | null> {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("address", query);
   url.searchParams.set("key", key);
@@ -91,7 +158,7 @@ async function googleGeocode(query: string, key: string) {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
-async function osmGeocode(query: string) {
+async function osmGeocode(query: string): Promise<Coordinates | null> {
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("q", query);
   url.searchParams.set("format", "jsonv2");
@@ -111,9 +178,28 @@ async function osmGeocode(query: string) {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
+async function resolveCoordinates(
+  candidates: Array<{ query: string; precision: LocationPrecision }>,
+  googleKey: string | undefined,
+): Promise<ResolvedCoordinates | null> {
+  if (googleKey) {
+    for (const candidate of candidates) {
+      const coordinates = await googleGeocode(candidate.query, googleKey).catch(() => null);
+      if (coordinates) return { ...coordinates, ...candidate, provider: "google" };
+    }
+  }
+
+  for (const candidate of candidates) {
+    const coordinates = await osmGeocode(candidate.query).catch(() => null);
+    if (coordinates) return { ...coordinates, ...candidate, provider: "openstreetmap" };
+  }
+
+  return null;
+}
+
 async function googleNearbyCount(
   key: string,
-  coordinates: { lat: number; lng: number },
+  coordinates: Coordinates,
   types: string[],
   radius = 2200,
 ) {
@@ -145,17 +231,46 @@ async function googleNearbyCount(
   return Array.isArray(payload["places"]) ? payload["places"].length : 0;
 }
 
-async function osmNearbyCounts(coordinates: { lat: number; lng: number }, radius = 2200) {
+function countOsmAmenities(elements: unknown[]): AmenityCounts {
+  const unique = new Set<string>();
+  const counts = { ...EMPTY_AMENITIES };
+  for (const raw of elements) {
+    const item = object(raw);
+    const key = `${String(item["type"] ?? "")}:${String(item["id"] ?? "")}`;
+    if (unique.has(key)) continue;
+    unique.add(key);
+    const tags = object(item["tags"]);
+    const amenity = String(tags["amenity"] ?? "");
+    if (["school", "college", "university"].includes(amenity)) counts.schools += 1;
+    if (["hospital", "clinic", "doctors", "pharmacy"].includes(amenity)) counts.health += 1;
+    if (String(tags["shop"] ?? "") === "supermarket") counts.supermarkets += 1;
+    if (String(tags["leisure"] ?? "") === "park") counts.parks += 1;
+    if (
+      tags["public_transport"] ||
+      ["bus_stop", "platform"].includes(String(tags["highway"] ?? "")) ||
+      ["station", "halt", "tram_stop"].includes(String(tags["railway"] ?? ""))
+    )
+      counts.transit += 1;
+  }
+  return counts;
+}
+
+async function fetchOverpassCounts(
+  endpoint: string,
+  coordinates: Coordinates,
+  radius: number,
+): Promise<AmenityCounts | null> {
   const { lat, lng } = coordinates;
   const query = `[out:json][timeout:12];(
     nwr(around:${radius},${lat},${lng})[amenity~"school|college|university"];
-    nwr(around:${radius},${lat},${lng})[amenity~"hospital|clinic|doctors"];
+    nwr(around:${radius},${lat},${lng})[amenity~"hospital|clinic|doctors|pharmacy"];
     nwr(around:${radius},${lat},${lng})[shop="supermarket"];
     nwr(around:${radius},${lat},${lng})[leisure="park"];
     nwr(around:${radius},${lat},${lng})[public_transport];
     nwr(around:${radius},${lat},${lng})[highway="bus_stop"];
+    nwr(around:${radius},${lat},${lng})[railway~"station|halt|tram_stop"];
   );out tags center qt;`;
-  const response = await fetch("https://overpass-api.de/api/interpreter", {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -168,23 +283,21 @@ async function osmNearbyCounts(coordinates: { lat: number; lng: number }, radius
   });
   if (!response.ok) return null;
   const payload = object(await response.json().catch(() => ({})));
+  const remark = String(payload["remark"] ?? "").toLowerCase();
+  if (remark.includes("runtime error") || remark.includes("rate_limited")) return null;
   const elements = Array.isArray(payload["elements"]) ? payload["elements"] : [];
-  const unique = new Set<string>();
-  const counts = { schools: 0, health: 0, supermarkets: 0, parks: 0, transit: 0 };
-  for (const raw of elements) {
-    const item = object(raw);
-    const key = `${String(item["type"] ?? "")}:${String(item["id"] ?? "")}`;
-    if (unique.has(key)) continue;
-    unique.add(key);
-    const tags = object(item["tags"]);
-    const amenity = String(tags["amenity"] ?? "");
-    if (["school", "college", "university"].includes(amenity)) counts.schools += 1;
-    if (["hospital", "clinic", "doctors"].includes(amenity)) counts.health += 1;
-    if (String(tags["shop"] ?? "") === "supermarket") counts.supermarkets += 1;
-    if (String(tags["leisure"] ?? "") === "park") counts.parks += 1;
-    if (tags["public_transport"] || String(tags["highway"] ?? "") === "bus_stop") counts.transit += 1;
+  return countOsmAmenities(elements);
+}
+
+async function osmNearbyCounts(coordinates: Coordinates, radius = 2200) {
+  let emptyResult: AmenityCounts | null = null;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    const counts = await fetchOverpassCounts(endpoint, coordinates, radius).catch(() => null);
+    if (!counts) continue;
+    if (hasAmenitySignal(counts)) return counts;
+    emptyResult ??= counts;
   }
-  return counts;
+  return emptyResult;
 }
 
 async function getMunicipality(city: string, state: string) {
@@ -196,7 +309,9 @@ async function getMunicipality(city: string, state: string) {
   const municipalities = (await response.json().catch(() => [])) as unknown;
   if (!Array.isArray(municipalities)) return null;
   const wanted = normalizeText(city);
-  const match = municipalities.find((item) => normalizeText(String(object(item)["nome"] ?? "")) === wanted);
+  const match = municipalities.find(
+    (item) => normalizeText(String(object(item)["nome"] ?? "")) === wanted,
+  );
   if (!match) return null;
   const row = object(match);
   return { id: String(row["id"] ?? ""), name: String(row["nome"] ?? city) };
@@ -222,11 +337,19 @@ async function getPopulation2022(municipalityId: string) {
   return null;
 }
 
-async function getMarketEvidence(db: any, city: string, neighborhood: string) {
-  const { data, error } = await db.rpc("location_market_evidence", {
+async function getMarketEvidence(db: any, city: string, state: string, neighborhood: string) {
+  let result = await db.rpc("location_market_evidence", {
     p_city: city,
     p_neighborhood: neighborhood || null,
+    p_state: state || null,
   });
+  if (result.error && String(result.error.message ?? "").includes("p_state")) {
+    result = await db.rpc("location_market_evidence", {
+      p_city: city,
+      p_neighborhood: neighborhood || null,
+    });
+  }
+  const { data, error } = result;
   if (error) throw new Error(error.message);
   const row = object(Array.isArray(data) ? data[0] : data);
   return {
@@ -244,7 +367,13 @@ async function getMarketEvidence(db: any, city: string, neighborhood: string) {
 }
 
 function potentialScore(input: {
-  amenities: { schools: number; health: number; supermarkets: number; parks: number; transit: number };
+  amenities: {
+    schools: number;
+    health: number;
+    supermarkets: number;
+    parks: number;
+    transit: number;
+  };
   market: { sampleSize: number; recentListings90d: number; sourceCount: number };
   hasInfrastructure: boolean;
   hasIbge: boolean;
@@ -262,7 +391,10 @@ function potentialScore(input: {
   const liquidity = Math.min(25, Math.round(Math.min(input.market.recentListings90d / 80, 1) * 25));
   const marketEvidence = Math.min(
     20,
-    Math.round(Math.min(input.market.sampleSize / 120, 1) * 14 + Math.min(input.market.sourceCount / 4, 1) * 6),
+    Math.round(
+      Math.min(input.market.sampleSize / 120, 1) * 14 +
+        Math.min(input.market.sourceCount / 4, 1) * 6,
+    ),
   );
   const dataConfidence = (input.hasInfrastructure ? 8 : 0) + (input.hasIbge ? 7 : 0);
   return {
@@ -282,8 +414,13 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
     const address = data.address?.trim() ?? "";
     const neighborhood = data.neighborhood?.trim() ?? "";
     const state = data.state.toUpperCase();
-    const queryText = [address, neighborhood, data.city, state, "Brasil"].filter(Boolean).join(", ");
     const googleKey = process.env["GOOGLE_MAPS_API_KEY"]?.trim();
+    const coordinateCandidates = buildLocationGeocodeCandidates({
+      address,
+      neighborhood,
+      city: data.city,
+      state,
+    });
 
     const emptyMarket = {
       sampleSize: 0,
@@ -298,30 +435,38 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
       scope: "cidade" as const,
     };
 
-    const [municipality, market, googleCoordinates] = await Promise.all([
+    const [municipality, market, resolvedCoordinates] = await Promise.all([
       getMunicipality(data.city, state).catch(() => null),
-      getMarketEvidence(db, data.city, neighborhood).catch(() => emptyMarket),
-      googleKey ? googleGeocode(queryText, googleKey).catch(() => null) : Promise.resolve(null),
+      getMarketEvidence(db, data.city, state, neighborhood).catch(() => emptyMarket),
+      resolveCoordinates(coordinateCandidates, googleKey || undefined),
     ]);
-    const coordinates = googleCoordinates ?? (await osmGeocode(queryText).catch(() => null));
-    const population = municipality ? await getPopulation2022(municipality.id).catch(() => null) : null;
+    const population = municipality
+      ? await getPopulation2022(municipality.id).catch(() => null)
+      : null;
 
-    const amenities = { schools: 0, health: 0, supermarkets: 0, parks: 0, transit: 0 };
+    const amenities = { ...EMPTY_AMENITIES };
     let infrastructureProvider: "google" | "openstreetmap" | "none" = "none";
 
-    if (googleKey && googleCoordinates) {
+    if (googleKey && resolvedCoordinates?.provider === "google") {
       const [schools, health, supermarkets, parks, transit] = await Promise.all([
-        googleNearbyCount(googleKey, googleCoordinates, ["school", "university"]).catch(() => 0),
-        googleNearbyCount(googleKey, googleCoordinates, ["hospital", "doctor"]).catch(() => 0),
-        googleNearbyCount(googleKey, googleCoordinates, ["supermarket"]).catch(() => 0),
-        googleNearbyCount(googleKey, googleCoordinates, ["park"]).catch(() => 0),
-        googleNearbyCount(googleKey, googleCoordinates, ["transit_station", "bus_station"]).catch(() => 0),
+        googleNearbyCount(googleKey, resolvedCoordinates, ["school", "university"]).catch(() => 0),
+        googleNearbyCount(googleKey, resolvedCoordinates, ["hospital", "doctor"]).catch(() => 0),
+        googleNearbyCount(googleKey, resolvedCoordinates, ["supermarket"]).catch(() => 0),
+        googleNearbyCount(googleKey, resolvedCoordinates, ["park"]).catch(() => 0),
+        googleNearbyCount(googleKey, resolvedCoordinates, ["transit_station", "bus_station"]).catch(
+          () => 0,
+        ),
       ]);
-      Object.assign(amenities, { schools, health, supermarkets, parks, transit });
-      infrastructureProvider = "google";
-    } else if (coordinates) {
-      const osmAmenities = await osmNearbyCounts(coordinates).catch(() => null);
-      if (osmAmenities) {
+      const googleAmenities = { schools, health, supermarkets, parks, transit };
+      if (hasAmenitySignal(googleAmenities)) {
+        Object.assign(amenities, googleAmenities);
+        infrastructureProvider = "google";
+      }
+    }
+
+    if (infrastructureProvider === "none" && resolvedCoordinates) {
+      const osmAmenities = await osmNearbyCounts(resolvedCoordinates).catch(() => null);
+      if (osmAmenities && hasAmenitySignal(osmAmenities)) {
         Object.assign(amenities, osmAmenities);
         infrastructureProvider = "openstreetmap";
       }
@@ -342,17 +487,25 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
             ? "Potencial em desenvolvimento"
             : "Dados insuficientes ou região que exige cautela";
 
-    const scopeLabel = market.scope === "bairro" ? "bairro informado" : "município";
-    const summary = `${classification}. A leitura usa ${market.sampleSize} anúncios do ${scopeLabel}, infraestrutura próxima e dados oficiais do município. Os valores são evidências observadas na base e não garantia de valorização futura.`;
+    const scopeLabel = market.scope === "bairro" ? "bairro informado" : `município de ${data.city}`;
+    const infrastructureLabel =
+      infrastructureProvider === "none"
+        ? "a infraestrutura próxima não foi confirmada pelo provedor cartográfico neste ciclo"
+        : "infraestrutura próxima validada por mapa público/API";
+    const summary = `${classification}. A leitura usa ${market.sampleSize} anúncios do ${scopeLabel}, ${infrastructureLabel} e dados oficiais do município. Os valores são evidências observadas na base e não garantia de valorização futura.`;
     const sources = ["MercadoImobi — estatística agregada do índice de anúncios"];
     if (municipality) sources.push("IBGE — Localidades e Censo 2022");
-    if (infrastructureProvider === "google") sources.push("Google Maps Platform — Geocoding e Places");
-    if (infrastructureProvider === "openstreetmap") sources.push("OpenStreetMap — Nominatim e Overpass");
+    if (infrastructureProvider === "google")
+      sources.push("Google Maps Platform — Geocoding e Places");
+    if (infrastructureProvider === "openstreetmap")
+      sources.push("OpenStreetMap — Nominatim e Overpass");
 
     return {
       query: { address, neighborhood, city: data.city, state },
       analyzedAt: new Date().toISOString(),
-      coordinates,
+      coordinates: resolvedCoordinates
+        ? { lat: resolvedCoordinates.lat, lng: resolvedCoordinates.lng }
+        : null,
       score: components.total,
       classification,
       summary,

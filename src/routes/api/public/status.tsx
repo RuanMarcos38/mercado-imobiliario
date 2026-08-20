@@ -10,9 +10,27 @@ type SearchHealth = {
   latest_update?: string | null;
 };
 
+type SearchAvailability = {
+  available: boolean;
+  database: "ok" | "unavailable" | "not_configured";
+  count: number;
+  states: number;
+  latestUpdate: string | null;
+};
+
 const RELEASE = process.env["APP_RELEASE"] || "2026.08.17-runtime-r4";
 
-async function checkSearchAvailability() {
+async function checkSearchAvailability(): Promise<SearchAvailability> {
+  if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    return {
+      available: false,
+      database: "not_configured",
+      count: 0,
+      states: 0,
+      latestUpdate: null,
+    };
+  }
+
   try {
     const response = await fetch(`${PUBLIC_SUPABASE_URL}/rest/v1/rpc/search_index_health`, {
       method: "POST",
@@ -24,18 +42,33 @@ async function checkSearchAvailability() {
     });
 
     if (!response.ok) {
-      return { available: false, count: 0, states: 0, latestUpdate: null };
+      return {
+        available: false,
+        database: "unavailable",
+        count: 0,
+        states: 0,
+        latestUpdate: null,
+      };
     }
 
     const data = (await response.json()) as SearchHealth;
+    const count = data.count ?? 0;
+    const states = data.states ?? 0;
     return {
-      available: (data.count ?? 0) > 0,
-      count: data.count ?? 0,
-      states: data.states ?? 0,
+      available: count > 0,
+      database: "ok",
+      count,
+      states,
       latestUpdate: data.latest_update ?? null,
     };
   } catch {
-    return { available: false, count: 0, states: 0, latestUpdate: null };
+    return {
+      available: false,
+      database: "unavailable",
+      count: 0,
+      states: 0,
+      latestUpdate: null,
+    };
   }
 }
 
@@ -78,10 +111,12 @@ export const Route = createFileRoute("/api/public/status")({
     handlers: {
       GET: async () => {
         const search = await checkSearchAvailability();
+        const operational = search.count >= 1000 && search.states >= 27;
         const body = {
-          status: "operational",
+          status: operational ? "operational" : "degraded",
           release: RELEASE,
           timestamp: new Date().toISOString(),
+          database: search.database,
           search: search.available ? "available" : "unavailable",
           indexedProperties: search.count,
           coveredStates: search.states,

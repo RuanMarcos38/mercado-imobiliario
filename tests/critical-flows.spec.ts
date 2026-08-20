@@ -139,4 +139,20 @@ describe("MercadoImobi product invariants", () => {
     expect(search).toContain("offset: z.number()");
     expect(search).toContain(".range(offset, offset + fetchLimit - 1)");
   });
+
+  it("keeps property search coverage aligned with source refresh cadence", () => {
+    const quality = source("src/lib/property-listing-quality.ts");
+    const search = source("src/lib/property-search.functions.ts");
+    const migration = source(
+      "supabase/migrations/20260820113000_restore_property_search_coverage.sql",
+    );
+
+    expect(quality).toContain("90 * 24 * 60");
+    expect(quality).toContain("ayoshii.com.br");
+    expect(quality).toContain("canalpro.grupozap.com");
+    expect(search).toContain("PROPERTY_FRESHNESS_SLA_MINUTES");
+    expect(migration).toContain("interval '90 days'");
+    expect(migration).not.toContain("interval '2 hours'");
+    expect(migration).toContain("p_state text default null");
+  });
 });

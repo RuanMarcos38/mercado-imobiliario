@@ -45,7 +45,9 @@ function isMissingRelation(error: { code?: string } | null): boolean {
   return error?.code === "PGRST205";
 }
 
-describe("RLS isolation for anonymous visitors", () => {
+const HAS_SUPABASE_PUBLIC_KEY = Boolean(PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
+describe.skipIf(!HAS_SUPABASE_PUBLIC_KEY)("RLS isolation for anonymous visitors", () => {
   let client: SupabaseClient;
 
   beforeAll(() => {
@@ -91,37 +93,43 @@ describe("RLS isolation for anonymous visitors", () => {
 const TEST_EMAIL = process.env["TEST_USER"];
 const TEST_PASSWORD = process.env["TEST_PASS"];
 
-describe.skipIf(!TEST_EMAIL || !TEST_PASSWORD)("Authenticated user isolation", () => {
-  let client: SupabaseClient;
-  let userId = "";
+describe.skipIf(!HAS_SUPABASE_PUBLIC_KEY || !TEST_EMAIL || !TEST_PASSWORD)(
+  "Authenticated user isolation",
+  () => {
+    let client: SupabaseClient;
+    let userId = "";
 
-  beforeAll(async () => {
-    client = anonClient();
-    const { data, error } = await client.auth.signInWithPassword({
-      email: TEST_EMAIL!,
-      password: TEST_PASSWORD!,
+    beforeAll(async () => {
+      client = anonClient();
+      const { data, error } = await client.auth.signInWithPassword({
+        email: TEST_EMAIL!,
+        password: TEST_PASSWORD!,
+      });
+      if (error) throw new Error(`Test login failed: ${error.message}`);
+      userId = data.user?.id ?? "";
+      expect(userId).toBeTruthy();
     });
-    if (error) throw new Error(`Test login failed: ${error.message}`);
-    userId = data.user?.id ?? "";
-    expect(userId).toBeTruthy();
-  });
 
-  it("only returns the signed-in user's favorites", async () => {
-    const { data, error } = await client.from("property_favorites").select("user_id").limit(100);
-    expect(error).toBeNull();
-    for (const row of data ?? []) expect(row.user_id).toBe(userId);
-  });
+    it("only returns the signed-in user's favorites", async () => {
+      const { data, error } = await client.from("property_favorites").select("user_id").limit(100);
+      expect(error).toBeNull();
+      for (const row of data ?? []) expect(row.user_id).toBe(userId);
+    });
 
-  it("only returns the signed-in user's saved searches", async () => {
-    const { data, error } = await client.from("search_configurations").select("user_id").limit(100);
-    expect(error).toBeNull();
-    for (const row of data ?? []) expect(row.user_id).toBe(userId);
-  });
+    it("only returns the signed-in user's saved searches", async () => {
+      const { data, error } = await client
+        .from("search_configurations")
+        .select("user_id")
+        .limit(100);
+      expect(error).toBeNull();
+      for (const row of data ?? []) expect(row.user_id).toBe(userId);
+    });
 
-  it("can read the shared property index when authenticated", async () => {
-    const { data, error } = await client.from("property_search_index").select("id").limit(1);
-    if (isMissingRelation(error)) return;
-    expect(error).toBeNull();
-    expect((data ?? []).length).toBeGreaterThan(0);
-  });
-});
+    it("can read the shared property index when authenticated", async () => {
+      const { data, error } = await client.from("property_search_index").select("id").limit(1);
+      if (isMissingRelation(error)) return;
+      expect(error).toBeNull();
+      expect((data ?? []).length).toBeGreaterThan(0);
+    });
+  },
+);

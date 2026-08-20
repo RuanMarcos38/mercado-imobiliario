@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PROPERTY_FRESHNESS_SLA_MINUTES,
   isFreshListing,
   isFreshRealEstateListing,
   isRealEstateListing,
@@ -22,8 +23,30 @@ describe("property listing quality guardrails", () => {
     ).toBe(true);
   });
 
-  it("rejeita anúncio com mais de 120 minutos", () => {
-    expect(isFreshListing("2026-08-17T15:59:59.000Z", NOW)).toBe(false);
+  it("mantém anúncios públicos recentes entre sincronizações diárias", () => {
+    expect(PROPERTY_FRESHNESS_SLA_MINUTES).toBe(90 * 24 * 60);
+    expect(isFreshListing("2026-08-16T18:00:00.000Z", NOW)).toBe(true);
+  });
+
+  it("rejeita anúncio com mais de 90 dias", () => {
+    expect(isFreshListing("2026-05-18T17:59:59.000Z", NOW)).toBe(false);
+  });
+
+  it("aceita fontes públicas monitoradas no catálogo de imóveis", () => {
+    expect(
+      isRealEstateListing({
+        source_url: "https://ayoshii.com.br/imoveis/joinville/apartamento-centro",
+        title: "Apartamento em Joinville",
+        property_type: "Apartamento",
+      }),
+    ).toBe(true);
+    expect(
+      isRealEstateListing({
+        source_url: "https://canalpro.grupozap.com/imovel/123",
+        title: "Casa à venda em Joinville",
+        property_type: "Casa",
+      }),
+    ).toBe(true);
   });
 
   it("rejeita veículo mesmo em URL de portal conhecido", () => {

@@ -1,4 +1,4 @@
-export const PROPERTY_FRESHNESS_SLA_MINUTES = 120;
+export const PROPERTY_FRESHNESS_SLA_MINUTES = 90 * 24 * 60;
 
 const REAL_ESTATE_TERMS = [
   "imovel",
@@ -35,6 +35,22 @@ const ALLOWED_PROPERTY_HOSTS = [
   "rogga.com.br",
   "rottasconstrutora.com.br",
   "inicioempreendimentos.com.br",
+  "ayoshii.com.br",
+  "tenda.com.br",
+  "curyconstrutora.com.br",
+  "cyrela.com.br",
+  "even.com.br",
+  "eztec.com.br",
+  "gafisa.com.br",
+  "grupodirecional.com",
+  "direcional.com.br",
+  "rivaincorporadora.com.br",
+  "helbor.com.br",
+  "mouradubeux.com.br",
+  "patrimar.com.br",
+  "plaenge.com.br",
+  "planoeplano.com.br",
+  "canalpro.grupozap.com",
 ];
 
 function normalize(value: string | null | undefined) {

@@ -73,7 +73,7 @@ describe("MercadoImobi platform controls", () => {
     expect(search).toContain('input.market === "auction"');
     expect(search).toContain('input.market === "all"');
     expect(search).toContain('order("listing_market", { ascending: false })');
-    expect(search).toContain("const fetchLimit = limit;");
+    expect(search).toContain("const fetchLimit = Math.min(1000, Math.max(limit * 3, limit + 50));");
     expect(search).not.toContain("Math.min(60, Math.max(limit, limit * 2))");
   });
 

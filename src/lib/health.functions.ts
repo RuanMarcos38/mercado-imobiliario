@@ -11,6 +11,10 @@ type SearchHealth = {
 };
 
 async function fetchSearchHealth(): Promise<SearchHealth> {
+  if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error("SUPABASE_PUBLISHABLE_KEY_NOT_CONFIGURED");
+  }
+
   const response = await fetch(`${PUBLIC_SUPABASE_URL}/rest/v1/rpc/search_index_health`, {
     method: "POST",
     headers: {
@@ -30,12 +34,16 @@ async function fetchSearchHealth(): Promise<SearchHealth> {
 export const getSystemHealth = createServerFn({ method: "GET" }).handler(async () => {
   try {
     const health = await fetchSearchHealth();
+    const indexedProperties = health.count ?? 0;
+    const coveredStates = health.states ?? 0;
+    const operational = indexedProperties >= 1000 && coveredStates >= 27;
     return {
-      status: (health.count ?? 0) > 0 ? "healthy" : "degraded",
+      status: operational ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
+      database: "ok",
       search: {
-        indexed_properties: health.count ?? 0,
-        covered_states: health.states ?? 0,
+        indexed_properties: indexedProperties,
+        covered_states: coveredStates,
         latest_update: health.latest_update ?? null,
       },
     };
@@ -43,6 +51,7 @@ export const getSystemHealth = createServerFn({ method: "GET" }).handler(async (
     return {
       status: "degraded",
       timestamp: new Date().toISOString(),
+      database: PUBLIC_SUPABASE_PUBLISHABLE_KEY ? "unavailable" : "not_configured",
       search: {
         indexed_properties: 0,
         covered_states: 0,

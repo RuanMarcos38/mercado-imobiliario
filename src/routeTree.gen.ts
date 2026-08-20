@@ -30,6 +30,7 @@ import { Route as AuthenticatedFluxosRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenticated/integracoes'
 import { Route as AuthenticatedLeiloesRouteImport } from './routes/_authenticated/leiloes'
 import { Route as AuthenticatedMidiasSociaisRouteImport } from './routes/_authenticated/midias-sociais'
+import { Route as AuthenticatedSimuladorFinanciamentoRouteImport } from './routes/_authenticated/simulador-financiamento'
 import { Route as AuthenticatedSpeedToLeadRouteImport } from './routes/_authenticated/speed-to-lead'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as Char91DotlovableOauthConsentChar93RouteImport } from './routes/[.lovable.oauth.consent]'
@@ -158,6 +159,12 @@ const AuthenticatedMidiasSociaisRoute =
     path: '/midias-sociais',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSimuladorFinanciamentoRoute =
+  AuthenticatedSimuladorFinanciamentoRouteImport.update({
+    id: '/simulador-financiamento',
+    path: '/simulador-financiamento',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSpeedToLeadRoute =
   AuthenticatedSpeedToLeadRouteImport.update({
     id: '/speed-to-lead',
@@ -270,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/leiloes': typeof AuthenticatedLeiloesRoute
   '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
@@ -308,6 +316,7 @@ export interface FileRoutesByTo {
   '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/leiloes': typeof AuthenticatedLeiloesRoute
   '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
@@ -348,6 +357,7 @@ export interface FileRoutesById {
   '/_authenticated/integracoes': typeof AuthenticatedIntegracoesRoute
   '/_authenticated/leiloes': typeof AuthenticatedLeiloesRoute
   '/_authenticated/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/_authenticated/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/_authenticated/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/leiloes'
     | '/midias-sociais'
+    | '/simulador-financiamento'
     | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/leiloes'
     | '/midias-sociais'
+    | '/simulador-financiamento'
     | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
@@ -465,6 +477,7 @@ export interface FileRouteTypes {
     | '/_authenticated/integracoes'
     | '/_authenticated/leiloes'
     | '/_authenticated/midias-sociais'
+    | '/_authenticated/simulador-financiamento'
     | '/_authenticated/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
@@ -653,6 +666,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMidiasSociaisRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/simulador-financiamento': {
+      id: '/_authenticated/simulador-financiamento'
+      path: '/simulador-financiamento'
+      fullPath: '/simulador-financiamento'
+      preLoaderRoute: typeof AuthenticatedSimuladorFinanciamentoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/speed-to-lead': {
       id: '/_authenticated/speed-to-lead'
       path: '/speed-to-lead'
@@ -784,6 +804,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIntegracoesRoute: typeof AuthenticatedIntegracoesRoute
   AuthenticatedLeiloesRoute: typeof AuthenticatedLeiloesRoute
   AuthenticatedMidiasSociaisRoute: typeof AuthenticatedMidiasSociaisRoute
+  AuthenticatedSimuladorFinanciamentoRoute: typeof AuthenticatedSimuladorFinanciamentoRoute
   AuthenticatedSpeedToLeadRoute: typeof AuthenticatedSpeedToLeadRoute
   AuthenticatedAdminParametrosRoute: typeof AuthenticatedAdminParametrosRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
@@ -806,6 +827,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIntegracoesRoute: AuthenticatedIntegracoesRoute,
   AuthenticatedLeiloesRoute: AuthenticatedLeiloesRoute,
   AuthenticatedMidiasSociaisRoute: AuthenticatedMidiasSociaisRoute,
+  AuthenticatedSimuladorFinanciamentoRoute:
+    AuthenticatedSimuladorFinanciamentoRoute,
   AuthenticatedSpeedToLeadRoute: AuthenticatedSpeedToLeadRoute,
   AuthenticatedAdminParametrosRoute: AuthenticatedAdminParametrosRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,

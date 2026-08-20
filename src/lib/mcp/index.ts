@@ -2,7 +2,7 @@ import { auth, defineMcp } from "@lovable.dev/mcp-js";
 import searchPropertiesTool from "./tools/search-properties";
 import { PUBLIC_SUPABASE_PROJECT_ID } from "@/integrations/supabase/public-config";
 
-const projectRef = import.meta.env["VITE_SUPABASE_PROJECT_ID"] ?? PUBLIC_SUPABASE_PROJECT_ID;
+const projectRef = PUBLIC_SUPABASE_PROJECT_ID;
 
 export default defineMcp({
   name: "mercadoimobi",

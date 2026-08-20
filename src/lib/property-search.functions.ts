@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { isFreshRealEstateListing } from "@/lib/property-listing-quality";
+import {
+  PROPERTY_FRESHNESS_SLA_MINUTES,
+  isFreshRealEstateListing,
+} from "@/lib/property-listing-quality";
 
 const searchSchema = z.object({
   city: z.string().trim().max(120).optional(),
@@ -272,8 +275,12 @@ export const searchRealProperties = createServerFn({ method: "POST" })
         { count: "exact" },
       );
 
-    const freshnessCutoff = new Date(Date.now() - 120 * 60 * 1000).toISOString();
-    indexQuery = indexQuery.gte("last_seen_at", freshnessCutoff);
+    const freshnessCutoff = new Date(
+      Date.now() - PROPERTY_FRESHNESS_SLA_MINUTES * 60 * 1000,
+    ).toISOString();
+    indexQuery = indexQuery.or(
+      `last_seen_at.gte.${freshnessCutoff},and(last_seen_at.is.null,scanned_at.gte.${freshnessCutoff})`,
+    );
     propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);
 
     if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");
@@ -375,7 +382,7 @@ export const searchRealProperties = createServerFn({ method: "POST" })
 
     const limit = input.limit ?? 30;
     const offset = input.offset ?? 0;
-    const fetchLimit = limit;
+    const fetchLimit = Math.min(1000, Math.max(limit * 3, limit + 50));
     indexQuery = indexQuery.range(offset, offset + fetchLimit - 1);
     propertyQuery = propertyQuery.range(offset, offset + fetchLimit - 1);
 
