@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { evolutionGatewayConfig, getTenantEvolutionInstance } from "@/lib/evolution-instance.server";
+import {
+  evolutionGatewayConfig,
+  getTenantEvolutionInstance,
+} from "@/lib/evolution-instance.server";
 import { sendEvolutionMediaMessage, type EvolutionMediaType } from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
@@ -78,7 +81,11 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       body: label,
       status: "sent",
       sent_at: now,
-      raw_payload: { ...payload, mercadoimobi_file_name: data.fileName, mercadoimobi_mime_type: data.mimeType },
+      raw_payload: {
+        ...payload,
+        mercadoimobi_file_name: data.fileName,
+        mercadoimobi_mime_type: data.mimeType,
+      },
     });
     if (insertError && insertError.code !== "23505") throw new Error(insertError.message);
 

@@ -94,7 +94,9 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const gateway = evolutionGatewayConfig();
-    const instanceName = savedConnection?.instance_name ? String(savedConnection.instance_name) : null;
+    const instanceName = savedConnection?.instance_name
+      ? String(savedConnection.instance_name)
+      : null;
     if (!gateway || !instanceName) {
       return {
         configured: Boolean(gateway),

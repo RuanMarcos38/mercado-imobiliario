@@ -22,8 +22,12 @@ function DashboardPage() {
       <div className="border-b border-[var(--mi-border)] bg-[var(--mi-surface)] px-4 py-3 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-black text-[var(--mi-text)]">Simulador de financiamento imobiliário</p>
-            <p className="mt-0.5 text-xs text-[var(--mi-text-muted)]">Calcule pelo sistema PRICE e confirme a proposta no simulador oficial da CAIXA.</p>
+            <p className="text-sm font-black text-[var(--mi-text)]">
+              Simulador de financiamento imobiliário
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--mi-text-muted)]">
+              Calcule pelo sistema PRICE e confirme a proposta no simulador oficial da CAIXA.
+            </p>
           </div>
           <Link
             to="/simulador-financiamento"

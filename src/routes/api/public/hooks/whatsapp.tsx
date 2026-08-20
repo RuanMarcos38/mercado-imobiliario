@@ -15,7 +15,8 @@ function textFromMessage(message: JsonObject): string | null {
     if (typeof media["caption"] === "string") return media["caption"] as string;
   }
   const button = object(message["buttonsResponseMessage"]);
-  if (typeof button["selectedDisplayText"] === "string") return button["selectedDisplayText"] as string;
+  if (typeof button["selectedDisplayText"] === "string")
+    return button["selectedDisplayText"] as string;
   const list = object(message["listResponseMessage"]);
   const single = object(list["singleSelectReply"]);
   if (typeof single["selectedRowId"] === "string") return single["selectedRowId"] as string;

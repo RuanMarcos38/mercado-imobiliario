@@ -132,9 +132,12 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
     if (!config)
       return { configured: false, code: null as string | null, base64: null as string | null };
 
-    const response = await evolutionRequest(`/instance/connect/${encodeURIComponent(config.instance)}`, {
-      method: "GET",
-    });
+    const response = await evolutionRequest(
+      `/instance/connect/${encodeURIComponent(config.instance)}`,
+      {
+        method: "GET",
+      },
+    );
     if (!response.ok) throw new Error("Não foi possível iniciar a conexão do WhatsApp.");
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     const base64 =

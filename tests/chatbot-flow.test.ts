@@ -106,7 +106,12 @@ describe("MercadoImobi chatbot auto reply", () => {
             output: [
               {
                 type: "message",
-                content: [{ type: "output_text", text: "Olá! Posso ajudar com esse imóvel. Qual região você procura?" }],
+                content: [
+                  {
+                    type: "output_text",
+                    text: "Olá! Posso ajudar com esse imóvel. Qual região você procura?",
+                  },
+                ],
               },
             ],
           }),

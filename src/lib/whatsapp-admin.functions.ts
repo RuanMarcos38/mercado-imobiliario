@@ -92,43 +92,54 @@ export const getAiAgentSettings = createServerFn({ method: "GET" })
     const db = context.supabase as any;
     const { data, error } = await db
       .from("ai_agent_settings")
-      .select("enabled,agent_name,system_prompt,auto_reply,handoff_keywords,business_hours,updated_at")
+      .select(
+        "enabled,agent_name,system_prompt,auto_reply,handoff_keywords,business_hours,updated_at",
+      )
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return data ?? {
-      enabled: false,
-      agent_name: "Assistente MercadoImobi",
-      system_prompt: "",
-      auto_reply: false,
-      handoff_keywords: ["humano", "corretor", "atendente"],
-      business_hours: {},
-      updated_at: null,
-    };
+    return (
+      data ?? {
+        enabled: false,
+        agent_name: "Assistente MercadoImobi",
+        system_prompt: "",
+        auto_reply: false,
+        handoff_keywords: ["humano", "corretor", "atendente"],
+        business_hours: {},
+        updated_at: null,
+      }
+    );
   });
 
 export const saveAiAgentSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({
-    enabled: z.boolean(),
-    agentName: z.string().trim().min(1).max(80),
-    systemPrompt: z.string().max(12000),
-    autoReply: z.boolean(),
-    handoffKeywords: z.array(z.string().trim().min(1).max(80)).max(30),
-  }).parse(data))
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        enabled: z.boolean(),
+        agentName: z.string().trim().min(1).max(80),
+        systemPrompt: z.string().max(12000),
+        autoReply: z.boolean(),
+        handoffKeywords: z.array(z.string().trim().min(1).max(80)).max(30),
+      })
+      .parse(data),
+  )
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
-    const { error } = await db.from("ai_agent_settings").upsert({
-      tenant_id: tenantId,
-      enabled: data.enabled,
-      agent_name: data.agentName,
-      system_prompt: data.systemPrompt,
-      auto_reply: data.autoReply,
-      handoff_keywords: data.handoffKeywords,
-      updated_by: context.userId,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "tenant_id" });
+    const { error } = await db.from("ai_agent_settings").upsert(
+      {
+        tenant_id: tenantId,
+        enabled: data.enabled,
+        agent_name: data.agentName,
+        system_prompt: data.systemPrompt,
+        auto_reply: data.autoReply,
+        handoff_keywords: data.handoffKeywords,
+        updated_by: context.userId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id" },
+    );
     if (error) throw new Error(error.message);
     return { success: true };
   });

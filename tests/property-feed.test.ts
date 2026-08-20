@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  assertPublicFeedUrl,
-  readAuthorizedPropertyFeed,
-} from "@/lib/property-feed.server";
+import { assertPublicFeedUrl, readAuthorizedPropertyFeed } from "@/lib/property-feed.server";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -13,34 +10,35 @@ describe("authorized property feeds", () => {
   it("normalizes a JSON inventory", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            properties: [
-              {
-                id: "ABC-123",
-                title: "Apartamento no Centro",
-                description: "Pronto para morar",
-                price: 450000,
-                city: "Joinville",
-                state: "SC",
-                propertyType: "Apartamento",
-                bedrooms: 2,
-                bathrooms: 1,
-                area: 61.5,
-                url: "https://imobiliaria.exemplo.com.br/imovel/abc-123",
-                images: ["https://imobiliaria.exemplo.com.br/foto/1.jpg"],
-                contact: {
-                  name: "Imobiliária Exemplo",
-                  phone: "(47) 3333-4444",
-                  whatsapp: "(47) 99999-8888",
-                  email: "contato@exemplo.com.br",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              properties: [
+                {
+                  id: "ABC-123",
+                  title: "Apartamento no Centro",
+                  description: "Pronto para morar",
+                  price: 450000,
+                  city: "Joinville",
+                  state: "SC",
+                  propertyType: "Apartamento",
+                  bedrooms: 2,
+                  bathrooms: 1,
+                  area: 61.5,
+                  url: "https://imobiliaria.exemplo.com.br/imovel/abc-123",
+                  images: ["https://imobiliaria.exemplo.com.br/foto/1.jpg"],
+                  contact: {
+                    name: "Imobiliária Exemplo",
+                    phone: "(47) 3333-4444",
+                    whatsapp: "(47) 99999-8888",
+                    email: "contato@exemplo.com.br",
+                  },
                 },
-              },
-            ],
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
       ),
     );
 
@@ -63,9 +61,7 @@ describe("authorized property feeds", () => {
       contact_whatsapp: "47999998888",
       source_url: "https://imobiliaria.exemplo.com.br/imovel/abc-123",
     });
-    expect(result.items[0]?.images).toEqual([
-      "https://imobiliaria.exemplo.com.br/foto/1.jpg",
-    ]);
+    expect(result.items[0]?.images).toEqual(["https://imobiliaria.exemplo.com.br/foto/1.jpg"]);
   });
 
   it("normalizes a VRSYNC-style XML inventory", async () => {
@@ -104,8 +100,9 @@ describe("authorized property feeds", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(xml, { status: 200, headers: { "content-type": "application/xml" } }),
+      vi.fn(
+        async () =>
+          new Response(xml, { status: 200, headers: { "content-type": "application/xml" } }),
       ),
     );
 

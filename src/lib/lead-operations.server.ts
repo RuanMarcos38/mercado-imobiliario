@@ -96,7 +96,10 @@ export function normalizeLeadPhone(value: string | null | undefined) {
   return null;
 }
 
-export function normalizeLeadPayload(payload: unknown, sourceHint = "generic"): NormalizedInboundLead {
+export function normalizeLeadPayload(
+  payload: unknown,
+  sourceHint = "generic",
+): NormalizedInboundLead {
   const root = object(payload);
   const data = object(root["data"]);
   const lead = object(root["lead"]);
@@ -105,8 +108,12 @@ export function normalizeLeadPayload(payload: unknown, sourceHint = "generic"): 
   const fields = fieldDataMap({ ...root, ...data, ...lead });
 
   const source =
-    firstString(merged["source"], merged["platform"], merged["origem"], sourceHint)?.toLowerCase() ||
-    "generic";
+    firstString(
+      merged["source"],
+      merged["platform"],
+      merged["origem"],
+      sourceHint,
+    )?.toLowerCase() || "generic";
   const externalId = firstString(
     merged["external_id"],
     merged["externalId"],
@@ -151,7 +158,12 @@ export function normalizeLeadPayload(payload: unknown, sourceHint = "generic"): 
     merged["form_name"],
     merged["utm_campaign"],
   );
-  const notes = firstString(merged["notes"], merged["observacoes"], merged["message"], merged["mensagem"]);
+  const notes = firstString(
+    merged["notes"],
+    merged["observacoes"],
+    merged["message"],
+    merged["mensagem"],
+  );
 
   return {
     source,
@@ -166,7 +178,8 @@ export function normalizeLeadPayload(payload: unknown, sourceHint = "generic"): 
 }
 
 function fingerprint(tenantId: string, lead: NormalizedInboundLead) {
-  const identity = lead.externalId || lead.phone || lead.email || `${lead.name}:${lead.campaign || ""}`;
+  const identity =
+    lead.externalId || lead.phone || lead.email || `${lead.name}:${lead.campaign || ""}`;
   return createHash("sha256")
     .update(`${tenantId}|${lead.source}|${identity}`)
     .digest("hex")
@@ -193,7 +206,10 @@ async function eligibleTenantUsers(tenantId: string) {
     .select("user_id,member_role")
     .eq("tenant_id", tenantId);
   if (membersResult.error) throw new Error(membersResult.error.message);
-  const members = (membersResult.data ?? []) as Array<{ user_id: string; member_role: string | null }>;
+  const members = (membersResult.data ?? []) as Array<{
+    user_id: string;
+    member_role: string | null;
+  }>;
   const ids = members.map((item) => item.user_id).filter(Boolean);
   if (!ids.length) return [];
 
@@ -242,7 +258,8 @@ async function chooseAssignee(tenantId: string, preferredUserId?: string | null)
     if (!userId) continue;
     load.set(userId, (load.get(userId) ?? 0) + 1);
     const time = Date.parse(String(row.created_at ?? ""));
-    if (Number.isFinite(time)) lastAssigned.set(userId, Math.max(lastAssigned.get(userId) ?? 0, time));
+    if (Number.isFinite(time))
+      lastAssigned.set(userId, Math.max(lastAssigned.get(userId) ?? 0, time));
   }
 
   return [...users].sort((a, b) => {
@@ -325,7 +342,11 @@ export async function ingestLeadForTenant(input: {
     .single();
   if (inserted.error) throw new Error(inserted.error.message);
 
-  const conversationId = await ensureConversation(input.tenantId, input.lead.phone, input.lead.name);
+  const conversationId = await ensureConversation(
+    input.tenantId,
+    input.lead.phone,
+    input.lead.name,
+  );
   return {
     success: true,
     duplicate: false,

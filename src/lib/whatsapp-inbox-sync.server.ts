@@ -48,7 +48,8 @@ function textFromMessage(message: JsonObject): string | null {
     if (typeof media["caption"] === "string") return media["caption"] as string;
   }
   const button = object(message["buttonsResponseMessage"]);
-  if (typeof button["selectedDisplayText"] === "string") return button["selectedDisplayText"] as string;
+  if (typeof button["selectedDisplayText"] === "string")
+    return button["selectedDisplayText"] as string;
   const list = object(message["listResponseMessage"]);
   const single = object(list["singleSelectReply"]);
   if (typeof single["selectedRowId"] === "string") return single["selectedRowId"] as string;
@@ -128,12 +129,14 @@ function brazilianPhoneVariants(phone: string): string[] {
 
   // Brazil may appear in WhatsApp/Evolution with or without the mobile ninth digit.
   if (phone.length === 12) variants.add(`${phone.slice(0, 4)}9${phone.slice(4)}`);
-  if (phone.length === 13 && phone[4] === "9") variants.add(`${phone.slice(0, 4)}${phone.slice(5)}`);
+  if (phone.length === 13 && phone[4] === "9")
+    variants.add(`${phone.slice(0, 4)}${phone.slice(5)}`);
   return [...variants];
 }
 
 function recordsFromPayload(payload: unknown): JsonObject[] {
-  if (Array.isArray(payload)) return payload.filter((item) => item && typeof item === "object") as JsonObject[];
+  if (Array.isArray(payload))
+    return payload.filter((item) => item && typeof item === "object") as JsonObject[];
   const root = object(payload);
   const messages = object(root["messages"]);
   if (Array.isArray(messages["records"])) return messages["records"] as JsonObject[];
@@ -289,7 +292,11 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
       update.last_message_at = item.sentAt;
     }
 
-    await db.from("whatsapp_conversations").update(update).eq("id", conversation.id).eq("tenant_id", tenantId);
+    await db
+      .from("whatsapp_conversations")
+      .update(update)
+      .eq("id", conversation.id)
+      .eq("tenant_id", tenantId);
     inserted += 1;
     if (!item.fromMe) inbound += 1;
 

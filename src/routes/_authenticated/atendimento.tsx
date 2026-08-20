@@ -55,11 +55,46 @@ type PendingAttachment = {
 };
 
 const EMOJIS = [
-  "😀", "😃", "😄", "😁", "😊", "😍", "🥰", "😉",
-  "🙂", "🤩", "😎", "🤝", "👍", "👏", "🙏", "💪",
-  "❤️", "💙", "💚", "✨", "🎉", "🔥", "✅", "⭐",
-  "🏠", "🏡", "🏢", "🔑", "📍", "📅", "📞", "💬",
-  "💰", "📄", "📎", "🚀", "👀", "🤔", "☺️", "🙌",
+  "😀",
+  "😃",
+  "😄",
+  "😁",
+  "😊",
+  "😍",
+  "🥰",
+  "😉",
+  "🙂",
+  "🤩",
+  "😎",
+  "🤝",
+  "👍",
+  "👏",
+  "🙏",
+  "💪",
+  "❤️",
+  "💙",
+  "💚",
+  "✨",
+  "🎉",
+  "🔥",
+  "✅",
+  "⭐",
+  "🏠",
+  "🏡",
+  "🏢",
+  "🔑",
+  "📍",
+  "📅",
+  "📞",
+  "💬",
+  "💰",
+  "📄",
+  "📎",
+  "🚀",
+  "👀",
+  "🤔",
+  "☺️",
+  "🙌",
 ];
 
 function readFileBase64(file: File) {
@@ -67,7 +102,7 @@ function readFileBase64(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       const result = String(reader.result ?? "");
-      const base64 = result.includes(",") ? result.split(",")[1] ?? "" : result;
+      const base64 = result.includes(",") ? (result.split(",")[1] ?? "") : result;
       if (!base64) reject(new Error("Não foi possível ler o arquivo."));
       else resolve(base64);
     };
@@ -372,7 +407,11 @@ function AtendimentoPage() {
               <span
                 className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
               >
-                {connection.data?.connected ? <Link2 className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                {connection.data?.connected ? (
+                  <Link2 className="h-4 w-4" />
+                ) : (
+                  <WifiOff className="h-4 w-4" />
+                )}
                 {connection.data?.connected ? "Conectado" : "Desconectado"}
               </span>
             </div>
@@ -458,8 +497,12 @@ function AtendimentoPage() {
             <>
               <header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
                 <div className="min-w-0">
-                  <p className="truncate font-black">{selected.contact_name || `+${selected.phone_e164}`}</p>
-                  <p className="mt-0.5 text-xs text-[var(--mi-text-soft)]">+{selected.phone_e164}</p>
+                  <p className="truncate font-black">
+                    {selected.contact_name || `+${selected.phone_e164}`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--mi-text-soft)]">
+                    +{selected.phone_e164}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-bold text-[var(--mi-text-soft)]">
                   {connection.data?.connected ? (
@@ -589,7 +632,11 @@ function AtendimentoPage() {
                   <div className="absolute bottom-[82px] left-16 z-20 w-72 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 shadow-xl">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-xs font-black">Emojis</p>
-                      <button type="button" onClick={() => setShowEmoji(false)} aria-label="Fechar emojis">
+                      <button
+                        type="button"
+                        onClick={() => setShowEmoji(false)}
+                        aria-label="Fechar emojis"
+                      >
                         <X className="h-4 w-4 text-[var(--mi-text-soft)]" />
                       </button>
                     </div>
@@ -648,20 +695,29 @@ function AtendimentoPage() {
                       }
                     }}
                     rows={1}
-                    placeholder={pendingAttachment ? "Adicione uma legenda (opcional)" : "Digite uma mensagem"}
+                    placeholder={
+                      pendingAttachment ? "Adicione uma legenda (opcional)" : "Digite uma mensagem"
+                    }
                     className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
                   />
                   <Button
                     size="icon"
                     onClick={() => void send()}
-                    disabled={sending || (!text.trim() && !pendingAttachment) || !connection.data?.connected}
+                    disabled={
+                      sending || (!text.trim() && !pendingAttachment) || !connection.data?.connected
+                    }
                     className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
                   >
-                    {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {sending ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
                 <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
-                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até {connection.data?.maxAttachmentMb ?? 8} MB.
+                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até{" "}
+                  {connection.data?.maxAttachmentMb ?? 8} MB.
                 </p>
               </footer>
             </>
@@ -674,7 +730,10 @@ function AtendimentoPage() {
                   As mensagens recebidas pelo WhatsApp aparecerão aqui em tempo real.
                 </p>
                 {!connection.data?.connected && (
-                  <Button onClick={() => void connect()} className="mt-5 rounded-xl bg-emerald-600 text-white">
+                  <Button
+                    onClick={() => void connect()}
+                    className="mt-5 rounded-xl bg-emerald-600 text-white"
+                  >
                     <Link2 className="mr-2 h-4 w-4" /> Conectar WhatsApp
                   </Button>
                 )}
@@ -694,32 +753,44 @@ function AtendimentoPage() {
               </button>
             </div>
             <p className="mt-2 text-sm text-slate-600">
-              No WhatsApp do celular, abra Configurações → Aparelhos conectados → Conectar aparelho e leia o QR Code abaixo.
+              No WhatsApp do celular, abra Configurações → Aparelhos conectados → Conectar aparelho
+              e leia o QR Code abaixo.
             </p>
             <div className="mt-5 grid min-h-60 place-items-center rounded-2xl bg-slate-50 p-4">
               {qrBase64 ? (
                 <img
-                  src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`}
+                  src={
+                    qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`
+                  }
                   alt="QR Code para conectar o WhatsApp"
                   className="h-56 w-56"
                 />
               ) : qrCode ? (
-                <div className="break-all rounded-xl bg-white p-3 text-xs text-slate-600">{qrCode}</div>
+                <div className="break-all rounded-xl bg-white p-3 text-xs text-slate-600">
+                  {qrCode}
+                </div>
               ) : (
                 <div className="text-center">
-                  <RefreshCw className={`mx-auto h-7 w-7 text-slate-400 ${qrLoading ? "animate-spin" : ""}`} />
-                  <p className="mt-3 text-sm text-slate-500">Gerando QR Code seguro para esta conta...</p>
+                  <RefreshCw
+                    className={`mx-auto h-7 w-7 text-slate-400 ${qrLoading ? "animate-spin" : ""}`}
+                  />
+                  <p className="mt-3 text-sm text-slate-500">
+                    Gerando QR Code seguro para esta conta...
+                  </p>
                 </div>
               )}
             </div>
             {pairingCode && (
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Código de pareamento</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                  Código de pareamento
+                </p>
                 <p className="mt-1 font-mono text-xl font-black tracking-[0.18em]">{pairingCode}</p>
               </div>
             )}
             <p className="mt-3 text-center text-xs text-slate-500">
-              O status é atualizado automaticamente. Após a leitura, esta janela fecha quando a conexão estiver online.
+              O status é atualizado automaticamente. Após a leitura, esta janela fecha quando a
+              conexão estiver online.
             </p>
             <Button
               variant="outline"
@@ -727,7 +798,8 @@ function AtendimentoPage() {
               disabled={qrLoading}
               className="mt-4 h-10 w-full rounded-xl"
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${qrLoading ? "animate-spin" : ""}`} /> Atualizar QR Code
+              <RefreshCw className={`mr-2 h-4 w-4 ${qrLoading ? "animate-spin" : ""}`} /> Atualizar
+              QR Code
             </Button>
             <Button
               onClick={() => {

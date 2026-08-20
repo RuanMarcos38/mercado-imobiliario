@@ -8,9 +8,7 @@ describe("MercadoImobi AI assistant", () => {
         { type: "reasoning", content: [] },
         {
           type: "message",
-          content: [
-            { type: "output_text", text: "Olá! Posso ajudar a encontrar um imóvel." },
-          ],
+          content: [{ type: "output_text", text: "Olá! Posso ajudar a encontrar um imóvel." }],
         },
       ],
     });

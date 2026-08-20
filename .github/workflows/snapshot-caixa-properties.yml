@@ -18,7 +18,36 @@ jobs:
       fail-fast: false
       max-parallel: 27
       matrix:
-        state: [AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO]
+        state:
+          [
+            AC,
+            AL,
+            AM,
+            AP,
+            BA,
+            CE,
+            DF,
+            ES,
+            GO,
+            MA,
+            MG,
+            MS,
+            MT,
+            PA,
+            PB,
+            PE,
+            PI,
+            PR,
+            RJ,
+            RN,
+            RO,
+            RR,
+            RS,
+            SC,
+            SE,
+            SP,
+            TO,
+          ]
     steps:
       - name: Download and normalize ${{ matrix.state }}
         shell: python

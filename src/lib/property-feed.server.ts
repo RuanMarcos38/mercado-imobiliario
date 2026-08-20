@@ -96,8 +96,10 @@ function isPrivateIpv4(hostname: string) {
 
 export function assertPublicFeedUrl(value: string) {
   const url = new URL(value);
-  if (!['http:', 'https:'].includes(url.protocol)) throw new Error("A fonte precisa usar HTTP ou HTTPS.");
-  if (url.username || url.password) throw new Error("Não informe usuário ou senha diretamente no endereço da fonte.");
+  if (!["http:", "https:"].includes(url.protocol))
+    throw new Error("A fonte precisa usar HTTP ou HTTPS.");
+  if (url.username || url.password)
+    throw new Error("Não informe usuário ou senha diretamente no endereço da fonte.");
   const hostname = url.hostname.toLowerCase();
   if (
     !hostname ||
@@ -133,12 +135,17 @@ async function fetchPublicFeed(urlValue: string) {
 
     if (!response.ok) throw new Error(`A fonte respondeu com status ${response.status}.`);
     const length = Number(response.headers.get("content-length") || "0");
-    if (length > MAX_FEED_BYTES) throw new Error("O arquivo da fonte é maior que o limite permitido.");
+    if (length > MAX_FEED_BYTES)
+      throw new Error("O arquivo da fonte é maior que o limite permitido.");
     const text = await response.text();
     if (new TextEncoder().encode(text).byteLength > MAX_FEED_BYTES) {
       throw new Error("O arquivo da fonte é maior que o limite permitido.");
     }
-    return { text, finalUrl: current.toString(), contentType: response.headers.get("content-type") || "" };
+    return {
+      text,
+      finalUrl: current.toString(),
+      contentType: response.headers.get("content-type") || "",
+    };
   }
 
   throw new Error("A fonte possui redirecionamentos demais.");
@@ -190,46 +197,147 @@ function imageUrls(value: unknown, baseUrl: string): string[] {
   return Array.from(urls);
 }
 
-function normalizeJsonItem(item: unknown, index: number, feedUrl: string): NormalizedFeedProperty | null {
+function normalizeJsonItem(
+  item: unknown,
+  index: number,
+  feedUrl: string,
+): NormalizedFeedProperty | null {
   if (!item || typeof item !== "object") return null;
-  const id = cleanText(valueAt(item, ["id", "listingId", "listing_id", "code", "codigo", "reference", "ref"]));
-  const propertyType = cleanText(valueAt(item, ["property_type", "propertyType", "type", "tipo", "details.propertyType", "details.type"]));
-  const city = cleanText(valueAt(item, ["location_city", "city", "cidade", "address.city", "location.city", "location.City"]));
-  const state = cleanText(valueAt(item, ["location_state", "state", "uf", "address.state", "location.state", "location.State"]))?.slice(0, 2).toUpperCase() || null;
-  const title = cleanText(valueAt(item, ["title", "titulo", "name", "nome", "headline"])) || [propertyType || "Imóvel", city ? `em ${city}` : null].filter(Boolean).join(" ");
+  const id = cleanText(
+    valueAt(item, ["id", "listingId", "listing_id", "code", "codigo", "reference", "ref"]),
+  );
+  const propertyType = cleanText(
+    valueAt(item, [
+      "property_type",
+      "propertyType",
+      "type",
+      "tipo",
+      "details.propertyType",
+      "details.type",
+    ]),
+  );
+  const city = cleanText(
+    valueAt(item, [
+      "location_city",
+      "city",
+      "cidade",
+      "address.city",
+      "location.city",
+      "location.City",
+    ]),
+  );
+  const state =
+    cleanText(
+      valueAt(item, [
+        "location_state",
+        "state",
+        "uf",
+        "address.state",
+        "location.state",
+        "location.State",
+      ]),
+    )
+      ?.slice(0, 2)
+      .toUpperCase() || null;
+  const title =
+    cleanText(valueAt(item, ["title", "titulo", "name", "nome", "headline"])) ||
+    [propertyType || "Imóvel", city ? `em ${city}` : null].filter(Boolean).join(" ");
   if (!title) return null;
-  const price = cleanNumber(valueAt(item, ["price", "listPrice", "sale_price", "salePrice", "preco", "pricing.sale", "pricing.price"]));
-  const explicitUrl = cleanText(valueAt(item, ["source_url", "url", "link", "listingUrl", "webpage", "details.url"]));
+  const price = cleanNumber(
+    valueAt(item, [
+      "price",
+      "listPrice",
+      "sale_price",
+      "salePrice",
+      "preco",
+      "pricing.sale",
+      "pricing.price",
+    ]),
+  );
+  const explicitUrl = cleanText(
+    valueAt(item, ["source_url", "url", "link", "listingUrl", "webpage", "details.url"]),
+  );
   let sourceUrl: string;
   try {
-    sourceUrl = explicitUrl ? new URL(explicitUrl, feedUrl).toString() : `${feedUrl}#listing=${encodeURIComponent(id || stableKey(`${title}|${city || ""}|${state || ""}|${price ?? ""}|${index}`))}`;
+    sourceUrl = explicitUrl
+      ? new URL(explicitUrl, feedUrl).toString()
+      : `${feedUrl}#listing=${encodeURIComponent(id || stableKey(`${title}|${city || ""}|${state || ""}|${price ?? ""}|${index}`))}`;
   } catch {
     sourceUrl = `${feedUrl}#listing=${encodeURIComponent(id || stableKey(`${title}|${index}`))}`;
   }
 
-  const media = valueAt(item, ["images", "photos", "media", "medias", "imagens", "gallery", "details.images"]);
-  const directImage = firstUrl(valueAt(item, ["image", "image_url", "photo", "thumbnail"]), feedUrl);
+  const media = valueAt(item, [
+    "images",
+    "photos",
+    "media",
+    "medias",
+    "imagens",
+    "gallery",
+    "details.images",
+  ]);
+  const directImage = firstUrl(
+    valueAt(item, ["image", "image_url", "photo", "thumbnail"]),
+    feedUrl,
+  );
   const images = new Set(imageUrls(media, feedUrl));
   if (directImage) images.add(directImage);
 
   return {
     id,
     title,
-    description: cleanText(valueAt(item, ["description", "descricao", "details.description", "details.Description"])),
+    description: cleanText(
+      valueAt(item, ["description", "descricao", "details.description", "details.Description"]),
+    ),
     price,
-    location_address: cleanText(valueAt(item, ["location_address", "address", "endereco", "address.street", "location.address", "location.Address"])),
+    location_address: cleanText(
+      valueAt(item, [
+        "location_address",
+        "address",
+        "endereco",
+        "address.street",
+        "location.address",
+        "location.Address",
+      ]),
+    ),
     location_city: city,
     location_state: state,
     property_type: propertyType,
-    bedrooms: integer(valueAt(item, ["bedrooms", "rooms", "quartos", "details.bedrooms", "details.Bedrooms"])),
-    bathrooms: integer(valueAt(item, ["bathrooms", "banheiros", "details.bathrooms", "details.Bathrooms"])),
-    area_sqm: cleanNumber(valueAt(item, ["area_sqm", "area", "livingArea", "usableArea", "details.livingArea", "details.LivingArea"])),
+    bedrooms: integer(
+      valueAt(item, ["bedrooms", "rooms", "quartos", "details.bedrooms", "details.Bedrooms"]),
+    ),
+    bathrooms: integer(
+      valueAt(item, ["bathrooms", "banheiros", "details.bathrooms", "details.Bathrooms"]),
+    ),
+    area_sqm: cleanNumber(
+      valueAt(item, [
+        "area_sqm",
+        "area",
+        "livingArea",
+        "usableArea",
+        "details.livingArea",
+        "details.LivingArea",
+      ]),
+    ),
     images: Array.from(images).slice(0, 30),
     source_url: sourceUrl,
-    contact_name: cleanText(valueAt(item, ["contact_name", "contact.name", "contactName", "contato.nome"])),
-    contact_phone: normalizePhone(valueAt(item, ["contact_phone", "phone", "contact.phone", "contact.telephone", "contato.telefone"])),
-    contact_whatsapp: normalizePhone(valueAt(item, ["contact_whatsapp", "whatsapp", "contact.whatsapp", "contato.whatsapp"])),
-    contact_email: cleanText(valueAt(item, ["contact_email", "email", "contact.email", "contato.email"])),
+    contact_name: cleanText(
+      valueAt(item, ["contact_name", "contact.name", "contactName", "contato.nome"]),
+    ),
+    contact_phone: normalizePhone(
+      valueAt(item, [
+        "contact_phone",
+        "phone",
+        "contact.phone",
+        "contact.telephone",
+        "contato.telefone",
+      ]),
+    ),
+    contact_whatsapp: normalizePhone(
+      valueAt(item, ["contact_whatsapp", "whatsapp", "contact.whatsapp", "contato.whatsapp"]),
+    ),
+    contact_email: cleanText(
+      valueAt(item, ["contact_email", "email", "contact.email", "contato.email"]),
+    ),
   };
 }
 
@@ -253,11 +361,13 @@ function jsonItems(payload: unknown): unknown[] {
 function xmlTag(block: string, names: string[]) {
   for (const name of names) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const match = block.match(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "i"));
+    const match = block.match(
+      new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "i"),
+    );
     if (match?.[1]) {
-    const decoded = decodeXml(match[1]);
-    return cleanText(decoded.replace(/<[^>]+>/g, " "));
-  }
+      const decoded = decodeXml(match[1]);
+      return cleanText(decoded.replace(/<[^>]+>/g, " "));
+    }
   }
   return null;
 }
@@ -265,7 +375,9 @@ function xmlTag(block: string, names: string[]) {
 function xmlBlocks(text: string) {
   for (const tag of ["Listing", "Imovel", "Property", "Imóvel"]) {
     const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const matches = Array.from(text.matchAll(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "gi")));
+    const matches = Array.from(
+      text.matchAll(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "gi")),
+    );
     if (matches.length > 0) return matches.map((match) => match[1] || "");
   }
   return [];
@@ -293,18 +405,43 @@ function xmlUrls(block: string, baseUrl: string) {
   return Array.from(urls);
 }
 
-function normalizeXmlItem(block: string, index: number, feedUrl: string): NormalizedFeedProperty | null {
-  const id = xmlTag(block, ["ListingID", "ListingId", "ID", "CodigoImovel", "Codigo", "Reference", "Referencia"]);
+function normalizeXmlItem(
+  block: string,
+  index: number,
+  feedUrl: string,
+): NormalizedFeedProperty | null {
+  const id = xmlTag(block, [
+    "ListingID",
+    "ListingId",
+    "ID",
+    "CodigoImovel",
+    "Codigo",
+    "Reference",
+    "Referencia",
+  ]);
   const propertyType = xmlTag(block, ["PropertyType", "TipoImovel", "Tipo", "Category"]);
   const city = xmlTag(block, ["City", "Cidade"]);
   const state = xmlTag(block, ["State", "UF", "Estado"])?.slice(0, 2).toUpperCase() || null;
-  const title = xmlTag(block, ["Title", "Titulo", "Name", "Nome"]) || [propertyType || "Imóvel", city ? `em ${city}` : null].filter(Boolean).join(" ");
+  const title =
+    xmlTag(block, ["Title", "Titulo", "Name", "Nome"]) ||
+    [propertyType || "Imóvel", city ? `em ${city}` : null].filter(Boolean).join(" ");
   if (!title) return null;
-  const price = cleanNumber(xmlTag(block, ["ListPrice", "SalePrice", "Price", "PrecoVenda", "Preco"]));
-  const listingUrl = xmlTag(block, ["ListingUrl", "Website", "WebPage", "SourceUrl", "UrlAnuncio", "LinkAnuncio"]);
+  const price = cleanNumber(
+    xmlTag(block, ["ListPrice", "SalePrice", "Price", "PrecoVenda", "Preco"]),
+  );
+  const listingUrl = xmlTag(block, [
+    "ListingUrl",
+    "Website",
+    "WebPage",
+    "SourceUrl",
+    "UrlAnuncio",
+    "LinkAnuncio",
+  ]);
   let sourceUrl: string;
   try {
-    sourceUrl = listingUrl ? new URL(listingUrl, feedUrl).toString() : `${feedUrl}#listing=${encodeURIComponent(id || stableKey(`${title}|${city || ""}|${state || ""}|${price ?? ""}|${index}`))}`;
+    sourceUrl = listingUrl
+      ? new URL(listingUrl, feedUrl).toString()
+      : `${feedUrl}#listing=${encodeURIComponent(id || stableKey(`${title}|${city || ""}|${state || ""}|${price ?? ""}|${index}`))}`;
   } catch {
     sourceUrl = `${feedUrl}#listing=${encodeURIComponent(id || stableKey(`${title}|${index}`))}`;
   }
@@ -320,7 +457,9 @@ function normalizeXmlItem(block: string, index: number, feedUrl: string): Normal
     property_type: propertyType,
     bedrooms: integer(xmlTag(block, ["Bedrooms", "Quartos", "Dormitories", "Dormitorios"])),
     bathrooms: integer(xmlTag(block, ["Bathrooms", "Banheiros"])),
-    area_sqm: cleanNumber(xmlTag(block, ["LivingArea", "UsableArea", "AreaUtil", "AreaPrivativa", "Area"])),
+    area_sqm: cleanNumber(
+      xmlTag(block, ["LivingArea", "UsableArea", "AreaUtil", "AreaPrivativa", "Area"]),
+    ),
     images: xmlUrls(block, feedUrl),
     source_url: sourceUrl,
     contact_name: xmlTag(block, ["ContactName", "NomeContato", "Name"]),
@@ -365,7 +504,10 @@ export async function readAuthorizedPropertyFeed(input: {
   };
 }
 
-export async function syncAuthorizedFeedConnection(connectionId: string, expectedTenantId?: string) {
+export async function syncAuthorizedFeedConnection(
+  connectionId: string,
+  expectedTenantId?: string,
+) {
   const db = supabaseAdmin as any;
   const { data: connection, error: connectionError } = await db
     .from("property_source_connections")
@@ -373,11 +515,13 @@ export async function syncAuthorizedFeedConnection(connectionId: string, expecte
     .eq("id", connectionId)
     .single();
   if (connectionError || !connection) throw new Error("Conexão de imóveis não encontrada.");
-  if (expectedTenantId && connection.tenant_id !== expectedTenantId) throw new Error("Conexão não pertence a esta conta.");
+  if (expectedTenantId && connection.tenant_id !== expectedTenantId)
+    throw new Error("Conexão não pertence a esta conta.");
 
   const format = connection.public_config?.format as PropertyFeedFormat | undefined;
   const feedUrl = cleanText(connection.public_config?.feedUrl);
-  if (!feedUrl || (format !== "xml" && format !== "json")) throw new Error("A conexão não possui uma fonte XML/JSON válida.");
+  if (!feedUrl || (format !== "xml" && format !== "json"))
+    throw new Error("A conexão não possui uma fonte XML/JSON válida.");
 
   const { data: source } = await db
     .from("property_source_catalog")
@@ -436,7 +580,9 @@ export async function syncAuthorizedFeedConnection(connectionId: string, expecte
         },
       }));
 
-      const result = await db.from("property_search_index").upsert(chunk, { onConflict: "source_url" });
+      const result = await db
+        .from("property_search_index")
+        .upsert(chunk, { onConflict: "source_url" });
       if (result.error) throw new Error(result.error.message);
       upserted += chunk.length;
     }
@@ -472,7 +618,8 @@ export async function syncAuthorizedFeedConnection(connectionId: string, expecte
 
     return { success: true, count: feed.items.length, upserted };
   } catch (error) {
-    const message = error instanceof Error ? error.message.slice(0, 500) : "Falha ao sincronizar a fonte.";
+    const message =
+      error instanceof Error ? error.message.slice(0, 500) : "Falha ao sincronizar a fonte.";
     await db
       .from("property_source_connections")
       .update({ status: "error", last_sync_at: now, last_error: message, updated_at: now })
@@ -507,7 +654,8 @@ export async function syncAllAuthorizedFeeds(limit = 20) {
       results.push({
         id: row.id,
         success: false,
-        error: syncError instanceof Error ? syncError.message.slice(0, 200) : "Falha de sincronização",
+        error:
+          syncError instanceof Error ? syncError.message.slice(0, 200) : "Falha de sincronização",
       });
     }
   }

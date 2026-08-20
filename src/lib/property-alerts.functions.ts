@@ -29,7 +29,9 @@ export const listPropertyAlertRules = createServerFn({ method: "GET" })
     const db = context.supabase as any;
     const { data, error } = await db
       .from("property_alert_rules")
-      .select("id,name,criteria,notify_in_app,notify_whatsapp,notify_email,active,last_matched_at,created_at")
+      .select(
+        "id,name,criteria,notify_in_app,notify_whatsapp,notify_email,active,last_matched_at,created_at",
+      )
       .eq("tenant_id", tenantId)
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
@@ -63,7 +65,9 @@ export const createPropertyAlertRule = createServerFn({ method: "POST" })
 
 export const togglePropertyAlertRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), active: z.boolean() }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

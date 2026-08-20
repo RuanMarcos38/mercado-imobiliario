@@ -3,12 +3,18 @@ import { createFileRoute } from "@tanstack/react-router";
 async function handler(request: Request) {
   const secret = process.env["PROPERTY_DISCOVERY_SECRET"];
   if (!secret) {
-    return Response.json({ ok: false, message: "Descoberta automática ainda não ativada." }, { status: 503 });
+    return Response.json(
+      { ok: false, message: "Descoberta automática ainda não ativada." },
+      { status: 503 },
+    );
   }
   const supplied = request.headers.get("x-discovery-key") ?? request.headers.get("x-api-key");
   if (supplied !== secret) return Response.json({ ok: false }, { status: 401 });
   if (!process.env["OPENAI_API_KEY"]) {
-    return Response.json({ ok: false, message: "Inteligência de descoberta não configurada." }, { status: 503 });
+    return Response.json(
+      { ok: false, message: "Inteligência de descoberta não configurada." },
+      { status: 503 },
+    );
   }
 
   const [{ supabaseAdmin }, { discoverPublicPropertySources }] = await Promise.all([
@@ -21,7 +27,11 @@ async function handler(request: Request) {
     .select("criteria")
     .eq("active", true)
     .limit(100);
-  if (error) return Response.json({ ok: false, message: "Não foi possível carregar as regiões monitoradas." }, { status: 500 });
+  if (error)
+    return Response.json(
+      { ok: false, message: "Não foi possível carregar as regiões monitoradas." },
+      { status: 500 },
+    );
 
   const targets = new Map<string, { city?: string; state?: string }>();
   for (const row of rules ?? []) {
@@ -29,7 +39,10 @@ async function handler(request: Request) {
     const city = typeof criteria.city === "string" ? criteria.city.trim() : "";
     const state = typeof criteria.state === "string" ? criteria.state.trim().toUpperCase() : "";
     if (!city && !state) continue;
-    targets.set(`${city.toLowerCase()}|${state}`, { city: city || undefined, state: state || undefined });
+    targets.set(`${city.toLowerCase()}|${state}`, {
+      city: city || undefined,
+      state: state || undefined,
+    });
   }
 
   if (targets.size === 0) targets.set("brasil|", { state: undefined });
@@ -39,7 +52,10 @@ async function handler(request: Request) {
   const now = new Date().toISOString();
   for (const target of Array.from(targets.values()).slice(0, 8)) {
     try {
-      const result = await discoverPublicPropertySources({ ...target, query: "novos anúncios de imóveis e sites de imobiliárias" });
+      const result = await discoverPublicPropertySources({
+        ...target,
+        query: "novos anúncios de imóveis e sites de imobiliárias",
+      });
       processedTargets += 1;
       for (const candidate of result.candidates) {
         const upsert = await db.from("property_discovered_domains").upsert(

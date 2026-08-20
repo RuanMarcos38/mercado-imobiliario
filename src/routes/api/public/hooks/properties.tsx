@@ -41,13 +41,15 @@ async function handler(request: Request) {
   if (!secret) {
     return Response.json({ ok: false, message: "Importação ainda não ativada." }, { status: 503 });
   }
-  const supplied =
-    request.headers.get("x-property-import-key") ?? request.headers.get("x-api-key");
+  const supplied = request.headers.get("x-property-import-key") ?? request.headers.get("x-api-key");
   if (supplied !== secret) return Response.json({ ok: false }, { status: 401 });
 
   const parsed = payloadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return Response.json({ ok: false, message: "Formato de importação inválido." }, { status: 400 });
+    return Response.json(
+      { ok: false, message: "Formato de importação inválido." },
+      { status: 400 },
+    );
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -57,7 +59,8 @@ async function handler(request: Request) {
     .select("code,name")
     .eq("code", parsed.data.source_code)
     .maybeSingle();
-  if (!source) return Response.json({ ok: false, message: "Fonte não cadastrada." }, { status: 400 });
+  if (!source)
+    return Response.json({ ok: false, message: "Fonte não cadastrada." }, { status: 400 });
 
   const run = await db
     .from("property_scan_runs")
@@ -83,7 +86,8 @@ async function handler(request: Request) {
         .select("source_url,first_seen_at")
         .in("source_url", incomingUrls);
       for (const row of existing ?? []) {
-        if (row.source_url && row.first_seen_at) firstSeenByUrl.set(row.source_url, row.first_seen_at);
+        if (row.source_url && row.first_seen_at)
+          firstSeenByUrl.set(row.source_url, row.first_seen_at);
       }
     }
 
@@ -167,12 +171,16 @@ async function handler(request: Request) {
         .from("property_scan_runs")
         .update({
           status: "failed",
-          error_summary: error instanceof Error ? error.message.slice(0, 500) : "Falha na importação",
+          error_summary:
+            error instanceof Error ? error.message.slice(0, 500) : "Falha na importação",
           finished_at: new Date().toISOString(),
         })
         .eq("id", runId);
     }
-    return Response.json({ ok: false, message: "Não foi possível importar os imóveis." }, { status: 500 });
+    return Response.json(
+      { ok: false, message: "Não foi possível importar os imóveis." },
+      { status: 500 },
+    );
   }
 }
 

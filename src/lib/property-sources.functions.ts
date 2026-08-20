@@ -88,7 +88,9 @@ export const listPropertySources = createServerFn({ method: "GET" })
     return {
       sources: (catalogResult.data ?? []).map((source: any) => ({
         ...source,
-        connections: connections.filter((connection: any) => connection.source_code === source.code),
+        connections: connections.filter(
+          (connection: any) => connection.source_code === source.code,
+        ),
         latestRun: runs.find((run: any) => run.source_code === source.code) ?? null,
       })),
       recentRuns: runs,
@@ -196,14 +198,18 @@ export const getPropertySourceSummary = createServerFn({ method: "GET" })
         (row: any) => String(row.metadata?.public_discovery ?? "false") === "true",
       ).length,
       discoverySources: sources.filter((source: any) => source.public_discovery_enabled).length,
-      activeDiscoverySources: sources.filter((source: any) => source.public_discovery_status === "active")
-        .length,
+      activeDiscoverySources: sources.filter(
+        (source: any) => source.public_discovery_status === "active",
+      ).length,
       withPortal: rows.filter((row: any) => Boolean(row.source_portal)).length,
       portals: Array.from(
         new Set(
           rows
             .map((row: any) => row.source_portal)
-            .filter((portal: unknown): portal is string => typeof portal === "string" && portal.length > 0),
+            .filter(
+              (portal: unknown): portal is string =>
+                typeof portal === "string" && portal.length > 0,
+            ),
         ),
       ).length,
     };
