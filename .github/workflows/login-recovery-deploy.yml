@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/login-recovery-deploy.yml"
+      - "src/routes/api/public/status.tsx"
+      - "src/integrations/supabase/**"
+      - "Dockerfile"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,7 +22,6 @@ jobs:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
-      EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
       - name: Checkout recovery source
         uses: actions/checkout@v4
@@ -31,7 +34,7 @@ jobs:
           set -euo pipefail
           grep -q 'uwzfgksmnqgaxtscwxow' src/integrations/supabase/public-config.ts
           grep -q 'uwzfgksmnqgaxtscwxow' supabase/config.toml
-          grep -q 'supabaseProjectId' src/routes/api/public/status.tsx
+          grep -q 'supabaseAdmin' src/routes/api/public/status.tsx
           curl -fsS -X POST \
             'https://uwzfgksmnqgaxtscwxow.supabase.co/rest/v1/rpc/search_index_health' \
             -H 'apikey: sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i' \
@@ -73,19 +76,17 @@ jobs:
             echo "::warning::Explicit deploy hook failed; continuing with repository-linked EasyPanel deployment."
           fi
 
-      - name: Verify configured EasyPanel URL
+      - name: Verify actual EasyPanel MercadoImobi service host
         id: verify_easy
         shell: bash
         run: |
           set -euo pipefail
-          FALLBACK='https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host'
-          EASY="${EASYPANEL_PUBLIC_URL:-$FALLBACK}"
-          EASY="${EASY%/}"
+          EASY='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host'
           printf '%s' "$EASY" > /tmp/easy-target.txt
           : > /tmp/easy-last.txt
-          for attempt in $(seq 1 10); do
-            code="$(curl -sS --connect-timeout 4 --max-time 7 -w '%{http_code}' "$EASY/api/public/status" -o /tmp/easy-last.txt || true)"
-            echo "Configured EasyPanel target: $EASY | attempt $attempt/10 | HTTP ${code:-000}"
+          for attempt in $(seq 1 12); do
+            code="$(curl -sS --connect-timeout 4 --max-time 8 -w '%{http_code}' "$EASY/api/public/status" -o /tmp/easy-last.txt || true)"
+            echo "EasyPanel target: $EASY | attempt $attempt/12 | HTTP ${code:-000}"
             if [ "$code" = "200" ]; then
               if node - <<'NODE'
           const fs = require('fs');
@@ -94,6 +95,7 @@ jobs:
             const ok = p.status === 'operational'
               && p.search === 'available'
               && p.supabaseProjectId === 'uwzfgksmnqgaxtscwxow'
+              && p.runtime?.supabaseAdmin === 'configured'
               && Number.isFinite(p.indexedProperties) && p.indexedProperties >= 1000
               && Number.isFinite(p.coveredStates) && p.coveredStates >= 27;
             process.exit(ok ? 0 : 1);
@@ -105,11 +107,15 @@ jobs:
                 echo "EasyPanel MercadoImobi LIVE OK at $EASY"
                 cat /tmp/easy-last.txt
                 exit 0
+              else
+                echo "HTTP 200 received but backend is not fully operational yet:"
+                head -c 1200 /tmp/easy-last.txt || true
+                echo
               fi
             fi
             sleep 5
           done
-          echo "::error::Configured EasyPanel URL did not expose the corrected MercadoImobi backend."
+          echo "::error::EasyPanel service did not expose a fully configured MercadoImobi backend."
           exit 1
 
       - name: Record EasyPanel live success
@@ -125,6 +131,7 @@ jobs:
             echo "Verified at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             echo "EasyPanel target: $TARGET"
             echo 'Supabase project: uwzfgksmnqgaxtscwxow'
+            echo 'Supabase admin runtime: configured'
             echo 'Status: corrected backend is live and operational.'
             echo
             echo 'Live status:'
@@ -137,8 +144,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git add -A docs/login-recovery-live-ok.md docs/login-recovery-live-failed.md
-          git commit -m "ops: confirm MercadoImobi EasyPanel backend live"
-          git push origin HEAD:refs/heads/main
+          git commit -m "ops: confirm MercadoImobi EasyPanel backend live" || true
+          git push origin HEAD:refs/heads/main || true
 
       - name: Record EasyPanel verification failure
         if: failure()
@@ -151,9 +158,10 @@ jobs:
             echo '# MercadoImobi EasyPanel — VERIFICATION FAILED'
             echo
             echo "Checked at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            echo "Configured EasyPanel target: $TARGET"
+            echo "EasyPanel target: $TARGET"
             echo 'Expected Supabase project: uwzfgksmnqgaxtscwxow'
-            echo 'Production was promoted, but the configured EasyPanel URL did not expose the corrected backend during this run.'
+            echo 'Required runtime: SUPABASE_SERVICE_ROLE_KEY must be configured in the MercadoImobi EasyPanel service.'
+            echo 'Production was promoted, but the EasyPanel service did not expose a fully configured backend during this run.'
             if [ -s /tmp/easy-last.txt ]; then
               echo
               echo 'Last EasyPanel response:'
@@ -166,5 +174,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git add docs/login-recovery-live-failed.md
-          git commit -m "ops: record MercadoImobi configured EasyPanel target failure" || true
+          git commit -m "ops: record MercadoImobi EasyPanel runtime verification failure" || true
           git push origin HEAD:refs/heads/main || true
