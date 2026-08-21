@@ -1,8 +1,9 @@
 # MercadoImobi EasyPanel — VERIFICATION FAILED
 
-Checked at (UTC): 2026-08-21T23:14:07Z
+Checked at (UTC): 2026-08-21T23:16:49Z
+Configured EasyPanel target: https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host
 Expected Supabase project: uwzfgksmnqgaxtscwxow
-Production was promoted, but the EasyPanel host did not expose the corrected backend during this run.
+Production was promoted, but the configured EasyPanel URL did not expose the corrected backend during this run.
 
 Last EasyPanel response:
 ```
