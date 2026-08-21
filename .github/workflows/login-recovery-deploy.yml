@@ -1,6 +1,6 @@
 name: MercadoImobi login recovery deploy
 
-# Controlled recovery path for the authentication/backend incident. Retriggered after correcting the EasyPanel Supabase target.
+# Controlled recovery path for the authentication/backend incident.
 on:
   push:
     branches: [main]
@@ -18,7 +18,6 @@ jobs:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
-      EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
       - name: Checkout recovery source
         uses: actions/checkout@v4
@@ -43,14 +42,11 @@ jobs:
           const p = JSON.parse(fs.readFileSync('/tmp/rm-supabase-health.json', 'utf8'));
           const ok = Number.isFinite(p.count) && p.count >= 1000
             && Number.isFinite(p.states) && p.states >= 27;
-          if (!ok) {
-            console.error(p);
-            process.exit(1);
-          }
+          if (!ok) process.exit(1);
           console.log(`RM Supabase verified: ${p.count} properties / ${p.states} states.`);
           NODE
 
-      - name: Promote login recovery to production
+      - name: Promote recovery source to production
         shell: bash
         run: |
           set -euo pipefail
@@ -65,88 +61,97 @@ jobs:
           set -uo pipefail
           URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
           if [ -z "$URL" ]; then
-            echo "::warning::No explicit EasyPanel trigger secret found; using repository-linked auto deployment."
+            echo "::notice::No explicit deploy hook configured; production push will trigger the GitHub-linked EasyPanel app."
             exit 0
           fi
-          if curl -fsS --connect-timeout 6 --max-time 20 "$URL" -o /tmp/easypanel-login-recovery.txt; then
+          if curl -fsS --connect-timeout 6 --max-time 20 "$URL" -o /tmp/easypanel-trigger.txt; then
             echo "EasyPanel deployment requested with GET."
-          elif curl -fsS -X POST --connect-timeout 6 --max-time 20 "$URL" -o /tmp/easypanel-login-recovery.txt; then
+          elif curl -fsS -X POST --connect-timeout 6 --max-time 20 "$URL" -o /tmp/easypanel-trigger.txt; then
             echo "EasyPanel deployment requested with POST."
           else
-            echo "::warning::Explicit EasyPanel trigger failed; continuing because the EasyPanel app is linked to the production branch on GitHub."
+            echo "::warning::Explicit deploy hook failed; continuing with repository-linked EasyPanel deployment."
           fi
 
-      - name: Verify live backend uses RM Supabase
+      - name: Verify EasyPanel host
+        id: verify_easy
         shell: bash
         run: |
           set -euo pipefail
-          EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
-          EASY="${EASY%/}"
-          CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          for attempt in $(seq 1 10); do
-            for base in "$EASY" "$CUSTOM"; do
-              if curl -fsS --connect-timeout 4 --max-time 6 "$base/api/public/status" -o /tmp/live-login-status.json; then
-                if node - <<'NODE'
+          EASY='https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host'
+          : > /tmp/easy-last.txt
+          for attempt in $(seq 1 12); do
+            code="$(curl -sS --connect-timeout 4 --max-time 8 -w '%{http_code}' "$EASY/api/public/status" -o /tmp/easy-last.txt || true)"
+            echo "EasyPanel attempt $attempt/12 HTTP ${code:-000}"
+            if [ "$code" = "200" ]; then
+              if node - <<'NODE'
           const fs = require('fs');
-          const p = JSON.parse(fs.readFileSync('/tmp/live-login-status.json', 'utf8'));
-          const ok = p.status === 'operational'
-            && p.search === 'available'
-            && p.supabaseProjectId === 'uwzfgksmnqgaxtscwxow'
-            && Number.isFinite(p.indexedProperties) && p.indexedProperties >= 1000
-            && Number.isFinite(p.coveredStates) && p.coveredStates >= 27;
-          process.exit(ok ? 0 : 1);
+          try {
+            const p = JSON.parse(fs.readFileSync('/tmp/easy-last.txt', 'utf8'));
+            const ok = p.status === 'operational'
+              && p.search === 'available'
+              && p.supabaseProjectId === 'uwzfgksmnqgaxtscwxow'
+              && Number.isFinite(p.indexedProperties) && p.indexedProperties >= 1000
+              && Number.isFinite(p.coveredStates) && p.coveredStates >= 27;
+            process.exit(ok ? 0 : 1);
+          } catch {
+            process.exit(1);
+          }
           NODE
-                then
-                  echo "Live MercadoImobi confirmed at $base"
-                  cat /tmp/live-login-status.json
-                  exit 0
-                fi
+              then
+                echo "EasyPanel MercadoImobi LIVE OK"
+                cat /tmp/easy-last.txt
+                exit 0
               fi
-            done
-            echo "Waiting for EasyPanel recovery deployment ($attempt/10)..."
+            fi
             sleep 5
           done
-          echo "::error::Live backend did not confirm RM Supabase target."
+          echo "::error::EasyPanel host did not expose the corrected MercadoImobi backend."
           exit 1
 
-      - name: Record live recovery success
+      - name: Record EasyPanel live success
         if: success()
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p docs
-          printf '%s\n' \
-            '# MercadoImobi login recovery — LIVE OK' \
-            '' \
-            "Verified at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-            'Supabase project: uwzfgksmnqgaxtscwxow' \
-            'Expected backend: RM NEGOCIO IMOBILIARIO' \
-            'Status: EasyPanel live endpoint confirmed operational with search available.' \
-            > docs/login-recovery-live-ok.md
+          {
+            echo '# MercadoImobi EasyPanel — LIVE OK'
+            echo
+            echo "Verified at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo 'EasyPanel host: r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host'
+            echo 'Supabase project: uwzfgksmnqgaxtscwxow'
+            echo 'Status: corrected backend is live and operational.'
+            echo
+            echo 'Live status:'
+            echo '```json'
+            cat /tmp/easy-last.txt
+            echo
+            echo '```'
+          } > docs/login-recovery-live-ok.md
           rm -f docs/login-recovery-live-failed.md
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
-          git add docs/login-recovery-live-ok.md docs/login-recovery-live-failed.md 2>/dev/null || true
-          git commit -m "ops: confirm MercadoImobi login recovery live"
+          git add -A docs/login-recovery-live-ok.md docs/login-recovery-live-failed.md
+          git commit -m "ops: confirm MercadoImobi EasyPanel backend live"
           git push origin HEAD:refs/heads/main
 
-      - name: Record recovery verification failure
+      - name: Record EasyPanel verification failure
         if: failure()
         shell: bash
         run: |
           set -uo pipefail
           mkdir -p docs
           {
-            echo '# MercadoImobi login recovery — VERIFICATION FAILED'
+            echo '# MercadoImobi EasyPanel — VERIFICATION FAILED'
             echo
             echo "Checked at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             echo 'Expected Supabase project: uwzfgksmnqgaxtscwxow'
-            echo 'Production branch was promoted, but the live EasyPanel endpoint did not complete the expected verification in this run.'
-            if [ -s /tmp/live-login-status.json ]; then
+            echo 'Production was promoted, but the EasyPanel host did not expose the corrected backend during this run.'
+            if [ -s /tmp/easy-last.txt ]; then
               echo
-              echo 'Last live status response:'
-              echo '```json'
-              cat /tmp/live-login-status.json
+              echo 'Last EasyPanel response:'
+              echo '```'
+              cat /tmp/easy-last.txt
               echo
               echo '```'
             fi
@@ -154,5 +159,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git add docs/login-recovery-live-failed.md
-          git commit -m "ops: record MercadoImobi recovery verification failure" || true
+          git commit -m "ops: record MercadoImobi EasyPanel verification failure" || true
           git push origin HEAD:refs/heads/main || true
