@@ -2,7 +2,7 @@
 
 ## Arquitetura
 
-GitHub → Docker build → EasyPanel/VPS → Node.js 22 → TanStack Start/Nitro → Supabase/Lovable Cloud.
+GitHub → Docker build → EasyPanel/VPS → Node.js 22 → TanStack Start/Nitro → Supabase.
 
 ## 1. Repositório
 
@@ -19,41 +19,48 @@ Crie um **App** a partir do GitHub e selecione o `Dockerfile` da raiz.
 - Healthcheck: `GET /api/public/status`
 - Restart policy: sempre/recommended
 
-## 3. Build arguments obrigatórios
+## 3. Supabase correto do MercadoImobi
 
-As variáveis `VITE_*` entram no bundle do navegador durante o build:
+O MercadoImobi usa exclusivamente o projeto **RM NEGOCIO IMOBILIARIO**:
 
-- `VITE_SUPABASE_URL=https://rjlqylmwenhzkzmqwris.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto rjlqylmwenhzkzmqwris>`
-- `VITE_SUPABASE_PROJECT_ID=rjlqylmwenhzkzmqwris`
+- Project ID: `uwzfgksmnqgaxtscwxow`
+- URL: `https://uwzfgksmnqgaxtscwxow.supabase.co`
 
-## 4. Runtime environment
+Não usar o projeto antigo `rjlqylmwenhzkzmqwris` no EasyPanel, no build ou no runtime.
+O frontend também está fixado no projeto correto para impedir que variáveis antigas de ambiente
+redirecionem a autenticação para outro Supabase.
 
-Configure no serviço (não no GitHub):
+## 4. Build arguments
+
+As variáveis `VITE_*`, quando configuradas no EasyPanel, devem apontar para o mesmo projeto:
+
+- `VITE_SUPABASE_URL=https://uwzfgksmnqgaxtscwxow.supabase.co`
+- `VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto uwzfgksmnqgaxtscwxow>`
+- `VITE_SUPABASE_PROJECT_ID=uwzfgksmnqgaxtscwxow`
+
+## 5. Runtime environment
+
+Configure no serviço:
 
 - `PORT=3000`
 - `HOST=0.0.0.0`
 - `NODE_ENV=production`
-- `SUPABASE_URL=https://rjlqylmwenhzkzmqwris.supabase.co`
-- `SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto rjlqylmwenhzkzmqwris>`
-- `SUPABASE_PROJECT_ID=rjlqylmwenhzkzmqwris`
-- `SUPABASE_SERVICE_ROLE_KEY` (somente servidor; nunca usar prefixo VITE_)
+- `SUPABASE_URL=https://uwzfgksmnqgaxtscwxow.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto uwzfgksmnqgaxtscwxow>`
+- `SUPABASE_PROJECT_ID=uwzfgksmnqgaxtscwxow`
+- `SUPABASE_SERVICE_ROLE_KEY=<service role do projeto uwzfgksmnqgaxtscwxow>`
 
-Integrações opcionais:
+`SUPABASE_SERVICE_ROLE_KEY` é somente servidor e nunca pode usar prefixo `VITE_`.
+Uma service-role key de outro projeto causa falhas nas rotinas administrativas mesmo quando o login do navegador funciona.
 
-- `N8N_WEBHOOK_SECRET`
-- `OLX_API_KEY`
-- `GOOGLE_ADS_API_KEY`
-- `LOVABLE_API_KEY`
-- `SLACK_WEBHOOK_URL`
+Integrações opcionais sem credencial devem aparecer como **não configurada** e não impedir login ou navegação principal.
 
-Quando uma integração não tiver credencial, a plataforma deve mostrar **não configurada** e continuar funcionando.
+## 6. Domínio e SSL
 
-## 5. Domínio e SSL
+No EasyPanel, associe o domínio ao serviço na porta `3000` e habilite HTTPS/Let's Encrypt.
+O DNS deve apontar para o IP público da VPS.
 
-No EasyPanel, associe o domínio ao serviço na porta `3000` e habilite HTTPS/Let's Encrypt. O DNS deve apontar para o IP público da VPS.
-
-## 6. Validação
+## 7. Validação
 
 Após o deploy:
 
@@ -61,15 +68,14 @@ Após o deploy:
 curl -fsS https://SEU-DOMINIO/api/public/status
 ```
 
-O endpoint deve responder HTTP 200. Para considerar produção pronta:
+Para considerar o backend principal pronto, confirme:
 
-- `status` precisa ficar `operational`;
-- `database` precisa ficar `ok`;
-- `search` precisa ficar `available`;
-- `indexedProperties` precisa ser maior ou igual a 1000;
-- `coveredStates` precisa ser `27`.
-
-Integrações opcionais sem chave podem aparecer como `not_configured`.
+- `status: operational`;
+- `database: ok`;
+- `search: available`;
+- `supabaseProjectId: uwzfgksmnqgaxtscwxow`;
+- `indexedProperties >= 1000`;
+- `coveredStates >= 27`.
 
 Teste também:
 
@@ -77,10 +83,11 @@ Teste também:
 2. Cadastro/login.
 3. Dashboard autenticado.
 4. Isolamento entre tenants.
-5. Importação n8n somente com `x-n8n-api-key` igual a `N8N_WEBHOOK_SECRET`.
+5. Rotinas administrativas que dependem da service-role key.
 
 ## Segurança
 
 - Nunca versionar `.env`.
 - Nunca expor `SUPABASE_SERVICE_ROLE_KEY` no frontend.
+- Nunca reutilizar service-role key de outro projeto Supabase.
 - Rotacione imediatamente qualquer segredo que tenha sido exposto anteriormente.
