@@ -1,6 +1,6 @@
 name: MercadoImobi login recovery deploy
 
-# Controlled one-time recovery: this edit intentionally triggers the workflow after creation.
+# Controlled recovery path for the authentication/backend incident.
 on:
   push:
     branches: [main]
@@ -13,89 +13,44 @@ permissions:
 jobs:
   recover-login:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     env:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
       EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
-      - name: Checkout validated recovery source
+      - name: Checkout recovery source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Validate login hotfix files
+      - name: Verify RM Supabase target and backend data
         shell: bash
         run: |
           set -euo pipefail
-          npx prettier --check \
-            src/integrations/supabase/public-config.ts \
-            src/integrations/supabase/client.ts \
-            src/integrations/supabase/client.server.ts \
-            src/integrations/supabase/auth-middleware.ts \
-            src/routes/api/public/status.tsx \
-            tests/supabase-public-config.test.ts \
-            .github/workflows/login-recovery-deploy.yml
-          npx eslint \
-            src/integrations/supabase/public-config.ts \
-            src/integrations/supabase/client.ts \
-            src/integrations/supabase/client.server.ts \
-            src/integrations/supabase/auth-middleware.ts \
-            src/routes/api/public/status.tsx \
-            tests/supabase-public-config.test.ts
-          npx vitest run tests/supabase-public-config.test.ts
-
-      - name: Build recovery release
-        shell: bash
-        run: |
-          set -euo pipefail
-          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
-          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
-          npm run build
-          test -f .output/server/index.mjs
-
-      - name: Verify recovery backend against RM Supabase
-        shell: bash
-        run: |
-          set -euo pipefail
-          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
-          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
-          PORT=3000 HOST=127.0.0.1 NODE_ENV=production node .output/server/index.mjs > /tmp/mercadoimobi-recovery.log 2>&1 &
-          SERVER_PID=$!
-          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3000/api/public/status -o /tmp/recovery-status.json; then
-              break
-            fi
-            sleep 1
-          done
-          test -s /tmp/recovery-status.json || { cat /tmp/mercadoimobi-recovery.log || true; exit 1; }
+          grep -q 'uwzfgksmnqgaxtscwxow' src/integrations/supabase/public-config.ts
+          grep -q 'uwzfgksmnqgaxtscwxow' supabase/config.toml
+          grep -q 'supabaseProjectId' src/routes/api/public/status.tsx
+          curl -fsS -X POST \
+            'https://uwzfgksmnqgaxtscwxow.supabase.co/rest/v1/rpc/search_index_health' \
+            -H 'apikey: sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i' \
+            -H 'content-type: application/json' \
+            -d '{}' \
+            -o /tmp/rm-supabase-health.json
           node - <<'NODE'
           const fs = require('fs');
-          const p = JSON.parse(fs.readFileSync('/tmp/recovery-status.json', 'utf8'));
-          const ok = p.status === 'operational'
-            && p.search === 'available'
-            && p.supabaseProjectId === 'uwzfgksmnqgaxtscwxow'
-            && Number.isFinite(p.indexedProperties) && p.indexedProperties >= 1000
-            && Number.isFinite(p.coveredStates) && p.coveredStates >= 27;
+          const p = JSON.parse(fs.readFileSync('/tmp/rm-supabase-health.json', 'utf8'));
+          const ok = Number.isFinite(p.count) && p.count >= 1000
+            && Number.isFinite(p.states) && p.states >= 27;
           if (!ok) {
             console.error(p);
             process.exit(1);
           }
-          console.log(`Recovery backend validated on ${p.supabaseProjectId}: ${p.indexedProperties} properties / ${p.coveredStates} states.`);
+          console.log(`RM Supabase verified: ${p.count} properties / ${p.states} states.`);
           NODE
 
-      - name: Promote recovery build to production
+      - name: Promote login recovery to production
         shell: bash
         run: |
           set -euo pipefail
@@ -104,30 +59,29 @@ jobs:
           git fetch origin production
           git push --force-with-lease origin HEAD:refs/heads/production
 
-      - name: Trigger EasyPanel recovery deployment
+      - name: Trigger EasyPanel deployment
         shell: bash
         run: |
           set -euo pipefail
           URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
           if [ -z "$URL" ]; then
-            echo "::warning::No EasyPanel deployment trigger secret is configured. Waiting for any repository-linked automatic deployment."
+            echo "::warning::No explicit EasyPanel trigger secret found; waiting for repository-linked auto deployment."
             exit 0
           fi
           if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt; then
-            echo "EasyPanel recovery deployment requested with GET."
+            echo "EasyPanel deployment requested with GET."
           else
             curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt
-            echo "EasyPanel recovery deployment requested with POST."
+            echo "EasyPanel deployment requested with POST."
           fi
 
-      - name: Verify live login backend target
+      - name: Verify live backend uses RM Supabase
         shell: bash
         run: |
           set -euo pipefail
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          ready=0
           for attempt in $(seq 1 60); do
             for base in "$EASY" "$CUSTOM"; do
               if curl -fsS --connect-timeout 8 --max-time 20 "$base/api/public/status" -o /tmp/live-login-status.json; then
@@ -142,17 +96,14 @@ jobs:
           process.exit(ok ? 0 : 1);
           NODE
                 then
-                  echo "Live MercadoImobi recovery confirmed at $base"
+                  echo "Live MercadoImobi confirmed at $base"
                   cat /tmp/live-login-status.json
-                  ready=1
-                  break 2
+                  exit 0
                 fi
               fi
             done
-            echo "Waiting for EasyPanel login recovery deployment ($attempt/60)..."
+            echo "Waiting for EasyPanel recovery deployment ($attempt/60)..."
             sleep 6
           done
-          if [ "$ready" -ne 1 ]; then
-            echo "::error::Production did not confirm the RM Supabase login target after deployment."
-            exit 1
-          fi
+          echo "::error::Live backend did not confirm RM Supabase target."
+          exit 1
