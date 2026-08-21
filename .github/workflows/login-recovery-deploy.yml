@@ -13,7 +13,7 @@ permissions:
 jobs:
   recover-login:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     env:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
@@ -68,9 +68,9 @@ jobs:
             echo "::warning::No explicit EasyPanel trigger secret found; using repository-linked auto deployment."
             exit 0
           fi
-          if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt; then
+          if curl -fsS --connect-timeout 6 --max-time 20 "$URL" -o /tmp/easypanel-login-recovery.txt; then
             echo "EasyPanel deployment requested with GET."
-          elif curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt; then
+          elif curl -fsS -X POST --connect-timeout 6 --max-time 20 "$URL" -o /tmp/easypanel-login-recovery.txt; then
             echo "EasyPanel deployment requested with POST."
           else
             echo "::warning::Explicit EasyPanel trigger failed; continuing because the EasyPanel app is linked to the production branch on GitHub."
@@ -83,9 +83,9 @@ jobs:
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 10); do
             for base in "$EASY" "$CUSTOM"; do
-              if curl -fsS --connect-timeout 8 --max-time 20 "$base/api/public/status" -o /tmp/live-login-status.json; then
+              if curl -fsS --connect-timeout 4 --max-time 6 "$base/api/public/status" -o /tmp/live-login-status.json; then
                 if node - <<'NODE'
           const fs = require('fs');
           const p = JSON.parse(fs.readFileSync('/tmp/live-login-status.json', 'utf8'));
@@ -103,8 +103,8 @@ jobs:
                 fi
               fi
             done
-            echo "Waiting for EasyPanel recovery deployment ($attempt/30)..."
-            sleep 6
+            echo "Waiting for EasyPanel recovery deployment ($attempt/10)..."
+            sleep 5
           done
           echo "::error::Live backend did not confirm RM Supabase target."
           exit 1
