@@ -1,76 +1,98 @@
-# MercadoImobi login recovery — VERIFICATION FAILED
+# MercadoImobi EasyPanel — VERIFICATION FAILED
 
-Checked at (UTC): 2026-08-21T23:11:35Z
+Checked at (UTC): 2026-08-21T23:14:07Z
 Expected Supabase project: uwzfgksmnqgaxtscwxow
-Production branch was promoted, but the live EasyPanel endpoint did not complete the expected verification in this run.
+Production was promoted, but the EasyPanel host did not expose the corrected backend during this run.
 
-Last live status response:
-```json
-<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+Last EasyPanel response:
+```
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow" />
+        <title>Not Found</title>
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+        <link
+            href="https://fonts.googleapis.com/css?family=Nunito"
+            rel="stylesheet"
+        />
+        <style>
+            html,
+            body {
+                background-color: #1a202c;
+                color: #fff;
+                font-family: "Nunito", sans-serif;
+                height: 100vh;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+            }
+            a {
+                color: #bbb;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <svg
+    style="height: 70px"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 245 245"
+>
+    <g clip-path="url(#a)">
+        <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M242.291 110.378a15.002 15.002 0 0 0 0-15l-48.077-83.272a15.002 15.002 0 0 0-12.991-7.5H85.07a15 15 0 0 0-12.99 7.5L41.071 65.812a.015.015 0 0 0-.013.008L2.462 132.673a15 15 0 0 0 0 15l48.077 83.272a15 15 0 0 0 12.99 7.5h96.154a15.002 15.002 0 0 0 12.991-7.5l31.007-53.706c.005 0 .01-.003.013-.007l38.598-66.854Zm-38.611 66.861 3.265-5.655a15.002 15.002 0 0 0 0-15l-48.077-83.272a14.999 14.999 0 0 0-12.99-7.5H41.072l-3.265 5.656a15 15 0 0 0 0 15l48.077 83.271a15 15 0 0 0 12.99 7.5H203.68Z"
+            fill="url(#b)"
+        />
+    </g>
+    <defs>
+        <linearGradient
+            id="b"
+            x1="188.72"
+            y1="6.614"
+            x2="56.032"
+            y2="236.437"
+            gradientUnits="userSpaceOnUse"
+        >
+            <stop stop-color="#12CD87" />
+            <stop offset="1" stop-color="#12ABCD" />
+        </linearGradient>
+        <clipPath id="a">
+            <path fill="#fff" d="M0 0h245v245H0z" />
+        </clipPath>
+    </defs>
+</svg>
+            <div style="font-size: 22px; margin-top: 70px">
+                404 Not Found
+            </div>
+            <div style="font-size: 16px; margin-top: 10px">
+                Make sure you have the correct URL and that you have configured your domain correctly.
+            </div>
+            <div
+    style="
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 40px;
+    "
+>
+    <a href="https://easypanel.io">Website</a>
+    <a href="https://easypanel.io/docs">Documentation</a>
+    <a href="https://twitter.com/easypanel_io">Twitter</a>
+    <a href="https://discord.gg/9bcDSXcZQ7">Discord</a>
+</div>
+        </div>
 
-  <title>MercadoImobi | Plataforma Inteligente do Mercado Imobiliário</title>
-  <meta name="description" content="MercadoImobi conecta clientes, corretores, imobiliárias e construtoras em uma plataforma inteligente para busca e gestão imobiliária." />
-  <meta name="robots" content="index,follow" />
-
-  <link rel="canonical" href="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br/" />
-
-  <meta property="og:title" content="MercadoImobi" />
-  <meta property="og:description" content="Plataforma inteligente para o mercado imobiliário." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br/" />
-
-  <meta http-equiv="refresh" content="0;url=https://mercado-imobiliario-r2r.lovable.app/" />
-
-  <script>
-    window.location.replace("https://mercado-imobiliario-r2r.lovable.app/");
-  </script>
-
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; font-family: Arial, Helvetica, sans-serif; }
-    body {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background: #f8fafc;
-      color: #0f172a;
-    }
-    .box {
-      width: min(92%, 560px);
-      padding: 32px;
-      text-align: center;
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      box-shadow: 0 10px 35px rgba(15, 23, 42, .08);
-    }
-    h1 { margin: 0 0 12px; font-size: 26px; }
-    p { line-height: 1.55; color: #64748b; }
-    a {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 12px 18px;
-      border-radius: 10px;
-      background: #0f172a;
-      color: #fff;
-      text-decoration: none;
-      font-weight: 700;
-    }
-  </style>
-</head>
-<body>
-  <main class="box">
-    <h1>MercadoImobi</h1>
-    <p>Carregando a plataforma...</p>
-    <p>Se o redirecionamento não acontecer automaticamente, clique abaixo.</p>
-    <a href="https://mercado-imobiliario-r2r.lovable.app/">Acessar MercadoImobi</a>
-  </main>
-</body>
+        <style>
+            
+        </style>
+    </body>
 </html>
-
 ```
