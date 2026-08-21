@@ -1,6 +1,6 @@
 name: MercadoImobi login recovery deploy
 
-# Controlled recovery path for the authentication/backend incident.
+# Controlled recovery path for the authentication/backend incident. Retriggered after correcting the EasyPanel Supabase target.
 on:
   push:
     branches: [main]
