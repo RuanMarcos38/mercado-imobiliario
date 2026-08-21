@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  PUBLIC_SUPABASE_PROJECT_ID,
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   PUBLIC_SUPABASE_URL,
 } from "@/integrations/supabase/public-config";
@@ -116,6 +117,7 @@ export const Route = createFileRoute("/api/public/status")({
           status: operational ? "operational" : "degraded",
           release: RELEASE,
           timestamp: new Date().toISOString(),
+          supabaseProjectId: PUBLIC_SUPABASE_PROJECT_ID,
           database: search.database,
           search: search.available ? "available" : "unavailable",
           indexedProperties: search.count,
