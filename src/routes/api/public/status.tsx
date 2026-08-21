@@ -19,7 +19,7 @@ type SearchAvailability = {
   latestUpdate: string | null;
 };
 
-const RELEASE = process.env["APP_RELEASE"] || "2026.08.21-login-rm-r2";
+const RELEASE = process.env["APP_RELEASE"] || "2026.08.21-login-rm-r3";
 
 async function checkSearchAvailability(): Promise<SearchAvailability> {
   if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
@@ -74,6 +74,7 @@ async function checkSearchAvailability(): Promise<SearchAvailability> {
 }
 
 function runtimeHealth() {
+  const supabaseAdminConfigured = Boolean(process.env["SUPABASE_SERVICE_ROLE_KEY"]);
   const aiConfigured = Boolean(process.env["OPENAI_API_KEY"]);
   const whatsappConfigured = Boolean(
     process.env["EVOLUTION_API_URL"] && process.env["EVOLUTION_API_KEY"],
@@ -87,6 +88,7 @@ function runtimeHealth() {
   );
 
   return {
+    supabaseAdmin: supabaseAdminConfigured ? "configured" : "not_configured",
     ai: aiConfigured ? "configured" : "not_configured",
     whatsapp: whatsappConfigured ? "configured" : "not_configured",
     whatsappWebhook: whatsappWebhookProtected ? "protected" : "not_configured",
@@ -112,7 +114,9 @@ export const Route = createFileRoute("/api/public/status")({
     handlers: {
       GET: async () => {
         const search = await checkSearchAvailability();
-        const operational = search.count >= 1000 && search.states >= 27;
+        const runtime = runtimeHealth();
+        const operational =
+          search.count >= 1000 && search.states >= 27 && runtime.supabaseAdmin === "configured";
         const body = {
           status: operational ? "operational" : "degraded",
           release: RELEASE,
@@ -124,7 +128,7 @@ export const Route = createFileRoute("/api/public/status")({
           coveredStates: search.states,
           latestUpdate: search.latestUpdate,
           synchronization: synchronizationHealth(search.latestUpdate),
-          runtime: runtimeHealth(),
+          runtime,
         };
 
         return new Response(JSON.stringify(body), {
