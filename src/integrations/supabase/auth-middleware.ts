@@ -33,9 +33,9 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 export const requireSupabaseAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
-    const SUPABASE_URL = process.env["SUPABASE_URL"] || PUBLIC_SUPABASE_URL;
-    const SUPABASE_PUBLISHABLE_KEY =
-      process.env["SUPABASE_PUBLISHABLE_KEY"] || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+      throw new Error("Unauthorized: MercadoImobi Supabase is not configured");
+    }
 
     const request = getRequest();
 
@@ -62,9 +62,9 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
       throw new Error("Unauthorized: Invalid token");
     }
 
-    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
       global: {
-        fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+        fetch: createSupabaseFetch(PUBLIC_SUPABASE_PUBLISHABLE_KEY),
         headers: {
           Authorization: `Bearer ${token}`,
         },
