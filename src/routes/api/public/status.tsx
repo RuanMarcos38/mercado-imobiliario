@@ -19,7 +19,7 @@ type SearchAvailability = {
   latestUpdate: string | null;
 };
 
-const RELEASE = process.env["APP_RELEASE"] || "2026.08.17-runtime-r4";
+const RELEASE = process.env["APP_RELEASE"] || "2026.08.21-login-rm-r2";
 
 async function checkSearchAvailability(): Promise<SearchAvailability> {
   if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
