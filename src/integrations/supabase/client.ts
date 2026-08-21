@@ -30,19 +30,13 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseClient() {
-  const runtimeUrl = typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined;
-  const runtimePublishableKey =
-    typeof process !== "undefined" ? process.env["SUPABASE_PUBLISHABLE_KEY"] : undefined;
+  if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error("MercadoImobi Supabase publishable key is not configured");
+  }
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || runtimeUrl || PUBLIC_SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    runtimePublishableKey ||
-    PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient<Database>(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+      fetch: createSupabaseFetch(PUBLIC_SUPABASE_PUBLISHABLE_KEY),
     },
     auth: {
       storage: typeof window !== "undefined" ? localStorage : undefined,
