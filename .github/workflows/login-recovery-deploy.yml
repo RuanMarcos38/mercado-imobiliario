@@ -18,6 +18,7 @@ jobs:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+      EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
       - name: Checkout recovery source
         uses: actions/checkout@v4
@@ -72,16 +73,19 @@ jobs:
             echo "::warning::Explicit deploy hook failed; continuing with repository-linked EasyPanel deployment."
           fi
 
-      - name: Verify EasyPanel host
+      - name: Verify configured EasyPanel URL
         id: verify_easy
         shell: bash
         run: |
           set -euo pipefail
-          EASY='https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host'
+          FALLBACK='https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host'
+          EASY="${EASYPANEL_PUBLIC_URL:-$FALLBACK}"
+          EASY="${EASY%/}"
+          printf '%s' "$EASY" > /tmp/easy-target.txt
           : > /tmp/easy-last.txt
-          for attempt in $(seq 1 12); do
-            code="$(curl -sS --connect-timeout 4 --max-time 8 -w '%{http_code}' "$EASY/api/public/status" -o /tmp/easy-last.txt || true)"
-            echo "EasyPanel attempt $attempt/12 HTTP ${code:-000}"
+          for attempt in $(seq 1 10); do
+            code="$(curl -sS --connect-timeout 4 --max-time 7 -w '%{http_code}' "$EASY/api/public/status" -o /tmp/easy-last.txt || true)"
+            echo "Configured EasyPanel target: $EASY | attempt $attempt/10 | HTTP ${code:-000}"
             if [ "$code" = "200" ]; then
               if node - <<'NODE'
           const fs = require('fs');
@@ -98,14 +102,14 @@ jobs:
           }
           NODE
               then
-                echo "EasyPanel MercadoImobi LIVE OK"
+                echo "EasyPanel MercadoImobi LIVE OK at $EASY"
                 cat /tmp/easy-last.txt
                 exit 0
               fi
             fi
             sleep 5
           done
-          echo "::error::EasyPanel host did not expose the corrected MercadoImobi backend."
+          echo "::error::Configured EasyPanel URL did not expose the corrected MercadoImobi backend."
           exit 1
 
       - name: Record EasyPanel live success
@@ -114,11 +118,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p docs
+          TARGET="$(cat /tmp/easy-target.txt)"
           {
             echo '# MercadoImobi EasyPanel — LIVE OK'
             echo
             echo "Verified at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            echo 'EasyPanel host: r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host'
+            echo "EasyPanel target: $TARGET"
             echo 'Supabase project: uwzfgksmnqgaxtscwxow'
             echo 'Status: corrected backend is live and operational.'
             echo
@@ -141,12 +146,14 @@ jobs:
         run: |
           set -uo pipefail
           mkdir -p docs
+          TARGET="$(cat /tmp/easy-target.txt 2>/dev/null || echo 'not resolved')"
           {
             echo '# MercadoImobi EasyPanel — VERIFICATION FAILED'
             echo
             echo "Checked at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "Configured EasyPanel target: $TARGET"
             echo 'Expected Supabase project: uwzfgksmnqgaxtscwxow'
-            echo 'Production was promoted, but the EasyPanel host did not expose the corrected backend during this run.'
+            echo 'Production was promoted, but the configured EasyPanel URL did not expose the corrected backend during this run.'
             if [ -s /tmp/easy-last.txt ]; then
               echo
               echo 'Last EasyPanel response:'
@@ -159,5 +166,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git add docs/login-recovery-live-failed.md
-          git commit -m "ops: record MercadoImobi EasyPanel verification failure" || true
+          git commit -m "ops: record MercadoImobi configured EasyPanel target failure" || true
           git push origin HEAD:refs/heads/main || true
