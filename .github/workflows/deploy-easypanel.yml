@@ -19,7 +19,6 @@ jobs:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
-      EASYPANEL_PUBLIC_URL: ${{ secrets.EASYPANEL_PUBLIC_URL }}
     steps:
       - name: Resolve EasyPanel deployment configuration
         id: config
@@ -29,7 +28,7 @@ jobs:
           URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
           if [ -z "$URL" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Deployment Trigger do EasyPanel ainda não foi configurado. A validação do código permanece verde; deploy automático foi ignorado sem mascarar falha da aplicação."
+            echo "::notice::No explicit EasyPanel deploy hook configured; relying on the GitHub-linked production branch."
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
@@ -40,37 +39,30 @@ jobs:
         run: |
           set -euo pipefail
           URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
-          echo "Iniciando deploy validado no EasyPanel..."
           if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy-response.txt; then
-            echo "Deploy solicitado ao EasyPanel com sucesso."
+            echo "EasyPanel deploy requested with GET."
           else
-            echo "GET não iniciou o deploy; tentando POST sem expor o token..."
             curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy-response.txt
-            echo "Deploy solicitado ao EasyPanel com sucesso."
+            echo "EasyPanel deploy requested with POST."
           fi
-          head -c 500 /tmp/easypanel-deploy-response.txt || true
-          echo
 
-      - name: Verify live MercadoImobi backend
-        if: steps.config.outputs.enabled == 'true'
+      - name: Verify live MercadoImobi backend on EasyPanel
         shell: bash
         run: |
           set -euo pipefail
-          PUBLIC_URL="${EASYPANEL_PUBLIC_URL:-https://mercadoimobi.rdmconsultoriaimobiliaria.com.br}"
-          PUBLIC_URL="${PUBLIC_URL%/}"
+          PUBLIC_URL='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host'
           STATUS_URL="$PUBLIC_URL/api/public/status"
-
-          echo "Validando backend publicado sem expor credenciais..."
           ready=0
-          for attempt in $(seq 1 36); do
-            if curl -fsS --connect-timeout 8 --max-time 15 "$STATUS_URL" -o /tmp/mercadoimobi-live-status.json; then
+          for attempt in $(seq 1 24); do
+            if curl -fsS --connect-timeout 6 --max-time 10 "$STATUS_URL" -o /tmp/mercadoimobi-live-status.json; then
               if node - <<'NODE'
           const fs = require('fs');
           try {
-            const body = fs.readFileSync('/tmp/mercadoimobi-live-status.json', 'utf8');
-            const status = JSON.parse(body);
+            const status = JSON.parse(fs.readFileSync('/tmp/mercadoimobi-live-status.json', 'utf8'));
             const ok = status.status === 'operational'
               && status.search === 'available'
+              && status.supabaseProjectId === 'uwzfgksmnqgaxtscwxow'
+              && status.runtime?.supabaseAdmin === 'configured'
               && Number.isFinite(status.indexedProperties)
               && status.indexedProperties >= 1000
               && Number.isFinite(status.coveredStates)
@@ -84,23 +76,20 @@ jobs:
                 ready=1
                 break
               fi
-            fi
-            echo "Aguardando publicação ($attempt/36)..."
-            sleep 6
-          done
-
-          if [ "$ready" -ne 1 ]; then
-            echo "::error::O deploy foi solicitado, mas $STATUS_URL não confirmou o backend MercadoImobi operacional. Verifique domínio, porta e healthcheck no EasyPanel."
-            if [ -f /tmp/mercadoimobi-live-status.json ]; then
-              head -c 500 /tmp/mercadoimobi-live-status.json || true
+              echo "Backend responded but is not fully configured yet:"
+              head -c 800 /tmp/mercadoimobi-live-status.json || true
               echo
             fi
+            echo "Waiting for EasyPanel publication ($attempt/24)..."
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::MercadoImobi EasyPanel backend did not become fully operational. Confirm SUPABASE_SERVICE_ROLE_KEY in the mercadomobi service environment and redeploy."
             exit 1
           fi
-
           node - <<'NODE'
           const fs = require('fs');
           const status = JSON.parse(fs.readFileSync('/tmp/mercadoimobi-live-status.json', 'utf8'));
-          console.log(`Backend publicado e operacional: ${status.indexedProperties} imóveis em ${status.coveredStates} UFs.`);
-          console.log(`Release: ${status.release || 'sem marcador'} | sync: ${status.synchronization?.state || 'unknown'}`);
+          console.log(`Backend operational: ${status.indexedProperties} properties / ${status.coveredStates} states.`);
+          console.log(`Supabase: ${status.supabaseProjectId} | admin runtime: ${status.runtime?.supabaseAdmin}`);
           NODE
