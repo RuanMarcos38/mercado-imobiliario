@@ -62,17 +62,18 @@ jobs:
       - name: Trigger EasyPanel deployment
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
           if [ -z "$URL" ]; then
-            echo "::warning::No explicit EasyPanel trigger secret found; waiting for repository-linked auto deployment."
+            echo "::warning::No explicit EasyPanel trigger secret found; using repository-linked auto deployment."
             exit 0
           fi
           if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt; then
             echo "EasyPanel deployment requested with GET."
-          else
-            curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt
+          elif curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-login-recovery.txt; then
             echo "EasyPanel deployment requested with POST."
+          else
+            echo "::warning::Explicit EasyPanel trigger failed; continuing because the EasyPanel app is linked to the production branch on GitHub."
           fi
 
       - name: Verify live backend uses RM Supabase
@@ -82,7 +83,7 @@ jobs:
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 30); do
             for base in "$EASY" "$CUSTOM"; do
               if curl -fsS --connect-timeout 8 --max-time 20 "$base/api/public/status" -o /tmp/live-login-status.json; then
                 if node - <<'NODE'
@@ -102,13 +103,14 @@ jobs:
                 fi
               fi
             done
-            echo "Waiting for EasyPanel recovery deployment ($attempt/60)..."
+            echo "Waiting for EasyPanel recovery deployment ($attempt/30)..."
             sleep 6
           done
           echo "::error::Live backend did not confirm RM Supabase target."
           exit 1
 
       - name: Record live recovery success
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
@@ -121,8 +123,36 @@ jobs:
             'Expected backend: RM NEGOCIO IMOBILIARIO' \
             'Status: EasyPanel live endpoint confirmed operational with search available.' \
             > docs/login-recovery-live-ok.md
+          rm -f docs/login-recovery-live-failed.md
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
-          git add docs/login-recovery-live-ok.md
+          git add docs/login-recovery-live-ok.md docs/login-recovery-live-failed.md 2>/dev/null || true
           git commit -m "ops: confirm MercadoImobi login recovery live"
           git push origin HEAD:refs/heads/main
+
+      - name: Record recovery verification failure
+        if: failure()
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p docs
+          {
+            echo '# MercadoImobi login recovery — VERIFICATION FAILED'
+            echo
+            echo "Checked at (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo 'Expected Supabase project: uwzfgksmnqgaxtscwxow'
+            echo 'Production branch was promoted, but the live EasyPanel endpoint did not complete the expected verification in this run.'
+            if [ -s /tmp/live-login-status.json ]; then
+              echo
+              echo 'Last live status response:'
+              echo '```json'
+              cat /tmp/live-login-status.json
+              echo
+              echo '```'
+            fi
+          } > docs/login-recovery-live-failed.md
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add docs/login-recovery-live-failed.md
+          git commit -m "ops: record MercadoImobi recovery verification failure" || true
+          git push origin HEAD:refs/heads/main || true
