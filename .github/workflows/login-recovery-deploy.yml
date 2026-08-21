@@ -1,5 +1,6 @@
 name: MercadoImobi login recovery deploy
 
+# Controlled one-time recovery: this edit intentionally triggers the workflow after creation.
 on:
   push:
     branches: [main]
