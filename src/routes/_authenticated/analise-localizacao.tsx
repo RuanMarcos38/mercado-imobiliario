@@ -88,16 +88,21 @@ function LocationAnalysisPage() {
 
   const copyReport = async () => {
     if (!result) return;
+    const pricingScope =
+      result.market.pricingScope === "residencial" ? "residencial" : "todos os tipos";
     const text = [
       `ANÁLISE DE LOCALIZAÇÃO — ${result.query.neighborhood ? `${result.query.neighborhood}, ` : ""}${result.query.city}/${result.query.state}`,
       `Índice de potencial: ${result.score}/100 — ${result.classification}`,
       result.summary,
       `Escopo do mercado: ${result.market.scope === "bairro" ? "bairro" : "município"}`,
+      `Anúncios reais indexados: ${result.market.indexedListings}`,
+      `Anúncios com preço válido: ${result.market.pricedListings}`,
+      `Amostra estatística de preço: ${result.market.sampleSize} (${pricingScope})`,
       `Preço mediano observado: ${money(result.market.medianPrice)}`,
       `Preço médio observado: ${money(result.market.averagePrice)}`,
       `Faixa central observada (25%–75%): ${money(result.market.p25Price)} a ${money(result.market.p75Price)}`,
       `Preço mediano/m² observado: ${money(result.market.medianPricePerSqm)}`,
-      `Amostra: ${result.market.sampleSize} anúncios | ${result.market.recentListings90d} vistos nos últimos 90 dias | ${result.market.sourceCount} fonte(s)`,
+      `Recência: ${result.market.recentListings90d} anúncio(s) vistos nos últimos 90 dias | ${result.market.sourceCount} fonte(s)`,
       `Última evidência de mercado: ${dateTime(result.market.latestSeenAt)}`,
       `População municipal (Censo 2022): ${number(result.demographics.population2022)}`,
       `Infraestrutura (${result.infrastructure.provider}): ${result.infrastructure.schools} educação, ${result.infrastructure.health} saúde, ${result.infrastructure.supermarkets} supermercados, ${result.infrastructure.parks} parques, ${result.infrastructure.transit} transporte.`,
@@ -232,7 +237,13 @@ function LocationAnalysisPage() {
                   label="Escopo usado"
                   value={result.market.scope === "bairro" ? "Bairro" : "Município"}
                 />
-                <Stat label="Anúncios na amostra" value={number(result.market.sampleSize)} />
+                <Stat label="Anúncios reais indexados" value={number(result.market.indexedListings)} />
+                <Stat label="Com preço válido" value={number(result.market.pricedListings)} />
+                <Stat label="Amostra estatística de preço" value={number(result.market.sampleSize)} />
+                <Stat
+                  label="Recorte de preço"
+                  value={result.market.pricingScope === "residencial" ? "Residencial" : "Todos os tipos"}
+                />
                 <Stat
                   label="Vistos nos últimos 90 dias"
                   value={number(result.market.recentListings90d)}
@@ -242,7 +253,7 @@ function LocationAnalysisPage() {
                 <Stat label="Faixa central (P25)" value={money(result.market.p25Price)} />
                 <Stat label="Faixa central (P75)" value={money(result.market.p75Price)} />
                 <Stat label="Preço mediano por m²" value={money(result.market.medianPricePerSqm)} />
-                <Stat label="Fontes na amostra" value={number(result.market.sourceCount)} />
+                <Stat label="Fontes na região" value={number(result.market.sourceCount)} />
                 <Stat label="Última evidência" value={dateTime(result.market.latestSeenAt)} />
               </Panel>
 
@@ -277,8 +288,9 @@ function LocationAnalysisPage() {
                   </>
                 ) : (
                   <p className="text-sm leading-6 text-[var(--mi-text-muted)]">
-                    Não foi possível consultar um provedor cartográfico neste momento. Tente
-                    novamente ou informe um endereço/bairro mais específico.
+                    A consulta cartográfica ao vivo não retornou pontos neste ciclo. O backend tenta
+                    o provedor configurado e faz fallback por OpenStreetMap. Informe um endereço ou
+                    bairro mais específico e execute novamente a análise.
                   </p>
                 )}
               </Panel>

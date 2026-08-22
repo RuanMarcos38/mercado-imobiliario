@@ -63,6 +63,8 @@ export interface LocationAnalysisResult {
     population2022: number | null;
   };
   market: {
+    indexedListings: number;
+    pricedListings: number;
     sampleSize: number;
     medianPrice: number | null;
     medianPricePerSqm: number | null;
@@ -72,6 +74,7 @@ export interface LocationAnalysisResult {
     recentListings90d: number;
     sourceCount: number;
     latestSeenAt: string | null;
+    pricingScope: "residencial" | "todos";
     scope: "bairro" | "cidade";
   };
   components: {
@@ -146,7 +149,7 @@ async function googleGeocode(query: string, key: string): Promise<Coordinates | 
   url.searchParams.set("key", key);
   url.searchParams.set("language", "pt-BR");
   url.searchParams.set("region", "br");
-  const response = await fetch(url, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
   if (!response.ok) return null;
   const payload = object(await response.json().catch(() => ({})));
   const results = Array.isArray(payload["results"]) ? payload["results"] : [];
@@ -164,9 +167,10 @@ async function osmGeocode(query: string): Promise<Coordinates | null> {
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("limit", "1");
   url.searchParams.set("countrycodes", "br");
+  url.searchParams.set("accept-language", "pt-BR");
   const response = await fetch(url, {
     headers: { "User-Agent": "MercadoImobi/1.0 location-analysis" },
-    signal: AbortSignal.timeout(12_000),
+    signal: AbortSignal.timeout(10_000),
     cache: "no-store",
   });
   if (!response.ok) return null;
@@ -175,6 +179,26 @@ async function osmGeocode(query: string): Promise<Coordinates | null> {
   const first = object(payload[0]);
   const lat = Number(first["lat"]);
   const lng = Number(first["lon"]);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
+async function photonGeocode(query: string): Promise<Coordinates | null> {
+  const url = new URL("https://photon.komoot.io/api/");
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("lang", "pt");
+  const response = await fetch(url, {
+    headers: { "User-Agent": "MercadoImobi/1.0 location-analysis" },
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const payload = object(await response.json().catch(() => ({})));
+  const features = Array.isArray(payload["features"]) ? payload["features"] : [];
+  const geometry = object(object(features[0])["geometry"]);
+  const coordinates = Array.isArray(geometry["coordinates"]) ? geometry["coordinates"] : [];
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
@@ -191,6 +215,11 @@ async function resolveCoordinates(
 
   for (const candidate of candidates) {
     const coordinates = await osmGeocode(candidate.query).catch(() => null);
+    if (coordinates) return { ...coordinates, ...candidate, provider: "openstreetmap" };
+  }
+
+  for (const candidate of candidates) {
+    const coordinates = await photonGeocode(candidate.query).catch(() => null);
     if (coordinates) return { ...coordinates, ...candidate, provider: "openstreetmap" };
   }
 
@@ -223,7 +252,7 @@ async function googleNearbyCount(
         },
       },
     }),
-    signal: AbortSignal.timeout(12_000),
+    signal: AbortSignal.timeout(10_000),
     cache: "no-store",
   });
   if (!response.ok) return 0;
@@ -241,10 +270,10 @@ function countOsmAmenities(elements: unknown[]): AmenityCounts {
     unique.add(key);
     const tags = object(item["tags"]);
     const amenity = String(tags["amenity"] ?? "");
-    if (["school", "college", "university"].includes(amenity)) counts.schools += 1;
+    if (["school", "college", "university", "kindergarten"].includes(amenity)) counts.schools += 1;
     if (["hospital", "clinic", "doctors", "pharmacy"].includes(amenity)) counts.health += 1;
-    if (String(tags["shop"] ?? "") === "supermarket") counts.supermarkets += 1;
-    if (String(tags["leisure"] ?? "") === "park") counts.parks += 1;
+    if (["supermarket", "convenience"].includes(String(tags["shop"] ?? ""))) counts.supermarkets += 1;
+    if (["park", "playground", "garden"].includes(String(tags["leisure"] ?? ""))) counts.parks += 1;
     if (
       tags["public_transport"] ||
       ["bus_stop", "platform"].includes(String(tags["highway"] ?? "")) ||
@@ -262,15 +291,30 @@ async function fetchOverpassCounts(
 ): Promise<AmenityCounts | null> {
   const { lat, lng } = coordinates;
   const query = `[out:json][timeout:12];(
-    nwr(around:${radius},${lat},${lng})[amenity~"school|college|university"];
+    nwr(around:${radius},${lat},${lng})[amenity~"school|college|university|kindergarten"];
     nwr(around:${radius},${lat},${lng})[amenity~"hospital|clinic|doctors|pharmacy"];
-    nwr(around:${radius},${lat},${lng})[shop="supermarket"];
-    nwr(around:${radius},${lat},${lng})[leisure="park"];
+    nwr(around:${radius},${lat},${lng})[shop~"supermarket|convenience"];
+    nwr(around:${radius},${lat},${lng})[leisure~"park|playground|garden"];
     nwr(around:${radius},${lat},${lng})[public_transport];
     nwr(around:${radius},${lat},${lng})[highway="bus_stop"];
     nwr(around:${radius},${lat},${lng})[railway~"station|halt|tram_stop"];
   );out tags center qt;`;
-  const response = await fetch(endpoint, {
+
+  const parseResponse = async (response: Response | null) => {
+    if (!response?.ok) return null;
+    const payload = object(await response.json().catch(() => ({})));
+    const remark = String(payload["remark"] ?? "").toLowerCase();
+    if (
+      remark.includes("runtime error") ||
+      remark.includes("rate_limited") ||
+      remark.includes("too many requests")
+    )
+      return null;
+    const elements = Array.isArray(payload["elements"]) ? payload["elements"] : [];
+    return countOsmAmenities(elements);
+  };
+
+  const postResponse = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -278,15 +322,23 @@ async function fetchOverpassCounts(
       "Cache-Control": "no-cache",
     },
     body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(12_000),
     cache: "no-store",
-  });
-  if (!response.ok) return null;
-  const payload = object(await response.json().catch(() => ({})));
-  const remark = String(payload["remark"] ?? "").toLowerCase();
-  if (remark.includes("runtime error") || remark.includes("rate_limited")) return null;
-  const elements = Array.isArray(payload["elements"]) ? payload["elements"] : [];
-  return countOsmAmenities(elements);
+  }).catch(() => null);
+  const postCounts = await parseResponse(postResponse);
+  if (postCounts) return postCounts;
+
+  const getUrl = new URL(endpoint);
+  getUrl.searchParams.set("data", query);
+  const getResponse = await fetch(getUrl, {
+    headers: {
+      "User-Agent": "MercadoImobi/1.0 location-analysis",
+      "Cache-Control": "no-cache",
+    },
+    signal: AbortSignal.timeout(12_000),
+    cache: "no-store",
+  }).catch(() => null);
+  return parseResponse(getResponse);
 }
 
 async function osmNearbyCounts(coordinates: Coordinates, radius = 2200) {
@@ -303,7 +355,7 @@ async function osmNearbyCounts(coordinates: Coordinates, radius = 2200) {
 async function getMunicipality(city: string, state: string) {
   const response = await fetch(
     `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(state.toUpperCase())}/municipios`,
-    { signal: AbortSignal.timeout(12_000), cache: "no-store" },
+    { signal: AbortSignal.timeout(10_000), cache: "no-store" },
   );
   if (!response.ok) return null;
   const municipalities = (await response.json().catch(() => [])) as unknown;
@@ -320,7 +372,7 @@ async function getMunicipality(city: string, state: string) {
 async function getPopulation2022(municipalityId: string) {
   if (!municipalityId) return null;
   const url = `https://servicodados.ibge.gov.br/api/v3/agregados/4714/periodos/2022/variaveis/93?localidades=N6[${encodeURIComponent(municipalityId)}]`;
-  const response = await fetch(url, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
   if (!response.ok) return null;
   const payload = (await response.json().catch(() => [])) as unknown;
   if (!Array.isArray(payload) || !payload.length) return null;
@@ -338,21 +390,16 @@ async function getPopulation2022(municipalityId: string) {
 }
 
 async function getMarketEvidence(db: any, city: string, state: string, neighborhood: string) {
-  let result = await db.rpc("location_market_evidence", {
+  const { data, error } = await db.rpc("location_market_evidence", {
     p_city: city,
     p_neighborhood: neighborhood || null,
-    p_state: state || null,
+    p_state: state,
   });
-  if (result.error && String(result.error.message ?? "").includes("p_state")) {
-    result = await db.rpc("location_market_evidence", {
-      p_city: city,
-      p_neighborhood: neighborhood || null,
-    });
-  }
-  const { data, error } = result;
   if (error) throw new Error(error.message);
   const row = object(Array.isArray(data) ? data[0] : data);
   return {
+    indexedListings: Number(row["indexed_listings"] ?? 0),
+    pricedListings: Number(row["priced_listings"] ?? 0),
     sampleSize: Number(row["sample_size"] ?? 0),
     medianPrice: finiteOrNull(row["median_price"]),
     medianPricePerSqm: finiteOrNull(row["median_price_per_sqm"]),
@@ -362,19 +409,18 @@ async function getMarketEvidence(db: any, city: string, state: string, neighborh
     recentListings90d: Number(row["recent_listings_90d"] ?? 0),
     sourceCount: Number(row["source_count"] ?? 0),
     latestSeenAt: row["latest_seen_at"] ? String(row["latest_seen_at"]) : null,
+    pricingScope: row["pricing_scope"] === "residencial" ? ("residencial" as const) : ("todos" as const),
     scope: row["scope"] === "bairro" ? ("bairro" as const) : ("cidade" as const),
   };
 }
 
 function potentialScore(input: {
-  amenities: {
-    schools: number;
-    health: number;
-    supermarkets: number;
-    parks: number;
-    transit: number;
+  amenities: AmenityCounts;
+  market: {
+    indexedListings: number;
+    recentListings90d: number;
+    sourceCount: number;
   };
-  market: { sampleSize: number; recentListings90d: number; sourceCount: number };
   hasInfrastructure: boolean;
   hasIbge: boolean;
 }) {
@@ -392,7 +438,7 @@ function potentialScore(input: {
   const marketEvidence = Math.min(
     20,
     Math.round(
-      Math.min(input.market.sampleSize / 120, 1) * 14 +
+      Math.min(input.market.indexedListings / 120, 1) * 14 +
         Math.min(input.market.sourceCount / 4, 1) * 6,
     ),
   );
@@ -423,6 +469,8 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
     });
 
     const emptyMarket = {
+      indexedListings: 0,
+      pricedListings: 0,
       sampleSize: 0,
       medianPrice: null,
       medianPricePerSqm: null,
@@ -432,6 +480,7 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
       recentListings90d: 0,
       sourceCount: 0,
       latestSeenAt: null,
+      pricingScope: "todos" as const,
       scope: "cidade" as const,
     };
 
@@ -488,17 +537,21 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
             : "Dados insuficientes ou região que exige cautela";
 
     const scopeLabel = market.scope === "bairro" ? "bairro informado" : `município de ${data.city}`;
+    const pricingLabel =
+      market.pricingScope === "residencial"
+        ? `${market.sampleSize} imóveis residenciais com preço comparável`
+        : `${market.sampleSize} imóveis com preço comparável`;
     const infrastructureLabel =
       infrastructureProvider === "none"
-        ? "a infraestrutura próxima não foi confirmada pelo provedor cartográfico neste ciclo"
+        ? "a infraestrutura próxima não respondeu pelos provedores cartográficos neste ciclo"
         : "infraestrutura próxima validada por mapa público/API";
-    const summary = `${classification}. A leitura usa ${market.sampleSize} anúncios do ${scopeLabel}, ${infrastructureLabel} e dados oficiais do município. Os valores são evidências observadas na base e não garantia de valorização futura.`;
-    const sources = ["MercadoImobi — estatística agregada do índice de anúncios"];
+    const summary = `${classification}. A leitura usa ${market.indexedListings} anúncios reais indexados no ${scopeLabel}, ${market.pricedListings} com preço válido e ${pricingLabel}; ${infrastructureLabel}; e dados oficiais do município. Os valores são evidências observadas e atualizadas da base, não garantia de valorização futura.`;
+    const sources = ["MercadoImobi — índice agregado de anúncios atualizado"];
     if (municipality) sources.push("IBGE — Localidades e Censo 2022");
     if (infrastructureProvider === "google")
       sources.push("Google Maps Platform — Geocoding e Places");
     if (infrastructureProvider === "openstreetmap")
-      sources.push("OpenStreetMap — Nominatim e Overpass");
+      sources.push("OpenStreetMap — Nominatim/Photon e Overpass");
 
     return {
       query: { address, neighborhood, city: data.city, state },
@@ -529,6 +582,6 @@ export const analyzePropertyLocation = createServerFn({ method: "POST" })
       },
       sources,
       caveat:
-        "Índice indicativo baseado nas evidências disponíveis. Preços anunciados não equivalem necessariamente a preços de transação. Valorização depende de oferta, demanda, obras, zoneamento, crédito, economia e outros fatores. Confirme decisões relevantes com avaliação técnica local.",
+        "Índice indicativo baseado nas evidências disponíveis. As estatísticas de preço priorizam imóveis residenciais quando há amostra suficiente, evitando que galpões e outros usos comerciais distorçam a leitura residencial. Preços anunciados não equivalem necessariamente a preços de transação. Valorização depende de oferta, demanda, obras, zoneamento, crédito, economia e outros fatores. Confirme decisões relevantes com avaliação técnica local.",
     };
   });
