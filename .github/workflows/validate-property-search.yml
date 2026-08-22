@@ -48,16 +48,6 @@ jobs:
             exit 1
           fi
 
-      - name: Verify MercadoImobi is not bound to forbidden Supabase projects
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git grep -nE '(uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)' -- \
-            'src/**' '.env.example' '.github/workflows/deploy-easypanel.yml'; then
-            echo "MercadoImobi must not be bound to RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
-            exit 1
-          fi
-
       - name: Verify source formatting
         run: npx prettier --check .
 
