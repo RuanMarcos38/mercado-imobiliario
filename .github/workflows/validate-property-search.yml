@@ -48,6 +48,16 @@ jobs:
             exit 1
           fi
 
+      - name: Verify MercadoImobi is not bound to forbidden Supabase projects
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE '(uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)' -- \
+            'src/**' '.env.example' '.github/workflows/deploy-easypanel.yml'; then
+            echo "MercadoImobi must not be bound to RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
+            exit 1
+          fi
+
       - name: Verify source formatting
         run: npx prettier --check .
 
@@ -94,16 +104,15 @@ jobs:
           if (status.status !== 'operational') throw new Error(`status=${status.status}`);
           NODE
 
-      - name: Record current production health before recovery promotion
+      - name: Verify real production health before promotion
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        continue-on-error: true
         env:
           EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
         shell: bash
         run: |
           set -euo pipefail
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host}"
+          EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
           healthy=0
           for base in "$CUSTOM" "$EASY"; do
@@ -112,14 +121,19 @@ jobs:
               if node - "$body" <<'NODE'
           const fs=require('fs');
           const p=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const forbidden=new Set(['uwzfgksmnqgaxtscwxow','iqrnytsgwaiegddfxfjs']);
+          const project=String(p.supabaseProjectId || '');
           const ok=p.status==='operational'
             && p.search==='available'
+            && project.length>0
+            && !forbidden.has(project)
+            && p.runtime?.supabaseAdmin==='configured'
             && Number.isFinite(p.indexedProperties) && p.indexedProperties>=1000
             && Number.isFinite(p.coveredStates) && p.coveredStates>=27;
           process.exit(ok ? 0 : 1);
           NODE
               then
-                echo "Current MercadoImobi healthcheck passed at $base"
+                echo "MercadoImobi real healthcheck passed at $base"
                 cat "$body"
                 healthy=1
                 break
@@ -127,7 +141,8 @@ jobs:
             fi
           done
           if [ "$healthy" -ne 1 ]; then
-            echo "::warning::Current production is unhealthy or unreachable. Allowing this validated recovery build to promote; the EasyPanel deployment workflow performs the blocking post-deploy healthcheck."
+            echo "::error::Production healthcheck failed or is using a forbidden Supabase project. Production promotion is blocked."
+            exit 1
           fi
 
       - name: Promote validated main to production
