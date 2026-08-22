@@ -19,6 +19,7 @@ jobs:
       EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+      EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
       - name: Resolve EasyPanel deployment configuration
         id: config
@@ -50,7 +51,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PUBLIC_URL='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host'
+          PUBLIC_URL="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          PUBLIC_URL="${PUBLIC_URL%/}"
           STATUS_URL="$PUBLIC_URL/api/public/status"
           ready=0
           for attempt in $(seq 1 24); do
@@ -59,9 +61,12 @@ jobs:
           const fs = require('fs');
           try {
             const status = JSON.parse(fs.readFileSync('/tmp/mercadoimobi-live-status.json', 'utf8'));
+            const forbidden = new Set(['uwzfgksmnqgaxtscwxow', 'iqrnytsgwaiegddfxfjs']);
+            const project = String(status.supabaseProjectId || '');
             const ok = status.status === 'operational'
               && status.search === 'available'
-              && status.supabaseProjectId === 'uwzfgksmnqgaxtscwxow'
+              && project.length > 0
+              && !forbidden.has(project)
               && status.runtime?.supabaseAdmin === 'configured'
               && Number.isFinite(status.indexedProperties)
               && status.indexedProperties >= 1000
@@ -76,7 +81,7 @@ jobs:
                 ready=1
                 break
               fi
-              echo "Backend responded but is not fully configured yet:"
+              echo "Backend responded but is not fully configured or uses a forbidden Supabase project:"
               head -c 800 /tmp/mercadoimobi-live-status.json || true
               echo
             fi
@@ -84,7 +89,7 @@ jobs:
             sleep 5
           done
           if [ "$ready" -ne 1 ]; then
-            echo "::error::MercadoImobi EasyPanel backend did not become fully operational. Confirm SUPABASE_SERVICE_ROLE_KEY in the mercadomobi service environment and redeploy."
+            echo "::error::MercadoImobi EasyPanel backend did not become fully operational on its dedicated Supabase project."
             exit 1
           fi
           node - <<'NODE'
