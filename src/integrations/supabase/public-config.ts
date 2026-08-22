@@ -1,12 +1,32 @@
-const MERCADOIMOBI_SUPABASE_PROJECT_ID = "uwzfgksmnqgaxtscwxow";
-const MERCADOIMOBI_SUPABASE_URL = `https://${MERCADOIMOBI_SUPABASE_PROJECT_ID}.supabase.co`;
+const FORBIDDEN_SUPABASE_PROJECT_IDS = new Set([
+  "uwzfgksmnqgaxtscwxow", // RM NEGOCIO IMOBILIARIO
+  "iqrnytsgwaiegddfxfjs", // CRM R2 MARKETING DIGITAL
+]);
 
-// MercadoImobi is intentionally pinned to the RM NEGOCIO IMOBILIARIO Supabase project.
-// This target is also verified by the deployed MercadoImobi schema and admin authentication data.
-// The publishable key is public by design; authorization remains enforced by Supabase Auth + RLS.
-// Keeping this binding deterministic prevents stale EasyPanel/Lovable environment variables from
-// silently authenticating users against another Supabase project.
-export const PUBLIC_SUPABASE_URL = MERCADOIMOBI_SUPABASE_URL;
-export const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i";
-export const PUBLIC_SUPABASE_PROJECT_ID = MERCADOIMOBI_SUPABASE_PROJECT_ID;
+function normalize(value: string | undefined): string {
+  return (value ?? "").trim();
+}
+
+function projectIdFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname;
+    return host.endsWith(".supabase.co") ? host.split(".")[0] ?? "" : "";
+  } catch {
+    return "";
+  }
+}
+
+const configuredUrl = normalize(import.meta.env.VITE_SUPABASE_URL);
+const configuredProjectId =
+  normalize(import.meta.env.VITE_SUPABASE_PROJECT_ID) || projectIdFromUrl(configuredUrl);
+const configuredPublishableKey = normalize(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+
+if (configuredProjectId && FORBIDDEN_SUPABASE_PROJECT_IDS.has(configuredProjectId)) {
+  throw new Error(
+    "MercadoImobi cannot use the RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL Supabase project",
+  );
+}
+
+export const PUBLIC_SUPABASE_URL = configuredUrl;
+export const PUBLIC_SUPABASE_PUBLISHABLE_KEY = configuredPublishableKey;
+export const PUBLIC_SUPABASE_PROJECT_ID = configuredProjectId;
