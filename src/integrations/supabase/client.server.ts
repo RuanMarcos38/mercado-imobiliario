@@ -36,9 +36,13 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 function createSupabaseAdminClient() {
   const SUPABASE_SERVICE_ROLE_KEY = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
+  if (!PUBLIC_SUPABASE_URL) {
+    throw new Error("Missing MercadoImobi Supabase URL. Configure the dedicated MercadoImobi/Casa Conectada project in EasyPanel.");
+  }
+
   if (!SUPABASE_SERVICE_ROLE_KEY) {
     const message =
-      "Missing Supabase environment variable: SUPABASE_SERVICE_ROLE_KEY. Configure the RM NEGOCIO IMOBILIARIO service role key in EasyPanel.";
+      "Missing Supabase environment variable: SUPABASE_SERVICE_ROLE_KEY. Configure the dedicated MercadoImobi/Casa Conectada service role key in EasyPanel.";
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
