@@ -6,19 +6,26 @@ import {
   PUBLIC_SUPABASE_URL,
 } from "../src/integrations/supabase/public-config";
 
-describe("Supabase public configuration", () => {
-  it("points MercadoImobi to RM NEGOCIO IMOBILIARIO", () => {
-    expect(PUBLIC_SUPABASE_PROJECT_ID).toBe("uwzfgksmnqgaxtscwxow");
-    expect(PUBLIC_SUPABASE_URL).toBe("https://uwzfgksmnqgaxtscwxow.supabase.co");
-    expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBe(
-      "sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i",
-    );
-  });
+const FORBIDDEN_PROJECTS = ["uwzfgksmnqgaxtscwxow", "iqrnytsgwaiegddfxfjs"];
 
-  it("does not point to legacy or unrelated Supabase projects", () => {
+describe("Supabase public configuration", () => {
+  it("does not bind MercadoImobi to forbidden Supabase projects", () => {
     const publicConfig = `${PUBLIC_SUPABASE_PROJECT_ID} ${PUBLIC_SUPABASE_URL}`;
 
-    expect(publicConfig).not.toContain("rjlqylmwenhzkzmqwris");
-    expect(publicConfig).not.toContain("iqrnytsgwaiegddfxfjs");
+    for (const projectId of FORBIDDEN_PROJECTS) {
+      expect(PUBLIC_SUPABASE_PROJECT_ID).not.toBe(projectId);
+      expect(publicConfig).not.toContain(projectId);
+    }
+  });
+
+  it("keeps the public key aligned with an explicitly configured public endpoint", () => {
+    if (!PUBLIC_SUPABASE_URL && !PUBLIC_SUPABASE_PROJECT_ID) {
+      expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBe("");
+      return;
+    }
+
+    expect(PUBLIC_SUPABASE_URL).toMatch(/^https:\/\/[a-z0-9-]+\.supabase\.co$/);
+    expect(PUBLIC_SUPABASE_PROJECT_ID.length).toBeGreaterThan(0);
+    expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY.length).toBeGreaterThan(0);
   });
 });
