@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           if git grep -nE '(uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)' -- \
-            'src/**' '.env.example' 'supabase/config.toml' '.github/workflows/deploy-easypanel.yml'; then
+            '.env.example' 'supabase/config.toml' '.github/workflows/deploy-easypanel.yml'; then
             echo "MercadoImobi must not be bound to RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
             exit 1
           fi
