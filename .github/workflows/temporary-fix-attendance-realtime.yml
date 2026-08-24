@@ -1,0 +1,88 @@
+name: Temporary fix attendance realtime
+
+on:
+  push:
+    branches: [feature/atendimento-suri-senior]
+    paths:
+      - ".github/workflows/temporary-fix-attendance-realtime.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/atendimento-suri-senior
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Replace obsolete realtime subscriptions with system_events
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/routes/_authenticated/atendimento.tsx')
+          text = p.read_text()
+          old = '''      .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "whatsapp_attendant_presence" },
+                () => {
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )
+              .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "whatsapp_attendance_sessions" },
+                () => {
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )'''
+          new = '''      .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "system_events" },
+                () => {
+                  void conversations.refetch();
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'table: "system_events"' not in text:
+              raise SystemExit('Expected attendance realtime block not found')
+          p.write_text(text)
+          PY
+      - name: Format modified source
+        run: npx prettier --write src/routes/_authenticated/atendimento.tsx
+      - name: Validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx prettier --check .
+          npm run lint
+          npm run test -- --passWithNoTests
+          npm audit --omit=dev --audit-level=high
+          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
+          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
+          npm run build
+          test -f .output/server/index.mjs
+      - name: Commit finalized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/atendimento.tsx
+          if git diff --cached --quiet; then
+            echo "No realtime source change required."
+            exit 0
+          fi
+          git commit -m "fix: use system events for attendance realtime"
+          git push origin HEAD:feature/atendimento-suri-senior
