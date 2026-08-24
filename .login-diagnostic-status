@@ -1,9 +1,0 @@
-EXPECTED_PROJECT=unset
-SECRET_URL_PROJECT=unset
-LIVE_PROJECT=rjlqylmwenhzkzmqwris
-LIVE_STATUS=operational
-LIVE_SEARCH=available
-LIVE_ADMIN=configured
-SERVICE_ROLE_AVAILABLE=no
-ADMIN_EXISTS=not_checked
-ADMIN_CONFIRMED=not_checked
