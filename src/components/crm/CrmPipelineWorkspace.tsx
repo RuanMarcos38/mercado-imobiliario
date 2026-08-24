@@ -19,7 +19,6 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
-  UserRoundPlus,
   UsersRound,
   XCircle,
 } from "lucide-react";
@@ -422,8 +421,6 @@ export function CrmPipelineWorkspace() {
       </div>
     );
   }
-
-  const activePipeline = workspace.data.pipelines.find((item) => item.id === pipelineId);
 
   return (
     <div className="min-h-screen bg-[var(--mi-bg)] p-4 text-[var(--mi-text)] sm:p-6 lg:p-8">
@@ -1041,15 +1038,13 @@ function FunnelPanel({
   createStage,
   toggleStage,
 }: {
-  pipelines: NonNullable<ReturnType<typeof useQuery>["data"]> extends never
-    ? never
-    : Array<{
-        id: string;
-        name: string;
-        description: string | null;
-        is_default: boolean;
-        is_active: boolean;
-      }>;
+  pipelines: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    is_default: boolean;
+    is_active: boolean;
+  }>;
   stages: CrmStage[];
   pipelineId: string;
   setPipelineId: (id: string) => void;
