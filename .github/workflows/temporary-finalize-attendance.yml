@@ -1,0 +1,106 @@
+name: Temporary finalize attendance feature
+
+on:
+  push:
+    branches: [feature/atendimento-suri-senior]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/atendimento-suri-senior
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Finalize realtime subscriptions and dedicated project validation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/routes/_authenticated/atendimento.tsx')
+          text = path.read_text()
+          old = '''      .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "whatsapp_attendant_presence" },
+                () => {
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )
+              .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "whatsapp_attendance_sessions" },
+                () => {
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )'''
+          new = '''      .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "system_events" },
+                () => {
+                  void conversations.refetch();
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )'''
+          if old not in text:
+              raise SystemExit('Expected realtime subscription block was not found')
+          path.write_text(text.replace(old, new, 1))
+
+          target = 'rjlqylmwenhzkzmqwris'
+          for filename in ['.github/workflows/deploy-easypanel.yml', '.github/workflows/validate-property-search.yml']:
+              p = Path(filename)
+              t = p.read_text()
+              token = 'EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}'
+              if token not in t:
+                  raise SystemExit(f'Expected project variable token missing in {filename}')
+              p.write_text(t.replace(token, f'EXPECTED_SUPABASE_PROJECT_ID: {target}'))
+          PY
+      - name: Apply repository formatting
+        run: npx prettier --write src/lib/attendance-center.functions.ts src/lib/whatsapp-auto-reply.server.ts src/routes/_authenticated/atendimento.tsx .github/workflows/deploy-easypanel.yml .github/workflows/validate-property-search.yml
+      - name: Read public production status
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=.attendance-live-status
+          : > "$OUT"
+          for BASE in "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br" "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host"; do
+            if curl -fsS --connect-timeout 8 --max-time 20 "$BASE/api/public/status" -o /tmp/status.json; then
+              BASE="$BASE" node - <<'NODE' >> "$OUT"
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('/tmp/status.json', 'utf8'));
+          console.log(JSON.stringify({
+            base: process.env.BASE,
+            status: p.status,
+            search: p.search,
+            supabaseProjectId: p.supabaseProjectId,
+            indexedProperties: p.indexedProperties,
+            coveredStates: p.coveredStates,
+            supabaseAdmin: p.runtime?.supabaseAdmin,
+          }));
+          NODE
+            else
+              printf '{"base":"%s","error":"unreachable"}\n' "$BASE" >> "$OUT"
+            fi
+          done
+      - name: Commit finalized changes and public diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/attendance-center.functions.ts src/lib/whatsapp-auto-reply.server.ts src/routes/_authenticated/atendimento.tsx .github/workflows/deploy-easypanel.yml .github/workflows/validate-property-search.yml .attendance-live-status
+          if git diff --cached --quiet; then
+            echo "Nothing to finalize."
+            exit 0
+          fi
+          git commit -m "chore: finalize attendance realtime and production guard"
+          git push origin HEAD:feature/atendimento-suri-senior
