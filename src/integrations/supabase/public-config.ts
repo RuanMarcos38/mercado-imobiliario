@@ -1,3 +1,5 @@
+const MERCADOIMOBI_SUPABASE_PROJECT_ID = "rjlqylmwenhzkzmqwris";
+
 const FORBIDDEN_SUPABASE_PROJECT_IDS = new Set([
   "uwzfgksmnqgaxtscwxow", // RM NEGOCIO IMOBILIARIO
   "iqrnytsgwaiegddfxfjs", // CRM R2 MARKETING DIGITAL
@@ -24,6 +26,12 @@ const configuredPublishableKey = normalize(import.meta.env.VITE_SUPABASE_PUBLISH
 if (configuredProjectId && FORBIDDEN_SUPABASE_PROJECT_IDS.has(configuredProjectId)) {
   throw new Error(
     "MercadoImobi cannot use the RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL Supabase project",
+  );
+}
+
+if (configuredProjectId && configuredProjectId !== MERCADOIMOBI_SUPABASE_PROJECT_ID) {
+  throw new Error(
+    `MercadoImobi must use its dedicated Supabase project (${MERCADOIMOBI_SUPABASE_PROJECT_ID})`,
   );
 }
 
