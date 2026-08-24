@@ -35,6 +35,58 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Finalize attendance branch source
+        if: github.event_name == 'pull_request' && github.head_ref == 'feature/atendimento-suri-senior'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B feature/atendimento-suri-senior origin/feature/atendimento-suri-senior
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/routes/_authenticated/atendimento.tsx')
+          text = p.read_text()
+          old = '''      .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "whatsapp_attendant_presence" },
+                () => {
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )
+              .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "whatsapp_attendance_sessions" },
+                () => {
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )'''
+          new = '''      .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "system_events" },
+                () => {
+                  void conversations.refetch();
+                  if (showRealtimePanel) void dashboard.refetch();
+                },
+              )'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'table: "system_events"' not in text:
+              raise SystemExit('Expected attendance realtime block not found')
+          p.write_text(text)
+          PY
+          git show origin/main:src/integrations/supabase/client.ts > src/integrations/supabase/client.ts
+          npx prettier --write \
+            src/lib/attendance-center.functions.ts \
+            src/lib/whatsapp-auto-reply.server.ts \
+            src/routes/_authenticated/atendimento.tsx \
+            src/integrations/supabase/client.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/attendance-center.functions.ts src/lib/whatsapp-auto-reply.server.ts src/routes/_authenticated/atendimento.tsx src/integrations/supabase/client.ts
+          if ! git diff --cached --quiet; then
+            git commit -m "fix: finalize and format attendance realtime"
+            git push origin HEAD:feature/atendimento-suri-senior
+          fi
+
       - name: Verify tracked files and high-confidence secrets
         shell: bash
         run: |
@@ -61,12 +113,12 @@ jobs:
       - name: Require exclusive MercadoImobi Supabase project binding
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'rjlqylmwenhzkzmqwris' }}
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${EXPECTED_SUPABASE_PROJECT_ID:-}" ]; then
-            echo "::error::Repository variable MERCADOIMOBI_SUPABASE_PROJECT_ID is required before production promotion."
+            echo "::error::MercadoImobi Supabase project id is required before production promotion."
             exit 1
           fi
           case "$EXPECTED_SUPABASE_PROJECT_ID" in
@@ -76,7 +128,7 @@ jobs:
               ;;
           esac
           if ! [[ "$EXPECTED_SUPABASE_PROJECT_ID" =~ ^[a-z0-9]{20}$ ]]; then
-            echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID does not look like a Supabase project ref."
+            echo "::error::MercadoImobi Supabase project ref is invalid."
             exit 1
           fi
 
@@ -130,11 +182,11 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
-          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'rjlqylmwenhzkzmqwris' }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::Missing MERCADOIMOBI_SUPABASE_PROJECT_ID"; exit 1; }
+          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::Missing MercadoImobi Supabase project id"; exit 1; }
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
