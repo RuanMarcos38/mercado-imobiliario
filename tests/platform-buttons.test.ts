@@ -34,7 +34,6 @@ describe("MercadoImobi platform controls", () => {
       "Favoritos",
       "Ver detalhes",
       "Comparar imóvel",
-      "Abrir anúncio original",
       "Anterior",
       "Próxima",
     ]) {
@@ -46,6 +45,8 @@ describe("MercadoImobi platform controls", () => {
     expect(workspace).toContain("discount_percent");
     expect(workspace).toContain("evaluation_value");
     expect(workspace).toContain("Economia:");
+    expect(workspace).not.toContain("Abrir anúncio original");
+    expect(workspace).not.toContain("href={property.source_url}");
     expect(workspace).not.toContain("DashboardAtendimentoPanel");
   });
 
