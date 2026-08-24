@@ -25,6 +25,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           layout = Path('src/routes/_authenticated.tsx')
           text = layout.read_text()
@@ -43,40 +44,15 @@ jobs:
               if marker not in text:
                   raise SystemExit('route marker not found')
               text = text.replace(marker, marker + '      "/crm",\n', 1)
-          text = text.replace(
-              'expect(layout).not.toContain(\'label: "CRM / Oportunidades"\');',
-              'expect(layout).toContain(\'label: "CRM / Oportunidades"\');',
-          )
-          text = text.replace(
-              'it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {',
-              'it("keeps the real estate CRM visible while unrelated communication tools stay out", () => {',
-          )
+          text = text.replace('expect(layout).not.toContain(\'label: "CRM / Oportunidades"\');', 'expect(layout).toContain(\'label: "CRM / Oportunidades"\');')
+          text = text.replace('it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {', 'it("keeps the real estate CRM visible while unrelated communication tools stay out", () => {')
           tests.write_text(text)
 
           crm = Path('src/components/crm/CrmPipelineWorkspace.tsx')
           text = crm.read_text()
           text = text.replace('  UserRoundPlus,\n', '')
-          text = text.replace(
-              '  const activePipeline = workspace.data.pipelines.find((item) => item.id === pipelineId);\n\n',
-              '',
-          )
-          old = '''  pipelines: NonNullable<ReturnType<typeof useQuery>["data"]> extends never
-    ? never
-    : Array<{
-        id: string;
-        name: string;
-        description: string | null;
-        is_default: boolean;
-        is_active: boolean;
-      }>;'''
-          new = '''  pipelines: Array<{
-    id: string;
-    name: string;
-    description: string | null;
-    is_default: boolean;
-    is_active: boolean;
-  }>;'''
-          text = text.replace(old, new)
+          text = text.replace('  const activePipeline = workspace.data.pipelines.find((item) => item.id === pipelineId);\n\n', '')
+          text = re.sub(r'  pipelines: NonNullable<ReturnType<typeof useQuery>\["data"\]> extends never\s*\? never\s*: Array<\{\s*id: string;\s*name: string;\s*description: string \| null;\s*is_default: boolean;\s*is_active: boolean;\s*\}>;', '  pipelines: Array<{ id: string; name: string; description: string | null; is_default: boolean; is_active: boolean }>;', text)
           crm.write_text(text)
       - name: Format CRM changes
         run: npx prettier --write src/components/crm/CrmPipelineWorkspace.tsx src/lib/crm-advanced.functions.ts src/routes/_authenticated/crm.tsx src/routes/_authenticated.tsx tests/platform-buttons.test.ts
