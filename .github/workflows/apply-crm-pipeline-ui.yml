@@ -11,6 +11,7 @@ jobs:
   patch:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,7 +21,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Patch navigation and tests
+      - name: Patch CRM integration
         shell: python
         run: |
           from pathlib import Path
@@ -51,8 +52,46 @@ jobs:
               'it("keeps the real estate CRM visible while unrelated communication tools stay out", () => {',
           )
           tests.write_text(text)
+
+          crm = Path('src/components/crm/CrmPipelineWorkspace.tsx')
+          text = crm.read_text()
+          text = text.replace('  UserRoundPlus,\n', '')
+          text = text.replace(
+              '  const activePipeline = workspace.data.pipelines.find((item) => item.id === pipelineId);\n\n',
+              '',
+          )
+          old = '''  pipelines: NonNullable<ReturnType<typeof useQuery>["data"]> extends never
+    ? never
+    : Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        is_default: boolean;
+        is_active: boolean;
+      }>;'''
+          new = '''  pipelines: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    is_default: boolean;
+    is_active: boolean;
+  }>;'''
+          text = text.replace(old, new)
+          crm.write_text(text)
       - name: Format CRM changes
         run: npx prettier --write src/components/crm/CrmPipelineWorkspace.tsx src/lib/crm-advanced.functions.ts src/routes/_authenticated/crm.tsx src/routes/_authenticated.tsx tests/platform-buttons.test.ts
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm run test -- --passWithNoTests
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
+          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
+          npm run build
+          test -f .output/server/index.mjs
       - name: Commit integration
         shell: bash
         run: |
@@ -61,5 +100,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
           git add src/components/crm/CrmPipelineWorkspace.tsx src/lib/crm-advanced.functions.ts src/routes/_authenticated/crm.tsx src/routes/_authenticated.tsx tests/platform-buttons.test.ts
-          git commit -m "feat: expose advanced real estate CRM pipeline"
+          git commit -m "fix: validate advanced real estate CRM pipeline"
           git push origin HEAD:main
