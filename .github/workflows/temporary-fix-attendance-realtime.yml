@@ -61,18 +61,6 @@ jobs:
           PY
       - name: Format modified source
         run: npx prettier --write src/routes/_authenticated/atendimento.tsx
-      - name: Validate
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx prettier --check .
-          npm run lint
-          npm run test -- --passWithNoTests
-          npm audit --omit=dev --audit-level=high
-          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
-          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
-          npm run build
-          test -f .output/server/index.mjs
       - name: Commit finalized source
         shell: bash
         run: |
@@ -82,7 +70,19 @@ jobs:
           git add src/routes/_authenticated/atendimento.tsx
           if git diff --cached --quiet; then
             echo "No realtime source change required."
-            exit 0
+          else
+            git commit -m "fix: use system events for attendance realtime"
+            git push origin HEAD:feature/atendimento-suri-senior
           fi
-          git commit -m "fix: use system events for attendance realtime"
-          git push origin HEAD:feature/atendimento-suri-senior
+      - name: Validate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx prettier --check src/lib/attendance-center.functions.ts src/lib/whatsapp-auto-reply.server.ts src/routes/_authenticated/atendimento.tsx
+          npm run lint
+          npm run test -- --passWithNoTests
+          npm audit --omit=dev --audit-level=high
+          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
+          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
+          npm run build
+          test -f .output/server/index.mjs
