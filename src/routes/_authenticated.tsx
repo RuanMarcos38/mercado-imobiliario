@@ -110,6 +110,7 @@ const primaryItems = [
 
 const toolItems = [
   { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
+  { to: "/crm", label: "CRM / Oportunidades", icon: Users },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
   { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator },
   { to: "/fluxos", label: "Fluxos", icon: Workflow },

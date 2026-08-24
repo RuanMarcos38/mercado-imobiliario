@@ -55,14 +55,7 @@ import {
 } from "@/lib/crm-advanced.functions";
 
 type Panel =
-  | "pipeline"
-  | "funis"
-  | "perdas"
-  | "importar"
-  | "exportar"
-  | "cadencias"
-  | "automacoes"
-  | "campos";
+  "pipeline" | "funis" | "perdas" | "importar" | "exportar" | "cadencias" | "automacoes" | "campos";
 
 const panelItems: Array<{ id: Panel; label: string; icon: typeof Activity }> = [
   { id: "pipeline", label: "Pipeline", icon: Layers3 },
@@ -94,7 +87,9 @@ function classNames(...values: Array<string | false | null | undefined>) {
 
 function money(value: number | null | undefined) {
   if (value == null || !Number.isFinite(Number(value))) return "—";
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+    Number(value),
+  );
 }
 
 function when(value: string | null | undefined) {
@@ -144,9 +139,11 @@ function parseCsv(text: string) {
   if (row.some(Boolean)) rows.push(row);
   if (rows.length < 2) return [];
   const headers = rows[0].map(normalizeHeader);
-  return rows.slice(1).map((values) =>
-    Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])),
-  );
+  return rows
+    .slice(1)
+    .map((values) =>
+      Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])),
+    );
 }
 
 function csvEscape(value: unknown) {
@@ -238,7 +235,8 @@ export function CrmPipelineWorkspace() {
 
   useEffect(() => {
     if (pipelineId || !workspace.data?.pipelines.length) return;
-    const initial = workspace.data.pipelines.find((item) => item.is_default) ?? workspace.data.pipelines[0];
+    const initial =
+      workspace.data.pipelines.find((item) => item.is_default) ?? workspace.data.pipelines[0];
     setPipelineId(initial.id);
   }, [pipelineId, workspace.data?.pipelines]);
 
@@ -255,7 +253,13 @@ export function CrmPipelineWorkspace() {
     return (workspace.data?.opportunities ?? []).filter((item) => {
       if (item.pipeline_id !== pipelineId) return false;
       if (!query) return true;
-      return [item.contact_name, item.contact_phone, item.contact_email, item.property_reference, item.source]
+      return [
+        item.contact_name,
+        item.contact_phone,
+        item.contact_email,
+        item.property_reference,
+        item.source,
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -318,7 +322,8 @@ export function CrmPipelineWorkspace() {
 
   const saveOpportunity = async () => {
     const stageId = editing?.stage_id || stages.find((stage) => stage.status_type === "open")?.id;
-    if (!pipelineId || !stageId) return toast.error("Configure ao menos uma etapa aberta no funil.");
+    if (!pipelineId || !stageId)
+      return toast.error("Configure ao menos uma etapa aberta no funil.");
     setSaving(true);
     try {
       const payload = {
@@ -404,7 +409,9 @@ export function CrmPipelineWorkspace() {
   };
 
   if (workspace.isLoading) {
-    return <div className="p-8 text-sm text-[var(--mi-text-muted)]">Carregando CRM imobiliário...</div>;
+    return (
+      <div className="p-8 text-sm text-[var(--mi-text-muted)]">Carregando CRM imobiliário...</div>
+    );
   }
   if (workspace.error || !workspace.data) {
     return (
@@ -423,7 +430,9 @@ export function CrmPipelineWorkspace() {
       <div className="mx-auto max-w-[1900px] space-y-5">
         <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">CRM imobiliário</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+              CRM imobiliário
+            </p>
             <h1 className="mt-2 text-3xl font-black tracking-tight">Pipeline de oportunidades</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
               Todo novo contato do WhatsApp gera automaticamente uma oportunidade. Controle funis,
@@ -440,11 +449,13 @@ export function CrmPipelineWorkspace() {
               }}
               className="h-10 rounded-md border border-[var(--mi-border)] bg-[var(--mi-surface)] px-3 text-sm font-bold"
             >
-              {workspace.data.pipelines.filter((item) => item.is_active).map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
+              {workspace.data.pipelines
+                .filter((item) => item.is_active)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
             </select>
             <Button onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" /> Nova oportunidade
@@ -476,7 +487,11 @@ export function CrmPipelineWorkspace() {
           <>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Metric icon={UsersRound} label="Oportunidades abertas" value={String(openCount)} />
-              <Metric icon={CircleDollarSign} label="Valor em negociação" value={money(openValue)} />
+              <Metric
+                icon={CircleDollarSign}
+                label="Valor em negociação"
+                value={money(openValue)}
+              />
               <Metric icon={CalendarClock} label="Follow-ups vencidos" value={String(dueCount)} />
               <Metric
                 icon={CheckCircle2}
@@ -513,7 +528,9 @@ export function CrmPipelineWorkspace() {
                 >
                   <option value="">Mover para etapa...</option>
                   {stages.map((stage) => (
-                    <option key={stage.id} value={stage.id}>{stage.name}</option>
+                    <option key={stage.id} value={stage.id}>
+                      {stage.name}
+                    </option>
                   ))}
                 </select>
                 <Button size="sm" onClick={() => void runBulkMove()} disabled={!bulkStageId}>
@@ -525,14 +542,27 @@ export function CrmPipelineWorkspace() {
                   className="h-9 rounded-md border border-blue-200 bg-white px-3 text-xs"
                 >
                   <option value="">Motivo da perda...</option>
-                  {workspace.data.lossReasons.filter((item) => item.is_active).map((item) => (
-                    <option key={item.id} value={item.id}>{item.name}</option>
-                  ))}
+                  {workspace.data.lossReasons
+                    .filter((item) => item.is_active)
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
                 </select>
                 <Button size="sm" variant="outline" onClick={() => void runBulkLoss()}>
                   <XCircle className="mr-2 h-3.5 w-3.5" /> Marcar perdido
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => downloadCsv(opportunities.filter((item) => selectedIds.has(item.id)), stages)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    downloadCsv(
+                      opportunities.filter((item) => selectedIds.has(item.id)),
+                      stages,
+                    )
+                  }
+                >
                   <Download className="mr-2 h-3.5 w-3.5" /> Exportar selecionados
                 </Button>
                 <Button size="sm" variant="destructive" onClick={() => void runBulkDelete()}>
@@ -552,10 +582,17 @@ export function CrmPipelineWorkspace() {
                   <div className="flex items-start justify-between gap-2 px-1 py-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-                        <h2 className="truncate text-xs font-black uppercase tracking-[0.08em]">{stage.name}</h2>
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        <h2 className="truncate text-xs font-black uppercase tracking-[0.08em]">
+                          {stage.name}
+                        </h2>
                       </div>
-                      <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">Probabilidade {stage.probability}%</p>
+                      <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                        Probabilidade {stage.probability}%
+                      </p>
                     </div>
                     <span className="grid h-6 min-w-6 place-items-center rounded-full bg-[var(--mi-bg)] px-1.5 text-[10px] font-black">
                       {byStage.get(stage.id)?.length ?? 0}
@@ -581,15 +618,23 @@ export function CrmPipelineWorkspace() {
                               className="mt-1 h-4 w-4"
                               aria-label={`Selecionar ${item.contact_name}`}
                             />
-                            <button onClick={() => openEdit(item)} className="min-w-0 flex-1 text-left">
+                            <button
+                              onClick={() => openEdit(item)}
+                              className="min-w-0 flex-1 text-left"
+                            >
                               <p className="truncate font-black">{item.contact_name}</p>
                               <p className="mt-1 truncate text-xs text-[var(--mi-text-muted)]">
-                                {item.property_reference || item.contact_phone || "Sem imóvel informado"}
+                                {item.property_reference ||
+                                  item.contact_phone ||
+                                  "Sem imóvel informado"}
                               </p>
                             </button>
                             <GripVertical className="h-4 w-4 shrink-0 text-[var(--mi-text-soft)]" />
                           </div>
-                          <button onClick={() => openEdit(item)} className="mt-3 block w-full text-left">
+                          <button
+                            onClick={() => openEdit(item)}
+                            className="mt-3 block w-full text-left"
+                          >
                             <div className="flex items-center justify-between gap-2 text-xs">
                               <span className="font-black text-blue-600">{money(item.value)}</span>
                               <span className="rounded-full bg-[var(--mi-surface)] px-2 py-1 text-[9px] font-black uppercase text-[var(--mi-text-soft)]">
@@ -598,7 +643,11 @@ export function CrmPipelineWorkspace() {
                             </div>
                             <div className="mt-3 grid gap-1.5 text-[10px] text-[var(--mi-text-muted)]">
                               <span>Próxima ação: {when(item.next_action_at)}</span>
-                              {pending[0] && <span className="font-bold text-amber-600">Tarefa: {pending[0].title}</span>}
+                              {pending[0] && (
+                                <span className="font-bold text-amber-600">
+                                  Tarefa: {pending[0].title}
+                                </span>
+                              )}
                             </div>
                           </button>
                         </article>
@@ -642,7 +691,10 @@ export function CrmPipelineWorkspace() {
         )}
 
         {panel === "perdas" && (
-          <SimplePanel title="Motivos da perda" description="Cadastre os motivos usados ao encerrar oportunidades perdidas.">
+          <SimplePanel
+            title="Motivos da perda"
+            description="Cadastre os motivos usados ao encerrar oportunidades perdidas."
+          >
             <LossReasonPanel
               reasons={workspace.data.lossReasons}
               onCreate={async (name) => {
@@ -658,18 +710,27 @@ export function CrmPipelineWorkspace() {
         )}
 
         {panel === "importar" && (
-          <SimplePanel title="Importações" description="Importe oportunidades em CSV sem alterar o restante da base.">
+          <SimplePanel
+            title="Importações"
+            description="Importe oportunidades em CSV sem alterar o restante da base."
+          >
             <ImportPanel onChoose={() => fileInput.current?.click()} />
           </SimplePanel>
         )}
 
         {panel === "exportar" && (
-          <SimplePanel title="Exportações" description="Exporte o funil atual em CSV para análise, backup ou integração.">
+          <SimplePanel
+            title="Exportações"
+            description="Exporte o funil atual em CSV para análise, backup ou integração."
+          >
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => downloadCsv(opportunities, stages)}>
                 <Download className="mr-2 h-4 w-4" /> Exportar funil atual ({opportunities.length})
               </Button>
-              <Button variant="outline" onClick={() => downloadCsv(workspace.data.opportunities, workspace.data.stages)}>
+              <Button
+                variant="outline"
+                onClick={() => downloadCsv(workspace.data.opportunities, workspace.data.stages)}
+              >
                 Exportar todas as oportunidades
               </Button>
             </div>
@@ -701,7 +762,9 @@ export function CrmPipelineWorkspace() {
           <AutomationPanel
             pipelineId={pipelineId}
             stages={stages}
-            automations={workspace.data.automations.filter((item) => item.pipeline_id === pipelineId)}
+            automations={workspace.data.automations.filter(
+              (item) => item.pipeline_id === pipelineId,
+            )}
             onCreate={async (payload) => {
               await automationFn({ data: { pipelineId, ...payload } });
               await refresh();
@@ -736,7 +799,8 @@ export function CrmPipelineWorkspace() {
           try {
             const parsed = parseCsv(await file.text());
             const firstOpenStage = stages.find((stage) => stage.status_type === "open");
-            if (!firstOpenStage) throw new Error("Funil sem etapa aberta para receber a importação.");
+            if (!firstOpenStage)
+              throw new Error("Funil sem etapa aberta para receber a importação.");
             const rows = parsed
               .map((row) => ({
                 contactName: row.nome || row.name || row.cliente || row.contact_name || "",
@@ -744,13 +808,22 @@ export function CrmPipelineWorkspace() {
                 contactEmail: row.email || row.contact_email || "",
                 propertyReference: row.imovel || row.empreendimento || row.property_reference || "",
                 source: row.origem || row.source || "importacao",
-                value: row.valor ? Number(String(row.valor).replace(/[^0-9,.-]/g, "").replace(",", ".")) : null,
+                value: row.valor
+                  ? Number(
+                      String(row.valor)
+                        .replace(/[^0-9,.-]/g, "")
+                        .replace(",", "."),
+                    )
+                  : null,
                 notes: row.observacoes || row.notes || "",
               }))
               .filter((row) => row.contactName.trim().length >= 2)
               .slice(0, 500);
-            if (!rows.length) throw new Error("Nenhuma linha válida. Inclua ao menos a coluna nome.");
-            const result = await importFn({ data: { pipelineId, stageId: firstOpenStage.id, rows } });
+            if (!rows.length)
+              throw new Error("Nenhuma linha válida. Inclua ao menos a coluna nome.");
+            const result = await importFn({
+              data: { pipelineId, stageId: firstOpenStage.id, rows },
+            });
             toast.success(`${result.imported} oportunidade(s) importada(s).`);
             await refresh();
           } catch (error) {
@@ -766,56 +839,119 @@ export function CrmPipelineWorkspace() {
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Cliente *">
-              <Input value={opportunityForm.contactName} onChange={(event) => setOpportunityForm({ ...opportunityForm, contactName: event.target.value })} />
+              <Input
+                value={opportunityForm.contactName}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, contactName: event.target.value })
+                }
+              />
             </Field>
             <Field label="WhatsApp / telefone">
-              <Input value={opportunityForm.contactPhone} onChange={(event) => setOpportunityForm({ ...opportunityForm, contactPhone: event.target.value })} />
+              <Input
+                value={opportunityForm.contactPhone}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, contactPhone: event.target.value })
+                }
+              />
             </Field>
             <Field label="E-mail">
-              <Input type="email" value={opportunityForm.contactEmail} onChange={(event) => setOpportunityForm({ ...opportunityForm, contactEmail: event.target.value })} />
+              <Input
+                type="email"
+                value={opportunityForm.contactEmail}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, contactEmail: event.target.value })
+                }
+              />
             </Field>
             <Field label="Imóvel / empreendimento">
-              <Input value={opportunityForm.propertyReference} onChange={(event) => setOpportunityForm({ ...opportunityForm, propertyReference: event.target.value })} />
+              <Input
+                value={opportunityForm.propertyReference}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, propertyReference: event.target.value })
+                }
+              />
             </Field>
             <Field label="Valor da oportunidade">
-              <Input inputMode="decimal" value={opportunityForm.value} onChange={(event) => setOpportunityForm({ ...opportunityForm, value: event.target.value })} placeholder="350000" />
+              <Input
+                inputMode="decimal"
+                value={opportunityForm.value}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, value: event.target.value })
+                }
+                placeholder="350000"
+              />
             </Field>
             <Field label="Origem">
-              <Input value={opportunityForm.source} onChange={(event) => setOpportunityForm({ ...opportunityForm, source: event.target.value })} placeholder="WhatsApp, indicação, portal..." />
+              <Input
+                value={opportunityForm.source}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, source: event.target.value })
+                }
+                placeholder="WhatsApp, indicação, portal..."
+              />
             </Field>
             <Field label="Previsão de fechamento">
-              <Input type="date" value={opportunityForm.expectedCloseDate} onChange={(event) => setOpportunityForm({ ...opportunityForm, expectedCloseDate: event.target.value })} />
+              <Input
+                type="date"
+                value={opportunityForm.expectedCloseDate}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, expectedCloseDate: event.target.value })
+                }
+              />
             </Field>
             <Field label="Próxima ação">
-              <Input type="datetime-local" value={opportunityForm.nextActionAt} onChange={(event) => setOpportunityForm({ ...opportunityForm, nextActionAt: event.target.value })} />
-            </Field>
-            {workspace.data.customFields.filter((field) => field.is_active).map((field) => (
-              <CustomFieldInput
-                key={field.id}
-                field={field}
-                value={opportunityForm.customValues[field.field_key]}
-                onChange={(value) => setOpportunityForm({
-                  ...opportunityForm,
-                  customValues: { ...opportunityForm.customValues, [field.field_key]: value },
-                })}
+              <Input
+                type="datetime-local"
+                value={opportunityForm.nextActionAt}
+                onChange={(event) =>
+                  setOpportunityForm({ ...opportunityForm, nextActionAt: event.target.value })
+                }
               />
-            ))}
+            </Field>
+            {workspace.data.customFields
+              .filter((field) => field.is_active)
+              .map((field) => (
+                <CustomFieldInput
+                  key={field.id}
+                  field={field}
+                  value={opportunityForm.customValues[field.field_key]}
+                  onChange={(value) =>
+                    setOpportunityForm({
+                      ...opportunityForm,
+                      customValues: { ...opportunityForm.customValues, [field.field_key]: value },
+                    })
+                  }
+                />
+              ))}
             <div className="sm:col-span-2">
               <Field label="Observações">
-                <Textarea rows={4} value={opportunityForm.notes} onChange={(event) => setOpportunityForm({ ...opportunityForm, notes: event.target.value })} />
+                <Textarea
+                  rows={4}
+                  value={opportunityForm.notes}
+                  onChange={(event) =>
+                    setOpportunityForm({ ...opportunityForm, notes: event.target.value })
+                  }
+                />
               </Field>
             </div>
           </div>
 
           {editing && (activitiesByOpportunity.get(editing.id)?.length ?? 0) > 0 && (
             <section className="rounded-2xl border border-[var(--mi-border)] p-4">
-              <h3 className="flex items-center gap-2 text-sm font-black"><ListChecks className="h-4 w-4 text-blue-600" /> Próximas atividades</h3>
+              <h3 className="flex items-center gap-2 text-sm font-black">
+                <ListChecks className="h-4 w-4 text-blue-600" /> Próximas atividades
+              </h3>
               <div className="mt-3 space-y-2">
                 {(activitiesByOpportunity.get(editing.id) ?? []).map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--mi-bg)] p-3 text-xs">
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-[var(--mi-bg)] p-3 text-xs"
+                  >
                     <div>
                       <p className="font-black">{activity.title}</p>
-                      <p className="mt-1 text-[var(--mi-text-muted)]">{activity.kind} · {when(activity.due_at)} · {activity.source}</p>
+                      <p className="mt-1 text-[var(--mi-text-muted)]">
+                        {activity.kind} · {when(activity.due_at)} · {activity.source}
+                      </p>
                     </div>
                     <Button
                       size="sm"
@@ -834,8 +970,13 @@ export function CrmPipelineWorkspace() {
           )}
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpportunityOpen(false)}>Cancelar</Button>
-            <Button disabled={saving || opportunityForm.contactName.trim().length < 2} onClick={() => void saveOpportunity()}>
+            <Button variant="outline" onClick={() => setOpportunityOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={saving || opportunityForm.contactName.trim().length < 2}
+              onClick={() => void saveOpportunity()}
+            >
               {saving ? "Salvando..." : "Salvar oportunidade"}
             </Button>
           </div>
@@ -845,7 +986,15 @@ export function CrmPipelineWorkspace() {
   );
 }
 
-function Metric({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string }) {
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Activity;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-4">
       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
@@ -865,7 +1014,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function SimplePanel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function SimplePanel({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-[24px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 sm:p-6">
       <h2 className="text-xl font-black">{title}</h2>
@@ -884,12 +1041,25 @@ function FunnelPanel({
   createStage,
   toggleStage,
 }: {
-  pipelines: NonNullable<ReturnType<typeof useQuery>["data"]> extends never ? never : Array<{ id: string; name: string; description: string | null; is_default: boolean; is_active: boolean }>;
+  pipelines: NonNullable<ReturnType<typeof useQuery>["data"]> extends never
+    ? never
+    : Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        is_default: boolean;
+        is_active: boolean;
+      }>;
   stages: CrmStage[];
   pipelineId: string;
   setPipelineId: (id: string) => void;
   createPipeline: (name: string, description: string) => Promise<void>;
-  createStage: (form: { name: string; probability: number; statusType: "open" | "won" | "lost"; color: string }) => Promise<void>;
+  createStage: (form: {
+    name: string;
+    probability: number;
+    statusType: "open" | "won" | "lost";
+    color: string;
+  }) => Promise<void>;
   toggleStage: (stage: CrmStage) => Promise<void>;
 }) {
   const [pipelineName, setPipelineName] = useState("");
@@ -898,17 +1068,30 @@ function FunnelPanel({
   const [probability, setProbability] = useState(20);
   const [statusType, setStatusType] = useState<"open" | "won" | "lost">("open");
   const [color, setColor] = useState("#2563eb");
-  const selectedStages = stages.filter((stage) => stage.pipeline_id === pipelineId).sort((a, b) => a.position - b.position);
+  const selectedStages = stages
+    .filter((stage) => stage.pipeline_id === pipelineId)
+    .sort((a, b) => a.position - b.position);
 
   return (
-    <SimplePanel title="Funis e etapas" description="Crie funis por produto, região, equipe ou modelo de venda e personalize suas etapas.">
+    <SimplePanel
+      title="Funis e etapas"
+      description="Crie funis por produto, região, equipe ou modelo de venda e personalize suas etapas."
+    >
       <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
         <div className="space-y-4">
           <div className="rounded-2xl border border-[var(--mi-border)] p-4">
             <h3 className="font-black">Novo funil</h3>
             <div className="mt-3 space-y-3">
-              <Input value={pipelineName} onChange={(event) => setPipelineName(event.target.value)} placeholder="Ex.: Lançamentos Joinville" />
-              <Textarea value={pipelineDescription} onChange={(event) => setPipelineDescription(event.target.value)} placeholder="Descrição opcional" />
+              <Input
+                value={pipelineName}
+                onChange={(event) => setPipelineName(event.target.value)}
+                placeholder="Ex.: Lançamentos Joinville"
+              />
+              <Textarea
+                value={pipelineDescription}
+                onChange={(event) => setPipelineDescription(event.target.value)}
+                placeholder="Descrição opcional"
+              />
               <Button
                 className="w-full"
                 disabled={pipelineName.trim().length < 2}
@@ -930,12 +1113,16 @@ function FunnelPanel({
                 onClick={() => setPipelineId(pipeline.id)}
                 className={classNames(
                   "flex w-full items-center justify-between rounded-xl border p-3 text-left",
-                  pipeline.id === pipelineId ? "border-blue-300 bg-blue-50" : "border-[var(--mi-border)]",
+                  pipeline.id === pipelineId
+                    ? "border-blue-300 bg-blue-50"
+                    : "border-[var(--mi-border)]",
                 )}
               >
                 <div>
                   <p className="text-sm font-black">{pipeline.name}</p>
-                  <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">{pipeline.is_default ? "Funil padrão" : "Funil personalizado"}</p>
+                  <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                    {pipeline.is_default ? "Funil padrão" : "Funil personalizado"}
+                  </p>
                 </div>
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -945,9 +1132,24 @@ function FunnelPanel({
 
         <div>
           <div className="grid gap-3 rounded-2xl border border-[var(--mi-border)] p-4 md:grid-cols-5">
-            <Input value={stageName} onChange={(event) => setStageName(event.target.value)} placeholder="Nome da etapa" />
-            <Input type="number" min={0} max={100} value={probability} onChange={(event) => setProbability(Number(event.target.value))} placeholder="Prob. %" />
-            <select value={statusType} onChange={(event) => setStatusType(event.target.value as typeof statusType)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <Input
+              value={stageName}
+              onChange={(event) => setStageName(event.target.value)}
+              placeholder="Nome da etapa"
+            />
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={probability}
+              onChange={(event) => setProbability(Number(event.target.value))}
+              placeholder="Prob. %"
+            />
+            <select
+              value={statusType}
+              onChange={(event) => setStatusType(event.target.value as typeof statusType)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
               <option value="open">Aberta</option>
               <option value="won">Ganha</option>
               <option value="lost">Perdida</option>
@@ -960,16 +1162,23 @@ function FunnelPanel({
                 setStageName("");
                 toast.success("Etapa adicionada.");
               }}
-            >Adicionar etapa</Button>
+            >
+              Adicionar etapa
+            </Button>
           </div>
           <div className="mt-4 space-y-2">
             {selectedStages.map((stage) => (
-              <div key={stage.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3">
+              <div
+                key={stage.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3"
+              >
                 <div className="flex items-center gap-3">
                   <span className="h-3 w-3 rounded-full" style={{ backgroundColor: stage.color }} />
                   <div>
                     <p className="text-sm font-black">{stage.name}</p>
-                    <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">{stage.status_type} · {stage.probability}% · posição {stage.position}</p>
+                    <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                      {stage.status_type} · {stage.probability}% · posição {stage.position}
+                    </p>
                   </div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => void toggleStage(stage)}>
@@ -997,7 +1206,11 @@ function LossReasonPanel({
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex gap-2">
-        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Novo motivo de perda" />
+        <Input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Novo motivo de perda"
+        />
         <Button
           disabled={name.trim().length < 2}
           onClick={async () => {
@@ -1005,13 +1218,21 @@ function LossReasonPanel({
             setName("");
             toast.success("Motivo cadastrado.");
           }}
-        >Cadastrar</Button>
+        >
+          Cadastrar
+        </Button>
       </div>
       <div className="divide-y divide-[var(--mi-border)] rounded-2xl border border-[var(--mi-border)]">
         {reasons.map((reason) => (
           <div key={reason.id} className="flex items-center justify-between gap-3 p-3">
-            <span className={classNames("text-sm font-bold", !reason.is_active && "opacity-50")}>{reason.name}</span>
-            <Button size="sm" variant="outline" onClick={() => void onToggle(reason.id, !reason.is_active)}>
+            <span className={classNames("text-sm font-bold", !reason.is_active && "opacity-50")}>
+              {reason.name}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void onToggle(reason.id, !reason.is_active)}
+            >
               {reason.is_active ? "Desativar" : "Ativar"}
             </Button>
           </div>
@@ -1027,10 +1248,13 @@ function ImportPanel({ onChoose }: { onChoose: () => void }) {
       <Upload className="mx-auto h-9 w-9 text-blue-600" />
       <h3 className="mt-3 font-black text-blue-950">Importar oportunidades por CSV</h3>
       <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-blue-800">
-        Colunas aceitas: nome, telefone/WhatsApp, email, imóvel/empreendimento, origem, valor e observações.
-        Até 500 linhas por importação. As oportunidades entram na primeira etapa aberta do funil selecionado.
+        Colunas aceitas: nome, telefone/WhatsApp, email, imóvel/empreendimento, origem, valor e
+        observações. Até 500 linhas por importação. As oportunidades entram na primeira etapa aberta
+        do funil selecionado.
       </p>
-      <Button className="mt-5" onClick={onChoose}>Selecionar arquivo CSV</Button>
+      <Button className="mt-5" onClick={onChoose}>
+        Selecionar arquivo CSV
+      </Button>
     </div>
   );
 }
@@ -1047,9 +1271,23 @@ function CadencePanel({
   pipelineId: string;
   stages: CrmStage[];
   cadences: Array<{ id: string; name: string; stage_id: string | null; is_active: boolean }>;
-  steps: Array<{ id: string; cadence_id: string; delay_minutes: number; action_type: "task" | "call" | "whatsapp" | "email"; title: string; message_template: string | null; position: number }>;
+  steps: Array<{
+    id: string;
+    cadence_id: string;
+    delay_minutes: number;
+    action_type: "task" | "call" | "whatsapp" | "email";
+    title: string;
+    message_template: string | null;
+    position: number;
+  }>;
   onCreate: (payload: { name: string; stageId: string | null }) => Promise<void>;
-  onAddStep: (payload: { cadenceId: string; delayMinutes: number; actionType: "task" | "call" | "whatsapp" | "email"; title: string; messageTemplate: string }) => Promise<void>;
+  onAddStep: (payload: {
+    cadenceId: string;
+    delayMinutes: number;
+    actionType: "task" | "call" | "whatsapp" | "email";
+    title: string;
+    messageTemplate: string;
+  }) => Promise<void>;
   onToggle: (id: string, isActive: boolean) => Promise<void>;
 }) {
   const [name, setName] = useState("");
@@ -1061,15 +1299,30 @@ function CadencePanel({
   const [messageTemplate, setMessageTemplate] = useState("");
   void pipelineId;
   return (
-    <SimplePanel title="Cadência de funil" description="Ao entrar em uma etapa, o sistema agenda automaticamente tarefas, ligações, WhatsApp ou e-mail conforme os passos configurados.">
+    <SimplePanel
+      title="Cadência de funil"
+      description="Ao entrar em uma etapa, o sistema agenda automaticamente tarefas, ligações, WhatsApp ou e-mail conforme os passos configurados."
+    >
       <div className="grid gap-5 xl:grid-cols-2">
         <div className="rounded-2xl border border-[var(--mi-border)] p-4">
           <h3 className="font-black">Nova cadência</h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Follow-up visita" />
-            <select value={stageId} onChange={(event) => setStageId(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Ex.: Follow-up visita"
+            />
+            <select
+              value={stageId}
+              onChange={(event) => setStageId(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
               <option value="">Todas as etapas</option>
-              {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
+              {stages.map((stage) => (
+                <option key={stage.id} value={stage.id}>
+                  {stage.name}
+                </option>
+              ))}
             </select>
           </div>
           <Button
@@ -1080,22 +1333,54 @@ function CadencePanel({
               setName("");
               toast.success("Cadência criada.");
             }}
-          >Criar cadência</Button>
+          >
+            Criar cadência
+          </Button>
         </div>
 
         <div className="rounded-2xl border border-[var(--mi-border)] p-4">
           <h3 className="font-black">Adicionar passo</h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <select value={cadenceId} onChange={(event) => setCadenceId(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <select
+              value={cadenceId}
+              onChange={(event) => setCadenceId(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
               <option value="">Selecione a cadência</option>
-              {cadences.map((cadence) => <option key={cadence.id} value={cadence.id}>{cadence.name}</option>)}
+              {cadences.map((cadence) => (
+                <option key={cadence.id} value={cadence.id}>
+                  {cadence.name}
+                </option>
+              ))}
             </select>
-            <select value={actionType} onChange={(event) => setActionType(event.target.value as typeof actionType)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="task">Tarefa</option><option value="call">Ligação</option><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option>
+            <select
+              value={actionType}
+              onChange={(event) => setActionType(event.target.value as typeof actionType)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="task">Tarefa</option>
+              <option value="call">Ligação</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="email">E-mail</option>
             </select>
-            <Input type="number" min={0} value={delayMinutes} onChange={(event) => setDelayMinutes(Number(event.target.value))} placeholder="Atraso em minutos" />
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título da ação" />
-            <Textarea className="sm:col-span-2" value={messageTemplate} onChange={(event) => setMessageTemplate(event.target.value)} placeholder="Mensagem/modelo opcional" />
+            <Input
+              type="number"
+              min={0}
+              value={delayMinutes}
+              onChange={(event) => setDelayMinutes(Number(event.target.value))}
+              placeholder="Atraso em minutos"
+            />
+            <Input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Título da ação"
+            />
+            <Textarea
+              className="sm:col-span-2"
+              value={messageTemplate}
+              onChange={(event) => setMessageTemplate(event.target.value)}
+              placeholder="Mensagem/modelo opcional"
+            />
           </div>
           <Button
             className="mt-3"
@@ -1106,26 +1391,44 @@ function CadencePanel({
               setMessageTemplate("");
               toast.success("Passo adicionado.");
             }}
-          >Adicionar passo</Button>
+          >
+            Adicionar passo
+          </Button>
         </div>
       </div>
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         {cadences.map((cadence) => (
-          <div key={cadence.id} className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-4">
+          <div
+            key={cadence.id}
+            className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-4"
+          >
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="font-black">{cadence.name}</p>
-                <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">{stages.find((stage) => stage.id === cadence.stage_id)?.name ?? "Todas as etapas"}</p>
+                <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                  {stages.find((stage) => stage.id === cadence.stage_id)?.name ?? "Todas as etapas"}
+                </p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => void onToggle(cadence.id, !cadence.is_active)}>{cadence.is_active ? "Ativa" : "Inativa"}</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void onToggle(cadence.id, !cadence.is_active)}
+              >
+                {cadence.is_active ? "Ativa" : "Inativa"}
+              </Button>
             </div>
             <div className="mt-3 space-y-2">
-              {steps.filter((step) => step.cadence_id === cadence.id).sort((a, b) => a.position - b.position).map((step) => (
-                <div key={step.id} className="rounded-xl bg-[var(--mi-surface)] p-3 text-xs">
-                  <p className="font-black">{step.title}</p>
-                  <p className="mt-1 text-[var(--mi-text-muted)]">{step.action_type} · após {step.delay_minutes} min</p>
-                </div>
-              ))}
+              {steps
+                .filter((step) => step.cadence_id === cadence.id)
+                .sort((a, b) => a.position - b.position)
+                .map((step) => (
+                  <div key={step.id} className="rounded-xl bg-[var(--mi-surface)] p-3 text-xs">
+                    <p className="font-black">{step.title}</p>
+                    <p className="mt-1 text-[var(--mi-text-muted)]">
+                      {step.action_type} · após {step.delay_minutes} min
+                    </p>
+                  </div>
+                ))}
             </div>
           </div>
         ))}
@@ -1143,52 +1446,142 @@ function AutomationPanel({
 }: {
   pipelineId: string;
   stages: CrmStage[];
-  automations: Array<{ id: string; name: string; stage_id: string | null; trigger_event: "created" | "stage_entered"; action_type: "create_task" | "schedule_followup" | "set_probability"; action_config: Record<string, unknown>; is_active: boolean }>;
-  onCreate: (payload: { name: string; stageId: string | null; triggerEvent: "created" | "stage_entered"; actionType: "create_task" | "schedule_followup" | "set_probability"; delayMinutes: number; title: string; value?: number }) => Promise<void>;
+  automations: Array<{
+    id: string;
+    name: string;
+    stage_id: string | null;
+    trigger_event: "created" | "stage_entered";
+    action_type: "create_task" | "schedule_followup" | "set_probability";
+    action_config: Record<string, unknown>;
+    is_active: boolean;
+  }>;
+  onCreate: (payload: {
+    name: string;
+    stageId: string | null;
+    triggerEvent: "created" | "stage_entered";
+    actionType: "create_task" | "schedule_followup" | "set_probability";
+    delayMinutes: number;
+    title: string;
+    value?: number;
+  }) => Promise<void>;
   onToggle: (id: string, isActive: boolean) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [stageId, setStageId] = useState("");
   const [triggerEvent, setTriggerEvent] = useState<"created" | "stage_entered">("stage_entered");
-  const [actionType, setActionType] = useState<"create_task" | "schedule_followup" | "set_probability">("create_task");
+  const [actionType, setActionType] = useState<
+    "create_task" | "schedule_followup" | "set_probability"
+  >("create_task");
   const [delayMinutes, setDelayMinutes] = useState(0);
   const [title, setTitle] = useState("");
   const [value, setValue] = useState(50);
   void pipelineId;
   return (
-    <SimplePanel title="Ações automáticas" description="Regras executadas pelo backend quando uma oportunidade é criada ou entra em determinada etapa.">
+    <SimplePanel
+      title="Ações automáticas"
+      description="Regras executadas pelo backend quando uma oportunidade é criada ou entra em determinada etapa."
+    >
       <div className="grid gap-3 rounded-2xl border border-[var(--mi-border)] p-4 lg:grid-cols-4">
-        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome da automação" />
-        <select value={stageId} onChange={(event) => setStageId(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="">Qualquer etapa</option>{stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
+        <Input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Nome da automação"
+        />
+        <select
+          value={stageId}
+          onChange={(event) => setStageId(event.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Qualquer etapa</option>
+          {stages.map((stage) => (
+            <option key={stage.id} value={stage.id}>
+              {stage.name}
+            </option>
+          ))}
         </select>
-        <select value={triggerEvent} onChange={(event) => setTriggerEvent(event.target.value as typeof triggerEvent)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="created">Ao criar oportunidade</option><option value="stage_entered">Ao entrar na etapa</option>
+        <select
+          value={triggerEvent}
+          onChange={(event) => setTriggerEvent(event.target.value as typeof triggerEvent)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="created">Ao criar oportunidade</option>
+          <option value="stage_entered">Ao entrar na etapa</option>
         </select>
-        <select value={actionType} onChange={(event) => setActionType(event.target.value as typeof actionType)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="create_task">Criar tarefa</option><option value="schedule_followup">Agendar follow-up</option><option value="set_probability">Definir probabilidade</option>
+        <select
+          value={actionType}
+          onChange={(event) => setActionType(event.target.value as typeof actionType)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="create_task">Criar tarefa</option>
+          <option value="schedule_followup">Agendar follow-up</option>
+          <option value="set_probability">Definir probabilidade</option>
         </select>
-        {actionType !== "set_probability" && <Input type="number" min={0} value={delayMinutes} onChange={(event) => setDelayMinutes(Number(event.target.value))} placeholder="Atraso em minutos" />}
-        {actionType === "create_task" && <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título da tarefa" />}
-        {actionType === "set_probability" && <Input type="number" min={0} max={100} value={value} onChange={(event) => setValue(Number(event.target.value))} placeholder="Probabilidade" />}
+        {actionType !== "set_probability" && (
+          <Input
+            type="number"
+            min={0}
+            value={delayMinutes}
+            onChange={(event) => setDelayMinutes(Number(event.target.value))}
+            placeholder="Atraso em minutos"
+          />
+        )}
+        {actionType === "create_task" && (
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Título da tarefa"
+          />
+        )}
+        {actionType === "set_probability" && (
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={value}
+            onChange={(event) => setValue(Number(event.target.value))}
+            placeholder="Probabilidade"
+          />
+        )}
         <Button
           disabled={name.trim().length < 2}
           onClick={async () => {
-            await onCreate({ name, stageId: stageId || null, triggerEvent, actionType, delayMinutes, title, ...(actionType === "set_probability" ? { value } : {}) });
+            await onCreate({
+              name,
+              stageId: stageId || null,
+              triggerEvent,
+              actionType,
+              delayMinutes,
+              title,
+              ...(actionType === "set_probability" ? { value } : {}),
+            });
             setName("");
             setTitle("");
             toast.success("Automação criada.");
           }}
-        >Criar automação</Button>
+        >
+          Criar automação
+        </Button>
       </div>
       <div className="mt-4 space-y-2">
         {automations.map((automation) => (
-          <div key={automation.id} className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 sm:flex-row sm:items-center">
+          <div
+            key={automation.id}
+            className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 sm:flex-row sm:items-center"
+          >
             <div>
               <p className="text-sm font-black">{automation.name}</p>
-              <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">{automation.trigger_event} → {automation.action_type} · {stages.find((stage) => stage.id === automation.stage_id)?.name ?? "qualquer etapa"}</p>
+              <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                {automation.trigger_event} → {automation.action_type} ·{" "}
+                {stages.find((stage) => stage.id === automation.stage_id)?.name ?? "qualquer etapa"}
+              </p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => void onToggle(automation.id, !automation.is_active)}>{automation.is_active ? "Ativa" : "Inativa"}</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void onToggle(automation.id, !automation.is_active)}
+            >
+              {automation.is_active ? "Ativa" : "Inativa"}
+            </Button>
           </div>
         ))}
       </div>
@@ -1196,40 +1589,104 @@ function AutomationPanel({
   );
 }
 
-function CustomFieldPanel({ fields, onCreate }: { fields: CrmCustomField[]; onCreate: (payload: { key: string; label: string; fieldType: "text" | "number" | "date" | "select" | "boolean"; options: string[]; isRequired: boolean }) => Promise<void> }) {
+function CustomFieldPanel({
+  fields,
+  onCreate,
+}: {
+  fields: CrmCustomField[];
+  onCreate: (payload: {
+    key: string;
+    label: string;
+    fieldType: "text" | "number" | "date" | "select" | "boolean";
+    options: string[];
+    isRequired: boolean;
+  }) => Promise<void>;
+}) {
   const [key, setKey] = useState("");
   const [label, setLabel] = useState("");
-  const [fieldType, setFieldType] = useState<"text" | "number" | "date" | "select" | "boolean">("text");
+  const [fieldType, setFieldType] = useState<"text" | "number" | "date" | "select" | "boolean">(
+    "text",
+  );
   const [options, setOptions] = useState("");
   const [isRequired, setIsRequired] = useState(false);
   return (
-    <SimplePanel title="Campos customizados" description="Adicione informações específicas ao seu processo comercial imobiliário, como renda, entrada, FGTS, construtora ou temperatura do lead.">
+    <SimplePanel
+      title="Campos customizados"
+      description="Adicione informações específicas ao seu processo comercial imobiliário, como renda, entrada, FGTS, construtora ou temperatura do lead."
+    >
       <div className="grid gap-3 rounded-2xl border border-[var(--mi-border)] p-4 lg:grid-cols-5">
-        <Input value={label} onChange={(event) => {
-          const next = event.target.value;
-          setLabel(next);
-          if (!key) setKey(normalizeHeader(next));
-        }} placeholder="Nome do campo" />
-        <Input value={key} onChange={(event) => setKey(normalizeHeader(event.target.value))} placeholder="chave_do_campo" />
-        <select value={fieldType} onChange={(event) => setFieldType(event.target.value as typeof fieldType)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="text">Texto</option><option value="number">Número</option><option value="date">Data</option><option value="select">Lista</option><option value="boolean">Sim/Não</option>
+        <Input
+          value={label}
+          onChange={(event) => {
+            const next = event.target.value;
+            setLabel(next);
+            if (!key) setKey(normalizeHeader(next));
+          }}
+          placeholder="Nome do campo"
+        />
+        <Input
+          value={key}
+          onChange={(event) => setKey(normalizeHeader(event.target.value))}
+          placeholder="chave_do_campo"
+        />
+        <select
+          value={fieldType}
+          onChange={(event) => setFieldType(event.target.value as typeof fieldType)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="text">Texto</option>
+          <option value="number">Número</option>
+          <option value="date">Data</option>
+          <option value="select">Lista</option>
+          <option value="boolean">Sim/Não</option>
         </select>
-        <Input value={options} onChange={(event) => setOptions(event.target.value)} placeholder="Opções separadas por vírgula" disabled={fieldType !== "select"} />
+        <Input
+          value={options}
+          onChange={(event) => setOptions(event.target.value)}
+          placeholder="Opções separadas por vírgula"
+          disabled={fieldType !== "select"}
+        />
         <Button
           disabled={label.trim().length < 2 || key.trim().length < 2}
           onClick={async () => {
-            await onCreate({ key, label, fieldType, options: options.split(",").map((item) => item.trim()).filter(Boolean), isRequired });
-            setKey(""); setLabel(""); setOptions(""); setIsRequired(false);
+            await onCreate({
+              key,
+              label,
+              fieldType,
+              options: options
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean),
+              isRequired,
+            });
+            setKey("");
+            setLabel("");
+            setOptions("");
+            setIsRequired(false);
             toast.success("Campo customizado criado.");
           }}
-        >Criar campo</Button>
-        <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={isRequired} onChange={(event) => setIsRequired(event.target.checked)} /> Obrigatório</label>
+        >
+          Criar campo
+        </Button>
+        <label className="flex items-center gap-2 text-xs font-bold">
+          <input
+            type="checkbox"
+            checked={isRequired}
+            onChange={(event) => setIsRequired(event.target.checked)}
+          />{" "}
+          Obrigatório
+        </label>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {fields.map((field) => (
-          <div key={field.id} className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3">
+          <div
+            key={field.id}
+            className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3"
+          >
             <p className="text-sm font-black">{field.label}</p>
-            <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">{field.field_key} · {field.field_type} {field.is_required ? "· obrigatório" : ""}</p>
+            <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+              {field.field_key} · {field.field_type} {field.is_required ? "· obrigatório" : ""}
+            </p>
           </div>
         ))}
       </div>
@@ -1237,12 +1694,28 @@ function CustomFieldPanel({ fields, onCreate }: { fields: CrmCustomField[]; onCr
   );
 }
 
-function CustomFieldInput({ field, value, onChange }: { field: CrmCustomField; value: unknown; onChange: (value: unknown) => void }) {
+function CustomFieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: CrmCustomField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
   if (field.field_type === "boolean") {
     return (
       <Field label={`${field.label}${field.is_required ? " *" : ""}`}>
-        <select value={value === true ? "sim" : value === false ? "nao" : ""} onChange={(event) => onChange(event.target.value === "" ? null : event.target.value === "sim")} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="">Não informado</option><option value="sim">Sim</option><option value="nao">Não</option>
+        <select
+          value={value === true ? "sim" : value === false ? "nao" : ""}
+          onChange={(event) =>
+            onChange(event.target.value === "" ? null : event.target.value === "sim")
+          }
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Não informado</option>
+          <option value="sim">Sim</option>
+          <option value="nao">Não</option>
         </select>
       </Field>
     );
@@ -1250,9 +1723,17 @@ function CustomFieldInput({ field, value, onChange }: { field: CrmCustomField; v
   if (field.field_type === "select") {
     return (
       <Field label={`${field.label}${field.is_required ? " *" : ""}`}>
-        <select value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+        <select
+          value={String(value ?? "")}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
           <option value="">Selecione</option>
-          {(Array.isArray(field.options) ? field.options : []).map((option) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
+          {(Array.isArray(field.options) ? field.options : []).map((option) => (
+            <option key={String(option)} value={String(option)}>
+              {String(option)}
+            </option>
+          ))}
         </select>
       </Field>
     );
@@ -1260,9 +1741,13 @@ function CustomFieldInput({ field, value, onChange }: { field: CrmCustomField; v
   return (
     <Field label={`${field.label}${field.is_required ? " *" : ""}`}>
       <Input
-        type={field.field_type === "number" ? "number" : field.field_type === "date" ? "date" : "text"}
+        type={
+          field.field_type === "number" ? "number" : field.field_type === "date" ? "date" : "text"
+        }
         value={String(value ?? "")}
-        onChange={(event) => onChange(field.field_type === "number" ? Number(event.target.value) : event.target.value)}
+        onChange={(event) =>
+          onChange(field.field_type === "number" ? Number(event.target.value) : event.target.value)
+        }
       />
     </Field>
   );

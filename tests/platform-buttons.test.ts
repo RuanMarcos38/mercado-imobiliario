@@ -12,6 +12,7 @@ describe("MercadoImobi platform controls", () => {
       "/leiloes",
       "/alertas",
       "/atendimento",
+      "/crm",
       "/fluxos",
       "/assistente",
       "/integracoes",
@@ -50,9 +51,9 @@ describe("MercadoImobi platform controls", () => {
     expect(workspace).not.toContain("DashboardAtendimentoPanel");
   });
 
-  it("keeps CRM and unrelated communication tools out of the visible MercadoImobi menu", () => {
+  it("keeps the real estate CRM visible while unrelated communication tools stay out", () => {
     const layout = source("src/routes/_authenticated.tsx");
-    expect(layout).not.toContain('label: "CRM / Oportunidades"');
+    expect(layout).toContain('label: "CRM / Oportunidades"');
     expect(layout).not.toContain('label: "Facebook e Instagram"');
     expect(layout).not.toContain('label: "E-mail / CCA"');
     expect(layout).not.toContain('label: "Discador"');

@@ -332,7 +332,9 @@ export const updateCrmOpportunity = createServerFn({ method: "POST" })
 
 export const bulkMoveCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ ids: idsSchema, pipelineId: uuid, stageId: uuid }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ ids: idsSchema, pipelineId: uuid, stageId: uuid }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const db = context.supabase as any;
@@ -349,13 +351,16 @@ export const bulkMoveCrmOpportunities = createServerFn({ method: "POST" })
 export const bulkLoseCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ ids: idsSchema, pipelineId: uuid, lostStageId: uuid, lossReasonId: uuid }).parse(data),
+    z
+      .object({ ids: idsSchema, pipelineId: uuid, lostStageId: uuid, lossReasonId: uuid })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const db = context.supabase as any;
     const stage = await assertStage(db, tenantId, data.pipelineId, data.lostStageId);
-    if (stage.status_type !== "lost") throw new Error("Selecione uma etapa configurada como perdida.");
+    if (stage.status_type !== "lost")
+      throw new Error("Selecione uma etapa configurada como perdida.");
     const { data: reason, error: reasonError } = await db
       .from("crm_loss_reasons")
       .select("id")
@@ -367,7 +372,11 @@ export const bulkLoseCrmOpportunities = createServerFn({ method: "POST" })
     if (!reason) throw new Error("Motivo de perda inválido.");
     const { error } = await db
       .from("crm_opportunities")
-      .update({ pipeline_id: data.pipelineId, stage_id: data.lostStageId, loss_reason_id: data.lossReasonId })
+      .update({
+        pipeline_id: data.pipelineId,
+        stage_id: data.lostStageId,
+        loss_reason_id: data.lossReasonId,
+      })
       .eq("tenant_id", tenantId)
       .in("id", data.ids);
     if (error) throw new Error(error.message);
@@ -391,7 +400,9 @@ export const bulkDeleteCrmOpportunities = createServerFn({ method: "POST" })
 export const createCrmPipeline = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ name: z.string().trim().min(2).max(100), description: optionalText(500) }).parse(data),
+    z
+      .object({ name: z.string().trim().min(2).max(100), description: optionalText(500) })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
@@ -491,7 +502,9 @@ export const updateCrmStage = createServerFn({ method: "POST" })
 
 export const createCrmLossReason = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ name: z.string().trim().min(2).max(120) }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ name: z.string().trim().min(2).max(120) }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -520,7 +533,10 @@ export const createCrmCustomField = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     z
       .object({
-        key: z.string().trim().regex(/^[a-z0-9_]{2,50}$/),
+        key: z
+          .string()
+          .trim()
+          .regex(/^[a-z0-9_]{2,50}$/),
         label: z.string().trim().min(2).max(100),
         fieldType: z.enum(["text", "number", "date", "select", "boolean"]),
         options: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
@@ -554,7 +570,13 @@ export const createCrmCustomField = createServerFn({ method: "POST" })
 export const createCrmCadence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ pipelineId: uuid, stageId: uuid.nullable().optional(), name: z.string().trim().min(2).max(120) }).parse(data),
+    z
+      .object({
+        pipelineId: uuid,
+        stageId: uuid.nullable().optional(),
+        name: z.string().trim().min(2).max(120),
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
@@ -563,7 +585,12 @@ export const createCrmCadence = createServerFn({ method: "POST" })
     if (data.stageId) await assertStage(db, tenantId, data.pipelineId, data.stageId);
     const { data: cadence, error } = await db
       .from("crm_cadences")
-      .insert({ tenant_id: tenantId, pipeline_id: data.pipelineId, stage_id: data.stageId ?? null, name: data.name })
+      .insert({
+        tenant_id: tenantId,
+        pipeline_id: data.pipelineId,
+        stage_id: data.stageId ?? null,
+        name: data.name,
+      })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -708,7 +735,9 @@ const importRowSchema = z.object({
 export const importCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ pipelineId: uuid, stageId: uuid, rows: z.array(importRowSchema).min(1).max(500) }).parse(data),
+    z
+      .object({ pipelineId: uuid, stageId: uuid, rows: z.array(importRowSchema).min(1).max(500) })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
