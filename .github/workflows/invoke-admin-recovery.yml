@@ -1,0 +1,45 @@
+name: One-time MercadoImobi admin recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/invoke-admin-recovery.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Invoke one-time Supabase recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://uwzfgksmnqgaxtscwxow.supabase.co/functions/v1/mercadoimobi-admin-recovery?token=eSgoElorTVYpJZCeZEoVx8umzTHWO4ohfkA76KCPlhg'
+          HTTP_CODE="$(curl -sS --connect-timeout 10 --max-time 40 -o /tmp/recovery.json -w '%{http_code}' "$URL")"
+          test "$HTTP_CODE" = "200" || { echo "Recovery returned HTTP $HTTP_CODE"; cat /tmp/recovery.json; exit 1; }
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/recovery.json','utf8'));
+          if(p.ok!==true || p.loginVerified!==true) throw new Error('Recovery verification failed');
+          fs.writeFileSync('.admin-login-recovery-ok', `OK\nemail=${p.email}\nloginVerified=true\ncompletedAt=${new Date().toISOString()}\n`);
+          NODE
+
+      - name: Remove one-time workflow and record sanitized result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/invoke-admin-recovery.yml
+          git add .admin-login-recovery-ok
+          git commit -m "ops: complete MercadoImobi admin login recovery"
+          git push origin HEAD:main
