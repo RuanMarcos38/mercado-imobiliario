@@ -20,7 +20,7 @@ jobs:
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
       EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
-      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'rjlqylmwenhzkzmqwris' }}
     steps:
       - name: Resolve EasyPanel deployment configuration
         id: config
@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::Missing MERCADOIMOBI_SUPABASE_PROJECT_ID"; exit 1; }
+          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::Missing MercadoImobi Supabase project id"; exit 1; }
           PUBLIC_URL="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           PUBLIC_URL="${PUBLIC_URL%/}"
           STATUS_URL="$PUBLIC_URL/api/public/status"
