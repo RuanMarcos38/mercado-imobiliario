@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
 
+const MAX_AI_SYSTEM_PROMPT_CHARS = 50_000;
+
 const flowSchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().trim().max(500).optional(),
@@ -118,7 +120,7 @@ export const saveAiAgentSettings = createServerFn({ method: "POST" })
       .object({
         enabled: z.boolean(),
         agentName: z.string().trim().min(1).max(80),
-        systemPrompt: z.string().max(12000),
+        systemPrompt: z.string().max(MAX_AI_SYSTEM_PROMPT_CHARS),
         autoReply: z.boolean(),
         handoffKeywords: z.array(z.string().trim().min(1).max(80)).max(30),
       })
