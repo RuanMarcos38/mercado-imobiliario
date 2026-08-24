@@ -18,7 +18,7 @@ type QrPayload = {
   count: number;
 };
 
-const DEFAULT_MERCADOIMOBI_URL = "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br";
+const DEFAULT_MERCADOIMOBI_URL = "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host";
 
 function normalizeState(payload: unknown): EvolutionState {
   if (!payload || typeof payload !== "object") return "error";
@@ -54,7 +54,10 @@ function webhookUrl(): string {
   const explicit = process.env["WHATSAPP_WEBHOOK_URL"]?.trim();
   if (explicit) return explicit;
   const appBaseUrl =
-    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ?? DEFAULT_MERCADOIMOBI_URL;
+    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ||
+    process.env["EASYPANEL_PUBLIC_URL"]?.trim().replace(/\/$/, "") ||
+    process.env["APP_URL"]?.trim().replace(/\/$/, "") ||
+    DEFAULT_MERCADOIMOBI_URL;
   return `${appBaseUrl}/api/public/hooks/whatsapp`;
 }
 
@@ -241,4 +244,47 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
       qrCode: ensured.qr?.code ?? null,
       pairingCode: ensured.qr?.pairingCode ?? null,
     };
+  });
+
+export const disconnectWhatsAppConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const config = evolutionGatewayConfig();
+    if (!config) throw new Error("EVOLUTION_ENV_MISSING");
+
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const instance = await getTenantEvolutionInstance(db, tenantId);
+    if (!instance) {
+      return { success: true, connected: false, state: "disconnected" as EvolutionState };
+    }
+
+    let response = await evolutionRequest(
+      config,
+      `/instance/logout/${encodeURIComponent(instance)}`,
+      { method: "DELETE" },
+    );
+    if (response.status === 405) {
+      response = await evolutionRequest(
+        config,
+        `/instance/logout/${encodeURIComponent(instance)}`,
+        { method: "POST" },
+      );
+    }
+    if (!response.ok && response.status !== 404) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("EVOLUTION_API_AUTH_FAILED");
+      }
+      throw new Error(`EVOLUTION_LOGOUT_HTTP_${response.status}`);
+    }
+
+    const now = new Date().toISOString();
+    const { error } = await db
+      .from("whatsapp_connections")
+      .update({ status: "disconnected", last_connected_at: null, updated_at: now })
+      .eq("tenant_id", tenantId)
+      .eq("instance_name", instance);
+    if (error) throw new Error(error.message);
+
+    return { success: true, connected: false, state: "disconnected" as EvolutionState };
   });

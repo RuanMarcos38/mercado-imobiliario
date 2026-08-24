@@ -152,6 +152,30 @@ async function handleWebhook(request: Request) {
   }
 
   if (!connection?.tenant_id) {
+    // Production can temporarily receive an Evolution-generated instance name while the
+    // tenant still has one legacy instance saved. Only fall back when the project has
+    // exactly one eligible WhatsApp connection, avoiding cross-tenant ambiguity.
+    const connectedCandidates = await db
+      .from("whatsapp_connections")
+      .select("tenant_id,id,instance_name")
+      .eq("status", "connected")
+      .limit(2);
+    if ((connectedCandidates.data ?? []).length === 1) {
+      connection = connectedCandidates.data[0];
+    }
+  }
+
+  if (!connection?.tenant_id) {
+    const allCandidates = await db
+      .from("whatsapp_connections")
+      .select("tenant_id,id,instance_name")
+      .limit(2);
+    if ((allCandidates.data ?? []).length === 1) {
+      connection = allCandidates.data[0];
+    }
+  }
+
+  if (!connection?.tenant_id) {
     return Response.json({ ok: true, ignored: true, reason: "connection_not_found" });
   }
 
@@ -268,6 +292,7 @@ async function handleWebhook(request: Request) {
           conversationId: conversation.id,
           phone,
           inboundText: body,
+          inboundSentAt: sentAt,
         });
         if (reply.sent) autoReplies += 1;
       } catch {

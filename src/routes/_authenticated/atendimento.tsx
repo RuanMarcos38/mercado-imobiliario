@@ -46,7 +46,10 @@ import {
   type AttendanceConversation,
   type AttendantPresenceStatus,
 } from "@/lib/attendance-center.functions";
-import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";
+import {
+  disconnectWhatsAppConnection,
+  prepareWhatsAppConnection,
+} from "@/lib/whatsapp-connection.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
 import { sendWhatsAppAttachment } from "@/lib/whatsapp-media.functions";
 import {
@@ -181,6 +184,7 @@ function AtendimentoPage() {
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
   const qrFn = useServerFn(getWhatsAppQrCode);
   const prepareFn = useServerFn(prepareWhatsAppConnection);
+  const disconnectFn = useServerFn(disconnectWhatsAppConnection);
   const conversationsFn = useServerFn(listAttendanceConversations);
   const viewerFn = useServerFn(getAttendanceViewer);
   const messagesFn = useServerFn(listWhatsAppMessages);
@@ -225,6 +229,7 @@ function AtendimentoPage() {
   ]);
   const [tagInput, setTagInput] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -256,6 +261,14 @@ function AtendimentoPage() {
     enabled: showRealtimePanel,
     refetchInterval: showRealtimePanel ? 15_000 : false,
   });
+
+  useEffect(() => {
+    // Opening the attendance center also reconciles the Evolution webhook for the
+    // tenant's currently saved instance, so inbound messages keep flowing after deploys.
+    void prepareFn()
+      .then(() => connection.refetch())
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const storedConversation = sessionStorage.getItem("mercadoimobi:selectedConversation");
@@ -431,6 +444,27 @@ function AtendimentoPage() {
       );
     } finally {
       setQrLoading(false);
+    }
+  };
+
+  const disconnect = async () => {
+    if (disconnecting) return;
+    if (!window.confirm("Desconectar este WhatsApp do MercadoImobi?")) return;
+    setDisconnecting(true);
+    try {
+      await disconnectFn();
+      setShowQr(false);
+      setQrBase64(null);
+      setQrCode(null);
+      setPairingCode(null);
+      await connection.refetch();
+      toast.success("WhatsApp desconectado. Você pode conectar novamente por QR Code.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível desconectar o WhatsApp.",
+      );
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -645,7 +679,17 @@ function AtendimentoPage() {
                 {connection.data?.connected ? "Conectado" : "Desconectado"}
               </span>
             </div>
-            {!connection.data?.connected && (
+            {connection.data?.connected ? (
+              <Button
+                variant="outline"
+                disabled={disconnecting}
+                onClick={() => void disconnect()}
+                className="mt-3 h-11 w-full rounded-xl border-rose-300/50 font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+              >
+                <WifiOff className="mr-2 h-4 w-4" />
+                {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
+              </Button>
+            ) : (
               <Button
                 onClick={() => void connect()}
                 className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
@@ -653,6 +697,13 @@ function AtendimentoPage() {
                 <Link2 className="mr-2 h-4 w-4" /> Conectar meu WhatsApp por QR Code
               </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={() => window.location.assign("/fluxos")}
+              className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+            >
+              <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA e automático
+            </Button>
             <div className="mt-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />

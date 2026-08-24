@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Bot, MessageSquareText, Plus, Workflow } from "lucide-react";
@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   addWhatsAppFlowStep,
   createWhatsAppFlow,
+  getAiAgentSettings,
   listWhatsAppFlows,
+  saveAiAgentSettings,
 } from "@/lib/whatsapp-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/fluxos")({
@@ -20,6 +22,14 @@ function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);
   const createFn = useServerFn(createWhatsAppFlow);
   const addStepFn = useServerFn(addWhatsAppFlowStep);
+  const getAiSettingsFn = useServerFn(getAiAgentSettings);
+  const saveAiSettingsFn = useServerFn(saveAiAgentSettings);
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [autoReply, setAutoReply] = useState(true);
+  const [agentName, setAgentName] = useState("Assistente MercadoImobi");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [handoffKeywords, setHandoffKeywords] = useState("humano, corretor, atendente");
+  const [savingAi, setSavingAi] = useState(false);
   const [name, setName] = useState("Novo fluxo");
   const [description, setDescription] = useState("");
   const [triggerType, setTriggerType] = useState<
@@ -27,6 +37,46 @@ function FlowsPage() {
   >("manual");
   const [triggerValue, setTriggerValue] = useState("");
   const flows = useQuery({ queryKey: ["whatsapp-flows"], queryFn: () => listFn() });
+  const aiSettings = useQuery({
+    queryKey: ["ai-agent-settings"],
+    queryFn: () => getAiSettingsFn(),
+  });
+
+  useEffect(() => {
+    if (!aiSettings.data) return;
+    setAiEnabled(Boolean(aiSettings.data.enabled));
+    setAutoReply(Boolean(aiSettings.data.auto_reply));
+    setAgentName(aiSettings.data.agent_name || "Assistente MercadoImobi");
+    setSystemPrompt(aiSettings.data.system_prompt || "");
+    setHandoffKeywords((aiSettings.data.handoff_keywords ?? []).join(", "));
+  }, [aiSettings.data]);
+
+  const saveAi = async () => {
+    setSavingAi(true);
+    try {
+      const keywords = handoffKeywords
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      await saveAiSettingsFn({
+        data: {
+          enabled: aiEnabled,
+          agentName,
+          systemPrompt,
+          autoReply,
+          handoffKeywords: keywords.length ? keywords : ["humano", "corretor", "atendente"],
+        },
+      });
+      await aiSettings.refetch();
+      toast.success("Agente de IA e atendimento automático atualizados.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível salvar o agente de IA.",
+      );
+    } finally {
+      setSavingAi(false);
+    }
+  };
 
   const create = async () => {
     try {
@@ -62,6 +112,74 @@ function FlowsPage() {
           Organize mensagens, espera, passagem para atendente, IA e webhooks sem misturar essas
           configurações com a tela de conversas.
         </p>
+
+        <section className="mt-7 rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-emerald-600" />
+                <h2 className="font-black">Agente de IA · Atendimento automático</h2>
+              </div>
+              <p className="mt-1 text-xs text-[var(--mi-text-soft)]">
+                O modo automático responde novas mensagens recebidas e transfere para humano quando
+                necessário.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-[10px] font-black ${aiEnabled && autoReply ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}
+            >
+              {aiEnabled && autoReply ? "AUTOMÁTICO ATIVO" : "AUTOMÁTICO PAUSADO"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <label className="flex items-center justify-between rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm font-bold">
+              Ativar agente de IA
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={(e) => setAiEnabled(e.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm font-bold">
+              Responder automaticamente
+              <input
+                type="checkbox"
+                checked={autoReply}
+                onChange={(e) => setAutoReply(e.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <Field label="Nome do agente">
+              <input value={agentName} onChange={(e) => setAgentName(e.target.value)} />
+            </Field>
+            <Field label="Palavras para transferir ao humano">
+              <input
+                value={handoffKeywords}
+                onChange={(e) => setHandoffKeywords(e.target.value)}
+                placeholder="humano, corretor, atendente"
+              />
+            </Field>
+            <div className="lg:col-span-2">
+              <Field label="Instruções do agente">
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  rows={5}
+                />
+              </Field>
+            </div>
+          </div>
+          <Button
+            onClick={() => void saveAi()}
+            disabled={savingAi || aiSettings.isLoading}
+            className="mt-4 h-11 rounded-xl bg-emerald-600 px-5 font-black text-white hover:bg-emerald-700"
+          >
+            <Bot className="mr-2 h-4 w-4" />{" "}
+            {savingAi ? "Salvando..." : "Salvar agente e automático"}
+          </Button>
+        </section>
 
         <div className="mt-7 grid gap-6 xl:grid-cols-[420px_1fr]">
           <section className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
