@@ -300,6 +300,15 @@ export const searchRealProperties = createServerFn({ method: "POST" })
     );
     propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);
 
+    // Keep institutional/advertising pages out of the searchable catalog and out of totals.
+    // CAIXA rows are preserved because their official feed can omit some commercial fields.
+    indexQuery = indexQuery.or(
+      "listing_market.eq.caixa,is_auction.eq.true,price.gt.0,location_address.not.is.null,location_city.not.is.null,area_sqm.gt.0,bedrooms.gt.0,bathrooms.gt.0",
+    );
+    propertyQuery = propertyQuery.or(
+      "price.gt.0,location_address.not.is.null,location_city.not.is.null,area_sqm.gt.0,bedrooms.gt.0,bathrooms.gt.0",
+    );
+
     if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");
     if (input.market === "caixa") indexQuery = indexQuery.eq("listing_market", "caixa");
     if (input.market === "auction") indexQuery = indexQuery.eq("is_auction", true);

@@ -343,7 +343,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
             </h1>
             <p className="text-balance text-sm text-muted-foreground sm:text-base">
               Consulte imóveis reais de múltiplas fontes, compare oportunidades e acompanhe novos
-              anúncios em um único ambiente.
+              imóveis em um único ambiente.
             </p>
           </header>
 
