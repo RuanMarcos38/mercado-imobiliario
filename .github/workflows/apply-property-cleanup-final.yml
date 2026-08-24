@@ -1,0 +1,54 @@
+name: Apply final property cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-final-property-cleanup
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply cleanup
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workspace = Path('src/components/property/PropertyWorkspace.tsx')
+          w = workspace.read_text()
+          w = w.replace('acompanhe novos\n              anúncios em um único ambiente.', 'acompanhe novos\n              imóveis em um único ambiente.')
+          workspace.write_text(w)
+
+          search = Path('src/lib/property-search.functions.ts')
+          s = search.read_text()
+          old = '''    propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);\n\n    if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");\n'''
+          new = '''    propertyQuery = propertyQuery.gte("updated_at", freshnessCutoff);\n\n    // Keep institutional/advertising pages out of the searchable catalog and out of totals.\n    // CAIXA rows are preserved because their official feed can omit some commercial fields.\n    indexQuery = indexQuery.or(\n      "listing_market.eq.caixa,is_auction.eq.true,price.gt.0,location_address.not.is.null,location_city.not.is.null,area_sqm.gt.0,bedrooms.gt.0,bathrooms.gt.0",\n    );\n    propertyQuery = propertyQuery.or(\n      "price.gt.0,location_address.not.is.null,location_city.not.is.null,area_sqm.gt.0,bedrooms.gt.0,bathrooms.gt.0",\n    );\n\n    if (input.market === "market") indexQuery = indexQuery.neq("listing_market", "caixa");\n'''
+          if old not in s:
+              raise SystemExit('search insertion point not found')
+          s = s.replace(old, new)
+          search.write_text(s)
+          PY
+          npx prettier --write src/components/property/PropertyWorkspace.tsx src/lib/property-search.functions.ts
+          git diff --check
+      - name: Commit final cleanup
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed."
+            exit 0
+          fi
+          git config user.name "RuanMarcos38"
+          git config user.email "ruanessencia8@gmail.com"
+          git add src/components/property/PropertyWorkspace.tsx src/lib/property-search.functions.ts
+          git commit -m "fix: exclude advertising pages from property search totals"
+          git push origin HEAD:main
