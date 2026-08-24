@@ -58,6 +58,28 @@ jobs:
             exit 1
           fi
 
+      - name: Require exclusive MercadoImobi Supabase project binding
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPECTED_SUPABASE_PROJECT_ID:-}" ]; then
+            echo "::error::Repository variable MERCADOIMOBI_SUPABASE_PROJECT_ID is required before production promotion."
+            exit 1
+          fi
+          case "$EXPECTED_SUPABASE_PROJECT_ID" in
+            uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)
+              echo "::error::The exclusive MercadoImobi Supabase project cannot be one of the protected R2R projects."
+              exit 1
+              ;;
+          esac
+          if ! [[ "$EXPECTED_SUPABASE_PROJECT_ID" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID does not look like a Supabase project ref."
+            exit 1
+          fi
+
       - name: Verify source formatting
         run: npx prettier --check .
 
@@ -108,9 +130,11 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
+          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::Missing MERCADOIMOBI_SUPABASE_PROJECT_ID"; exit 1; }
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
@@ -118,14 +142,15 @@ jobs:
           for base in "$CUSTOM" "$EASY"; do
             body=/tmp/live-status.json
             if curl -fsS --connect-timeout 8 --max-time 20 "$base/api/public/status" -o "$body"; then
-              if node - "$body" <<'NODE'
+              if EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - "$body" <<'NODE'
           const fs=require('fs');
           const p=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
           const forbidden=new Set(['uwzfgksmnqgaxtscwxow','iqrnytsgwaiegddfxfjs']);
           const project=String(p.supabaseProjectId || '');
+          const expected=String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
           const ok=p.status==='operational'
             && p.search==='available'
-            && project.length>0
+            && project===expected
             && !forbidden.has(project)
             && p.runtime?.supabaseAdmin==='configured'
             && Number.isFinite(p.indexedProperties) && p.indexedProperties>=1000
@@ -133,7 +158,7 @@ jobs:
           process.exit(ok ? 0 : 1);
           NODE
               then
-                echo "MercadoImobi real healthcheck passed at $base"
+                echo "MercadoImobi real healthcheck passed at $base using the exclusive Supabase project $EXPECTED_SUPABASE_PROJECT_ID"
                 cat "$body"
                 healthy=1
                 break
@@ -141,7 +166,7 @@ jobs:
             fi
           done
           if [ "$healthy" -ne 1 ]; then
-            echo "::error::Production healthcheck failed or is using a forbidden Supabase project. Production promotion is blocked."
+            echo "::error::Production healthcheck failed, is using the wrong Supabase project, or is using a protected R2R project. Production promotion is blocked."
             exit 1
           fi
 
