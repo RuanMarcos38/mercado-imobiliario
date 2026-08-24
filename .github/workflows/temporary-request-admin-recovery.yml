@@ -1,0 +1,92 @@
+name: Temporary request MercadoImobi admin recovery
+
+on:
+  push:
+    branches: [feature/atendimento-suri-senior]
+    paths:
+      - ".github/workflows/temporary-request-admin-recovery.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/atendimento-suri-senior
+          fetch-depth: 0
+
+      - name: Request recovery against the live dedicated Supabase project
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host'
+          PROJECT='rjlqylmwenhzkzmqwris'
+          EMAIL='admin@r2rmarketingdigital.com.br'
+          OUT='.login-recovery-status'
+          STATUS_PROJECT='unreachable'
+          RECOVERY='not_attempted'
+
+          if curl -fsS --connect-timeout 8 --max-time 20 "$HOST/api/public/status" -o /tmp/status.json; then
+            STATUS_PROJECT="$(node -e 'const p=require("/tmp/status.json"); console.log(p.supabaseProjectId||"unset")')"
+          fi
+
+          if [ "$STATUS_PROJECT" != "$PROJECT" ]; then
+            RECOVERY='live_project_mismatch'
+          else
+            mkdir -p /tmp/assets
+            curl -fsS --connect-timeout 8 --max-time 20 "$HOST/auth" -o /tmp/auth.html
+            grep -Eo 'src="[^"]+\.js[^" ]*"' /tmp/auth.html | sed -E 's/^src="//;s/"$//' | sort -u > /tmp/scripts.txt || true
+            while IFS= read -r SRC; do
+              [ -n "$SRC" ] || continue
+              case "$SRC" in
+                http*) URL="$SRC" ;;
+                /*) URL="$HOST$SRC" ;;
+                *) URL="$HOST/$SRC" ;;
+              esac
+              NAME="$(printf '%s' "$SRC" | sha256sum | cut -c1-16).js"
+              curl -fsS --connect-timeout 8 --max-time 20 "$URL" -o "/tmp/assets/$NAME" || true
+            done < /tmp/scripts.txt
+
+            KEY="$(grep -RhoE 'sb_publishable_[A-Za-z0-9_-]+' /tmp/assets /tmp/auth.html 2>/dev/null | head -n1 || true)"
+            if [ -z "$KEY" ]; then
+              LEGACY="$(grep -RhoE 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' /tmp/assets /tmp/auth.html 2>/dev/null | head -n1 || true)"
+              KEY="$LEGACY"
+            fi
+
+            if [ -z "$KEY" ]; then
+              RECOVERY='publishable_key_not_found'
+            else
+              CODE="$(curl -sS --connect-timeout 8 --max-time 20 -w '%{http_code}' \
+                -X POST "https://${PROJECT}.supabase.co/auth/v1/recover?redirect_to=${HOST}/auth?type=recovery" \
+                -H "apikey: $KEY" \
+                -H 'Content-Type: application/json' \
+                --data "{\"email\":\"${EMAIL}\"}" \
+                -o /tmp/recover.json || true)"
+              if [ "$CODE" = '200' ]; then
+                RECOVERY='request_accepted'
+              else
+                RECOVERY="http_${CODE:-000}"
+              fi
+            fi
+          fi
+
+          {
+            echo "LIVE_PROJECT=$STATUS_PROJECT"
+            echo "EXPECTED_PROJECT=$PROJECT"
+            echo "RECOVERY_REQUEST=$RECOVERY"
+          } > "$OUT"
+          cat "$OUT"
+
+      - name: Record sanitized recovery status
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add .login-recovery-status
+          git commit -m "ops: record MercadoImobi recovery request status" || exit 0
+          git push origin HEAD:feature/atendimento-suri-senior
