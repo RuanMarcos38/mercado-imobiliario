@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { PUBLIC_SUPABASE_PUBLISHABLE_KEY, PUBLIC_SUPABASE_URL } from "./public-config";
 
+const ATTENDANCE_REALTIME_COMPAT_TABLES = new Set([
+  "whatsapp_attendant_presence",
+  "whatsapp_attendance_sessions",
+]);
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
@@ -29,7 +34,36 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-function createSupabaseClient() {
+function addAttendanceRealtimeCompatibility(client: ReturnType<typeof createSupabaseClientBase>) {
+  const originalChannel = client.channel.bind(client);
+
+  client.channel = ((...channelArgs: Parameters<typeof originalChannel>) => {
+    const channel = originalChannel(...channelArgs);
+    const originalOn = channel.on.bind(channel);
+
+    channel.on = ((...onArgs: unknown[]) => {
+      const event = onArgs[0];
+      const filter = onArgs[1];
+      if (
+        event === "postgres_changes" &&
+        filter &&
+        typeof filter === "object" &&
+        "table" in filter &&
+        typeof filter.table === "string" &&
+        ATTENDANCE_REALTIME_COMPAT_TABLES.has(filter.table)
+      ) {
+        onArgs[1] = { ...filter, table: "system_events" };
+      }
+      return Reflect.apply(originalOn, channel, onArgs);
+    }) as typeof channel.on;
+
+    return channel;
+  }) as typeof client.channel;
+
+  return client;
+}
+
+function createSupabaseClientBase() {
   if (!PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("MercadoImobi Supabase publishable key is not configured");
   }
@@ -44,6 +78,10 @@ function createSupabaseClient() {
       autoRefreshToken: true,
     },
   });
+}
+
+function createSupabaseClient() {
+  return addAttendanceRealtimeCompatibility(createSupabaseClientBase());
 }
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
