@@ -1,0 +1,50 @@
+name: Temporary apply attendance migration
+
+on:
+  push:
+    branches: [feature/atendimento-suri-senior]
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/atendimento-suri-senior
+      - name: Confirm exclusive MercadoImobi target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EXPECTED_PROJECT_ID:-}" != "rjlqylmwenhzkzmqwris" ]; then
+            echo "::error::Migration target is not the dedicated MercadoImobi Supabase project."
+            exit 1
+          fi
+      - name: Apply additive attendance migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION="supabase/migrations/20260824153000_atendimento_operacional_privacidade.sql"
+          URL="${SUPABASE_DB_URL:-${SUPABASE_DATABASE_URL:-${DIRECT_URL:-${DATABASE_URL:-}}}}"
+          if [ -n "$URL" ]; then
+            psql "$URL" -v ON_ERROR_STOP=1 -f "$MIGRATION"
+            exit 0
+          fi
+          if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+            export PGPASSWORD="$SUPABASE_DB_PASSWORD"
+            psql "host=db.${EXPECTED_PROJECT_ID}.supabase.co port=5432 dbname=postgres user=postgres sslmode=require connect_timeout=15" -v ON_ERROR_STOP=1 -f "$MIGRATION"
+            exit 0
+          fi
+          echo "::error::No database connection secret is available in this repository."
+          exit 2
