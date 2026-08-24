@@ -35,6 +35,43 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Format remaining legacy files on attendance branch
+        if: github.event_name == 'pull_request' && github.head_ref == 'feature/atendimento-suri-senior'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B feature/atendimento-suri-senior origin/feature/atendimento-suri-senior
+          npx prettier --write \
+            docs/login-recovery-live-failed.md \
+            docs/login-recovery-live-ok.md \
+            src/integrations/supabase/client.server.ts \
+            src/integrations/supabase/public-config.ts \
+            src/lib/location-analysis.functions.ts \
+            src/routes/_authenticated/analise-localizacao.tsx \
+            src/lib/attendance-center.functions.ts \
+            src/lib/whatsapp-auto-reply.server.ts \
+            src/routes/_authenticated/atendimento.tsx \
+            .github/workflows/deploy-easypanel.yml \
+            .github/workflows/validate-property-search.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/login-recovery-live-failed.md \
+            docs/login-recovery-live-ok.md \
+            src/integrations/supabase/client.server.ts \
+            src/integrations/supabase/public-config.ts \
+            src/lib/location-analysis.functions.ts \
+            src/routes/_authenticated/analise-localizacao.tsx \
+            src/lib/attendance-center.functions.ts \
+            src/lib/whatsapp-auto-reply.server.ts \
+            src/routes/_authenticated/atendimento.tsx \
+            .github/workflows/deploy-easypanel.yml \
+            .github/workflows/validate-property-search.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: apply repository formatting"
+            git push origin HEAD:feature/atendimento-suri-senior
+          fi
+
       - name: Verify tracked files and high-confidence secrets
         shell: bash
         run: |
