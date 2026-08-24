@@ -4,36 +4,57 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
+  BarChart3,
+  Bot,
   CheckCheck,
+  CircleAlert,
+  Clock3,
   ExternalLink,
   FileText,
+  Filter,
   Link2,
+  LockKeyhole,
   MessageCircle,
   Paperclip,
   RefreshCw,
   Search,
   Send,
   Smile,
-  Sparkles,
+  Tag,
+  UserCheck,
+  Users,
   Wifi,
   WifiOff,
   X,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
+import {
+  claimAttendanceConversation,
+  endAttendanceConversation,
+  getAttendanceDashboard,
+  getAttendanceViewer,
+  listAttendanceConversations,
+  queueAttendanceConversation,
+  recordAttendanceFirstResponse,
+  setSensitiveDataVisibility,
+  updateAttendancePresence,
+  updateAttendanceTags,
+  type AttendanceConversation,
+  type AttendantPresenceStatus,
+} from "@/lib/attendance-center.functions";
 import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
 import { sendWhatsAppAttachment } from "@/lib/whatsapp-media.functions";
 import {
   getWhatsAppConnectionStatus,
   getWhatsAppQrCode,
-  listWhatsAppConversations,
   listWhatsAppMessages,
   markWhatsAppConversationRead,
   sendWhatsAppText,
-  type WhatsAppConversation,
 } from "@/lib/whatsapp-tenant.functions";
 
 export const Route = createFileRoute("/_authenticated/atendimento")({
@@ -53,6 +74,9 @@ type PendingAttachment = {
   base64: string;
   size: number;
 };
+
+type QueueTab = "waiting" | "in_service" | "automatic";
+type DashboardPeriod = "today" | "7d" | "30d";
 
 const EMOJIS = [
   "😀",
@@ -97,6 +121,20 @@ const EMOJIS = [
   "🙌",
 ];
 
+const QUEUE_LABELS: Record<QueueTab, string> = {
+  waiting: "Esperando",
+  in_service: "Atendimentos",
+  automatic: "Automático",
+};
+
+const PRESENCE_LABELS: Record<AttendantPresenceStatus, string> = {
+  alert: "Em alerta",
+  in_service: "Em atendimento",
+  free: "Livre",
+  paused: "Em pausa",
+  away: "Ausente",
+};
+
 function readFileBase64(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -111,11 +149,40 @@ function readFileBase64(file: File) {
   });
 }
 
+function formatSeconds(total: number) {
+  const seconds = Math.max(0, Math.round(total || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = seconds % 60;
+  if (hours > 0)
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+  return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+function startIsoForPeriod(period: DashboardPeriod) {
+  const now = new Date();
+  if (period === "today") {
+    now.setHours(0, 0, 0, 0);
+    return now.toISOString();
+  }
+  now.setDate(now.getDate() - (period === "7d" ? 7 : 30));
+  return now.toISOString();
+}
+
+function statusDot(status: AttendantPresenceStatus) {
+  if (status === "alert") return "bg-rose-500";
+  if (status === "in_service") return "bg-indigo-600";
+  if (status === "free") return "bg-emerald-600";
+  if (status === "paused") return "bg-amber-500";
+  return "bg-slate-500";
+}
+
 function AtendimentoPage() {
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
   const qrFn = useServerFn(getWhatsAppQrCode);
   const prepareFn = useServerFn(prepareWhatsAppConnection);
-  const conversationsFn = useServerFn(listWhatsAppConversations);
+  const conversationsFn = useServerFn(listAttendanceConversations);
+  const viewerFn = useServerFn(getAttendanceViewer);
   const messagesFn = useServerFn(listWhatsAppMessages);
   const markReadFn = useServerFn(markWhatsAppConversationRead);
   const sendFn = useServerFn(sendWhatsAppText);
@@ -123,8 +190,17 @@ function AtendimentoPage() {
   const startFn = useServerFn(startWhatsAppConversation);
   const draftFn = useServerFn(generateConversationDraft);
   const aiStatusFn = useServerFn(getAiRuntimeStatus);
+  const queueFn = useServerFn(queueAttendanceConversation);
+  const claimFn = useServerFn(claimAttendanceConversation);
+  const endFn = useServerFn(endAttendanceConversation);
+  const firstResponseFn = useServerFn(recordAttendanceFirstResponse);
+  const presenceFn = useServerFn(updateAttendancePresence);
+  const tagsFn = useServerFn(updateAttendanceTags);
+  const dashboardFn = useServerFn(getAttendanceDashboard);
+  const sensitivePermissionFn = useServerFn(setSensitiveDataVisibility);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [queueTab, setQueueTab] = useState<QueueTab>("waiting");
   const [search, setSearch] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -137,6 +213,18 @@ function AtendimentoPage() {
   const [showEmoji, setShowEmoji] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
+  const [showRealtimePanel, setShowRealtimePanel] = useState(false);
+  const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("today");
+  const [dashboardSearch, setDashboardSearch] = useState("");
+  const [dashboardStatuses, setDashboardStatuses] = useState<AttendantPresenceStatus[]>([
+    "alert",
+    "in_service",
+    "free",
+    "paused",
+    "away",
+  ]);
+  const [tagInput, setTagInput] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -146,16 +234,27 @@ function AtendimentoPage() {
     refetchInterval: showQr ? 4_000 : 30_000,
   });
   const aiStatus = useQuery({ queryKey: ["ai-runtime-status"], queryFn: () => aiStatusFn() });
+  const viewer = useQuery({
+    queryKey: ["attendance-viewer"],
+    queryFn: () => viewerFn(),
+    refetchInterval: 60_000,
+  });
   const conversations = useQuery({
-    queryKey: ["whatsapp-conversations"],
+    queryKey: ["attendance-conversations"],
     queryFn: () => conversationsFn(),
-    refetchInterval: 30_000,
+    refetchInterval: 20_000,
   });
   const messages = useQuery({
     queryKey: ["whatsapp-messages", selectedId],
     queryFn: () => messagesFn({ data: { conversationId: selectedId! } }),
     enabled: Boolean(selectedId),
     refetchInterval: selectedId ? 15_000 : false,
+  });
+  const dashboard = useQuery({
+    queryKey: ["attendance-dashboard", dashboardPeriod],
+    queryFn: () => dashboardFn({ data: { startIso: startIsoForPeriod(dashboardPeriod) } }),
+    enabled: showRealtimePanel,
+    refetchInterval: showRealtimePanel ? 15_000 : false,
   });
 
   useEffect(() => {
@@ -177,26 +276,36 @@ function AtendimentoPage() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("mercadoimobi-atendimento-live")
+      .channel("mercadoimobi-atendimento-live-v2")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_conversations" },
-        () => void conversations.refetch(),
+        () => {
+          void conversations.refetch();
+          if (showRealtimePanel) void dashboard.refetch();
+        },
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_messages" }, () => {
         void conversations.refetch();
         if (selectedId) void messages.refetch();
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_events" }, () => {
+        if (showRealtimePanel) void dashboard.refetch();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_events" }, () => {
+        if (showRealtimePanel) void dashboard.refetch();
+      })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [selectedId]);
+  }, [selectedId, showRealtimePanel]);
 
   useEffect(() => {
     if (!selectedId) return;
     setPendingAttachment(null);
     setShowEmoji(false);
+    setTagInput("");
     void markReadFn({ data: { conversationId: selectedId } }).then(() => conversations.refetch());
   }, [selectedId]);
 
@@ -239,17 +348,40 @@ function AtendimentoPage() {
   }, [showQr, connection.data?.connected]);
 
   const selected = (conversations.data ?? []).find((item) => item.id === selectedId) ?? null;
+  const queueCounts = useMemo(() => {
+    const result: Record<QueueTab, number> = { waiting: 0, in_service: 0, automatic: 0 };
+    for (const conversation of conversations.data ?? []) {
+      const state = conversation.attendance_state || "automatic";
+      if (state in result) result[state as QueueTab] += 1;
+    }
+    return result;
+  }, [conversations.data]);
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return conversations.data ?? [];
-    return (conversations.data ?? []).filter((conversation) =>
-      [conversation.contact_name, conversation.phone_e164, conversation.last_message]
+    return (conversations.data ?? []).filter((conversation) => {
+      if ((conversation.attendance_state || "automatic") !== queueTab) return false;
+      if (!needle) return true;
+      return [
+        conversation.contact_name,
+        conversation.phone_e164,
+        conversation.last_message,
+        ...(conversation.tags ?? []),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(needle),
+        .includes(needle);
+    });
+  }, [conversations.data, search, queueTab]);
+
+  const filteredAgents = useMemo(() => {
+    const needle = dashboardSearch.trim().toLowerCase();
+    return (dashboard.data?.agents ?? []).filter(
+      (agent) =>
+        dashboardStatuses.includes(agent.status) &&
+        (!needle || agent.name.toLowerCase().includes(needle)),
     );
-  }, [conversations.data, search]);
+  }, [dashboard.data?.agents, dashboardSearch, dashboardStatuses]);
 
   const refreshQr = async () => {
     setQrLoading(true);
@@ -308,7 +440,9 @@ function AtendimentoPage() {
     const name = window.prompt("Nome do contato (opcional):") ?? "";
     try {
       const result = await startFn({ data: { phone, contactName: name || undefined } });
-      await conversations.refetch();
+      await claimFn({ data: { conversationId: result.id } });
+      await Promise.all([conversations.refetch(), viewer.refetch()]);
+      setQueueTab("in_service");
       setSelectedId(result.id);
       setPropertyContext(null);
     } catch (error) {
@@ -361,6 +495,9 @@ function AtendimentoPage() {
         await sendFn({ data: { conversationId: selectedId, text: outgoing } });
         setText("");
       }
+      if (selected?.attendance_state === "in_service") {
+        await firstResponseFn({ data: { conversationId: selectedId } });
+      }
       setShowEmoji(false);
       await Promise.all([messages.refetch(), conversations.refetch()]);
     } catch (error) {
@@ -391,11 +528,104 @@ function AtendimentoPage() {
     }
   };
 
+  const runConversationAction = async (action: "queue" | "claim" | "end") => {
+    if (!selectedId || actionLoading) return;
+    setActionLoading(true);
+    try {
+      if (action === "queue") {
+        await queueFn({ data: { conversationId: selectedId } });
+        setQueueTab("waiting");
+        toast.success("Conversa enviada para a fila de atendimento.");
+      } else if (action === "claim") {
+        await claimFn({ data: { conversationId: selectedId } });
+        setQueueTab("in_service");
+        toast.success("Atendimento iniciado.");
+      } else {
+        await endFn({ data: { conversationId: selectedId } });
+        setQueueTab("automatic");
+        toast.success("Atendimento encerrado e devolvido ao automático.");
+      }
+      await Promise.all([conversations.refetch(), viewer.refetch()]);
+      if (showRealtimePanel) await dashboard.refetch();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar o atendimento.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const updatePresence = async (status: AttendantPresenceStatus) => {
+    try {
+      await presenceFn({ data: { status } });
+      await viewer.refetch();
+      if (showRealtimePanel) await dashboard.refetch();
+      toast.success(`Status alterado para ${PRESENCE_LABELS[status]}.`);
+    } catch {
+      toast.error("Não foi possível alterar seu status.");
+    }
+  };
+
+  const addTag = async () => {
+    if (!selected || !tagInput.trim()) return;
+    const tags = [...new Set([...(selected.tags ?? []), tagInput.trim()])].slice(0, 8);
+    try {
+      await tagsFn({ data: { conversationId: selected.id, tags } });
+      setTagInput("");
+      await conversations.refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível adicionar a tag.");
+    }
+  };
+
+  const removeTag = async (tag: string) => {
+    if (!selected) return;
+    try {
+      await tagsFn({
+        data: {
+          conversationId: selected.id,
+          tags: (selected.tags ?? []).filter((item) => item !== tag),
+        },
+      });
+      await conversations.refetch();
+    } catch {
+      toast.error("Não foi possível remover a tag.");
+    }
+  };
+
+  const toggleSensitivePermission = async (userId: string, allowed: boolean) => {
+    try {
+      await sensitivePermissionFn({ data: { userId, allowed } });
+      await dashboard.refetch();
+      toast.success("Permissão de dados sensíveis atualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a permissão.");
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-112px)] max-w-[1500px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
+      <div className="mx-auto flex min-h-[calc(100vh-112px)] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
         <aside className="flex w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
           <div className="border-b border-[var(--mi-border)] p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">
+                  Central
+                </p>
+                <h1 className="text-lg font-black">Conversas</h1>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRealtimePanel(true)}
+                className="rounded-xl border-blue-300/50 bg-[var(--mi-surface)] text-xs font-black text-blue-600"
+              >
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Painel em tempo real
+              </Button>
+            </div>
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -429,7 +659,7 @@ function AtendimentoPage() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar conversa"
+                  placeholder="Buscar por nome, telefone ou tag"
                   className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] pl-9 pr-3 text-sm outline-none focus:border-blue-500"
                 />
               </div>
@@ -448,8 +678,29 @@ function AtendimentoPage() {
             </div>
           </div>
 
+          <div className="grid grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">
+            {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setQueueTab(tab)}
+                className={`relative px-2 py-3 text-xs font-black transition ${queueTab === tab ? "text-blue-600" : "text-[var(--mi-text-soft)] hover:text-[var(--mi-text)]"}`}
+              >
+                {QUEUE_LABELS[tab]}
+                {queueCounts[tab] > 0 && (
+                  <span className="ml-1 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] text-white">
+                    {queueCounts[tab]}
+                  </span>
+                )}
+                {queueTab === tab && (
+                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-blue-600" />
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="flex-1 overflow-y-auto">
-            {filtered.map((conversation: WhatsAppConversation) => (
+            {filtered.map((conversation: AttendanceConversation) => (
               <button
                 type="button"
                 key={conversation.id}
@@ -460,12 +711,14 @@ function AtendimentoPage() {
                 className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}
               >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-500/10 text-xs font-black text-blue-600">
-                  {(conversation.contact_name || conversation.phone_e164).slice(0, 2).toUpperCase()}
+                  {(conversation.contact_name || conversation.phone_e164 || "CO")
+                    .slice(0, 2)
+                    .toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-3">
                     <span className="truncate text-sm font-black">
-                      {conversation.contact_name || `+${conversation.phone_e164}`}
+                      {conversation.contact_name || conversation.phone_e164}
                     </span>
                     {conversation.last_message_at && (
                       <span className="shrink-0 text-[10px] text-[var(--mi-text-soft)]">
@@ -486,9 +739,26 @@ function AtendimentoPage() {
                       </span>
                     )}
                   </span>
+                  {(conversation.tags ?? []).length > 0 && (
+                    <span className="mt-1.5 flex flex-wrap gap-1">
+                      {conversation.tags.slice(0, 2).map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-md bg-[var(--mi-surface)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--mi-text-soft)]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
               </button>
             ))}
+            {!filtered.length && (
+              <div className="px-5 py-10 text-center text-xs text-[var(--mi-text-soft)]">
+                Nenhuma conversa nesta fila.
+              </div>
+            )}
           </div>
         </aside>
 
@@ -497,23 +767,63 @@ function AtendimentoPage() {
             <>
               <header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
                 <div className="min-w-0">
-                  <p className="truncate font-black">
-                    {selected.contact_name || `+${selected.phone_e164}`}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--mi-text-soft)]">
-                    +{selected.phone_e164}
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-black">
+                      {selected.contact_name || selected.phone_e164}
+                    </p>
+                    <span className="rounded-full border border-[var(--mi-border)] px-2 py-0.5 text-[10px] font-black text-[var(--mi-text-soft)]">
+                      {QUEUE_LABELS[selected.attendance_state]}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--mi-text-soft)]">
+                    {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
+                    {selected.phone_e164}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-[var(--mi-text-soft)]">
-                  {connection.data?.connected ? (
-                    <>
-                      <Wifi className="h-4 w-4 text-emerald-600" /> WhatsApp online
-                    </>
-                  ) : (
-                    <>
-                      <WifiOff className="h-4 w-4 text-amber-600" /> WhatsApp offline
-                    </>
+                <div className="flex items-center gap-2">
+                  {selected.attendance_state === "waiting" && (
+                    <Button
+                      size="sm"
+                      disabled={actionLoading}
+                      onClick={() => void runConversationAction("claim")}
+                      className="rounded-xl bg-blue-600 text-white"
+                    >
+                      <UserCheck className="mr-1.5 h-3.5 w-3.5" /> Iniciar atendimento
+                    </Button>
                   )}
+                  {selected.attendance_state === "automatic" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionLoading}
+                      onClick={() => void runConversationAction("queue")}
+                      className="rounded-xl"
+                    >
+                      <Users className="mr-1.5 h-3.5 w-3.5" /> Mover para fila
+                    </Button>
+                  )}
+                  {selected.attendance_state === "in_service" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionLoading}
+                      onClick={() => void runConversationAction("end")}
+                      className="rounded-xl"
+                    >
+                      <Bot className="mr-1.5 h-3.5 w-3.5" /> Encerrar
+                    </Button>
+                  )}
+                  <div className="hidden items-center gap-2 text-xs font-bold text-[var(--mi-text-soft)] lg:flex">
+                    {connection.data?.connected ? (
+                      <>
+                        <Wifi className="h-4 w-4 text-emerald-600" /> WhatsApp online
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="h-4 w-4 text-amber-600" /> WhatsApp offline
+                      </>
+                    )}
+                  </div>
                 </div>
               </header>
 
@@ -550,11 +860,7 @@ function AtendimentoPage() {
                       className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${
-                          message.direction === "outbound"
-                            ? "rounded-br-md bg-blue-600 text-white"
-                            : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"
-                        }`}
+                        className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}
                       >
                         {message.message_type !== "text" && (
                           <div className="mb-1 flex items-center gap-2 text-xs font-black">
@@ -601,7 +907,7 @@ function AtendimentoPage() {
                     onClick={() => void suggest()}
                     className="rounded-xl border-blue-300/40 text-blue-600"
                   >
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />{" "}
                     {drafting ? "Gerando..." : "Sugerir resposta com IA"}
                   </Button>
                 </div>
@@ -663,7 +969,6 @@ function AtendimentoPage() {
                   accept="image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
                   onChange={(event) => void selectAttachment(event.target.files?.[0] ?? null)}
                 />
-
                 <div className="flex items-end gap-2">
                   <Button
                     variant="outline"
@@ -741,10 +1046,333 @@ function AtendimentoPage() {
             </div>
           )}
         </main>
+
+        {selected && (
+          <aside className="hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
+            <div className="border-b border-[var(--mi-border)] px-5 py-4">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                Detalhes
+              </p>
+            </div>
+            <div className="space-y-5 overflow-y-auto p-5">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                  Contato
+                </p>
+                <p className="mt-2 text-sm font-black">
+                  {selected.contact_name || "Sem nome cadastrado"}
+                </p>
+                <p className="mt-1 flex items-center gap-1 text-xs text-[var(--mi-text-muted)]">
+                  {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
+                  {selected.phone_e164}
+                </p>
+                {selected.phone_masked && (
+                  <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-[10px] leading-4 text-amber-800">
+                    Telefone protegido pela política de dados sensíveis deste usuário.
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                  Atendimento
+                </p>
+                <div className="mt-2 space-y-2 text-xs">
+                  <DetailRow label="Fila" value={QUEUE_LABELS[selected.attendance_state]} />
+                  <DetailRow label="Departamento" value={selected.department_name || "Geral"} />
+                  <DetailRow label="Não lidas" value={String(selected.unread_count)} />
+                  <DetailRow
+                    label="Última atividade"
+                    value={
+                      selected.last_message_at
+                        ? new Date(selected.last_message_at).toLocaleString("pt-BR")
+                        : "—"
+                    }
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-blue-600" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                    Tags
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(selected.tags ?? []).map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => void removeTag(tag)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 py-1 text-[10px] font-bold"
+                      title="Clique para remover"
+                    >
+                      {tag}
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  ))}
+                  {!selected.tags?.length && (
+                    <span className="text-xs text-[var(--mi-text-soft)]">Sem tags.</span>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={tagInput}
+                    onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void addTag();
+                      }
+                    }}
+                    placeholder="Nova tag"
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 text-xs outline-none focus:border-blue-500"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void addTag()}
+                    className="h-9 rounded-lg"
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+              <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 text-[10px] leading-4 text-[var(--mi-text-muted)]">
+                Dados sensíveis são exibidos conforme a permissão do usuário e ficam isolados por
+                organização.
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
 
+      {showRealtimePanel && (
+        <div className="fixed inset-0 z-50 bg-black/55 p-3 sm:p-5">
+          <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-2xl">
+            <header className="flex flex-col gap-3 border-b border-[var(--mi-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600/10 text-blue-600">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-black">Painel de atendimento em tempo real</h2>
+                  <p className="text-xs text-[var(--mi-text-soft)]">
+                    Filas, presença da equipe e tempos operacionais com dados reais.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs font-bold text-[var(--mi-text-soft)]">Meu status</label>
+                <select
+                  value={viewer.data?.presence || "free"}
+                  onChange={(event) =>
+                    void updatePresence(event.target.value as AttendantPresenceStatus)
+                  }
+                  className="h-9 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-xs font-bold outline-none"
+                >
+                  {(Object.keys(PRESENCE_LABELS) as AttendantPresenceStatus[]).map((status) => (
+                    <option key={status} value={status}>
+                      {PRESENCE_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void dashboard.refetch()}
+                  className="h-9 rounded-xl"
+                >
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Atualizar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowRealtimePanel(false)}
+                  className="h-9 w-9 rounded-xl"
+                  aria-label="Fechar painel"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </header>
+
+            <div className="border-b border-[var(--mi-border)] px-5 py-3">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                {(Object.keys(PRESENCE_LABELS) as AttendantPresenceStatus[]).map((status) => {
+                  const checked = dashboardStatuses.includes(status);
+                  return (
+                    <label
+                      key={status}
+                      className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setDashboardStatuses((current) =>
+                            checked
+                              ? current.filter((item) => item !== status)
+                              : [...current, status],
+                          )
+                        }
+                        className="h-4 w-4 rounded"
+                      />
+                      <span className={`h-2.5 w-2.5 rounded-full ${statusDot(status)}`} />
+                      {dashboard.data?.statuses?.[status] ?? 0} {PRESENCE_LABELS[status]}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid min-h-0 flex-1 lg:grid-cols-[230px_1fr]">
+              <aside className="border-b border-[var(--mi-border)] p-4 lg:border-b-0 lg:border-r">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-black">Sumário</p>
+                  <CircleAlert className="h-3.5 w-3.5 text-[var(--mi-text-soft)]" />
+                </div>
+                <label className="mt-4 block text-[10px] font-bold text-[var(--mi-text-soft)]">
+                  Período
+                </label>
+                <select
+                  value={dashboardPeriod}
+                  onChange={(event) => setDashboardPeriod(event.target.value as DashboardPeriod)}
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-sm outline-none"
+                >
+                  <option value="today">Hoje</option>
+                  <option value="7d">Últimos 7 dias</option>
+                  <option value="30d">Últimos 30 dias</option>
+                </select>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  <SummaryMetric value={String(dashboard.data?.waiting ?? 0)} label="em espera" />
+                  <SummaryMetric value={String(dashboard.data?.attended ?? 0)} label="atendidos" />
+                  <SummaryMetric
+                    value={formatSeconds(dashboard.data?.avgWaitSeconds ?? 0)}
+                    label="tempo médio de espera"
+                  />
+                  <SummaryMetric
+                    value={formatSeconds(dashboard.data?.avgResponseSeconds ?? 0)}
+                    label="tempo médio de resposta"
+                  />
+                  <SummaryMetric
+                    value={formatSeconds(dashboard.data?.avgAttendanceSeconds ?? 0)}
+                    label="tempo médio de atendimento"
+                  />
+                </div>
+              </aside>
+
+              <section className="min-h-0 overflow-y-auto p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black">Equipe de atendimento</p>
+                    <p className="mt-1 text-xs text-[var(--mi-text-soft)]">
+                      Status atualizado em tempo real e quantidade de conversas em atendimento.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
+                      <input
+                        value={dashboardSearch}
+                        onChange={(event) => setDashboardSearch(event.target.value)}
+                        placeholder="Buscar atendente"
+                        className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] pl-9 pr-3 text-sm outline-none"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 rounded-xl"
+                      title="Filtros ativos"
+                    >
+                      <Filter className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--mi-border)]">
+                  <div className="hidden grid-cols-[1.5fr_1fr_120px_170px] gap-3 bg-[var(--mi-surface-soft)] px-4 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--mi-text-soft)] md:grid">
+                    <span>Atendente</span>
+                    <span>Status</span>
+                    <span>Conversas</span>
+                    <span>Dados sensíveis</span>
+                  </div>
+                  {filteredAgents.map((agent) => (
+                    <div
+                      key={agent.userId}
+                      className="grid gap-3 border-t border-[var(--mi-border)] px-4 py-4 md:grid-cols-[1.5fr_1fr_120px_170px] md:items-center"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600/10 text-xs font-black text-blue-600">
+                          {agent.name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div>
+                          <p className="text-sm font-black">{agent.name}</p>
+                          <p className="text-[10px] text-[var(--mi-text-soft)]">
+                            desde{" "}
+                            {new Date(agent.statusSince).getFullYear() > 2000
+                              ? new Date(agent.statusSince).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold">
+                        <span className={`h-2.5 w-2.5 rounded-full ${statusDot(agent.status)}`} />
+                        {PRESENCE_LABELS[agent.status]}
+                      </div>
+                      <div className="text-sm font-black">{agent.activeConversations}</div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-black ${agent.canViewSensitiveData ? "bg-emerald-500/10 text-emerald-700" : "bg-slate-500/10 text-slate-600"}`}
+                        >
+                          {agent.canViewSensitiveData ? "Visível" : "Protegido"}
+                        </span>
+                        {dashboard.data?.canManageSensitiveVisibility && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void toggleSensitivePermission(
+                                agent.userId,
+                                !agent.canViewSensitiveData,
+                              )
+                            }
+                            className="text-[10px] font-black text-blue-600 hover:underline"
+                          >
+                            Alterar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {!filteredAgents.length && (
+                    <div className="grid min-h-56 place-items-center p-6 text-center text-sm text-[var(--mi-text-soft)]">
+                      <div>
+                        <Users className="mx-auto mb-2 h-7 w-7" />
+                        Nenhum atendente corresponde aos filtros.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-3 text-xs leading-5 text-[var(--mi-text-muted)]">
+                  <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                  <span>
+                    A visibilidade de dados sensíveis é controlada por usuário. Proprietários e
+                    administradores mantêm acesso; os demais podem ter o telefone mascarado sem
+                    afetar o envio de mensagens.
+                  </span>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showQr && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-950 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-black">Conectar meu WhatsApp</h2>
@@ -813,6 +1441,24 @@ function AtendimentoPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-[var(--mi-text-soft)]">{label}</span>
+      <span className="text-right font-bold">{value}</span>
+    </div>
+  );
+}
+
+function SummaryMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] px-3 py-4 text-center">
+      <p className="text-xl font-black">{value}</p>
+      <p className="mt-1 text-[10px] leading-4 text-[var(--mi-text-soft)]">{label}</p>
     </div>
   );
 }

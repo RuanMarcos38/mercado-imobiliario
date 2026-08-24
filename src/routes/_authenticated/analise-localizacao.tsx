@@ -237,12 +237,20 @@ function LocationAnalysisPage() {
                   label="Escopo usado"
                   value={result.market.scope === "bairro" ? "Bairro" : "Município"}
                 />
-                <Stat label="Anúncios reais indexados" value={number(result.market.indexedListings)} />
+                <Stat
+                  label="Anúncios reais indexados"
+                  value={number(result.market.indexedListings)}
+                />
                 <Stat label="Com preço válido" value={number(result.market.pricedListings)} />
-                <Stat label="Amostra estatística de preço" value={number(result.market.sampleSize)} />
+                <Stat
+                  label="Amostra estatística de preço"
+                  value={number(result.market.sampleSize)}
+                />
                 <Stat
                   label="Recorte de preço"
-                  value={result.market.pricingScope === "residencial" ? "Residencial" : "Todos os tipos"}
+                  value={
+                    result.market.pricingScope === "residencial" ? "Residencial" : "Todos os tipos"
+                  }
                 />
                 <Stat
                   label="Vistos nos últimos 90 dias"
