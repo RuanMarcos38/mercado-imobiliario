@@ -97,6 +97,16 @@ function isNonListingPath(pathname: string) {
   return NON_LISTING_PATH_MARKERS.some((marker) => path.includes(marker));
 }
 
+function isCaixaPropertyUrl(sourceUrl: string | null | undefined) {
+  if (!sourceUrl) return false;
+  try {
+    const host = new URL(sourceUrl).hostname.toLowerCase();
+    return host === "venda-imoveis.caixa.gov.br" || host.endsWith(".venda-imoveis.caixa.gov.br");
+  } catch {
+    return false;
+  }
+}
+
 export function isFreshListing(timestamp: string | null | undefined, nowMs = Date.now()) {
   if (!timestamp) return false;
   const parsed = Date.parse(timestamp);
@@ -134,6 +144,7 @@ export function isRealEstateListing(input: {
 }
 
 export function isQualifiedPropertyRecord(input: {
+  source_url?: string | null;
   listing_market?: string | null;
   is_auction?: boolean | null;
   price?: number | null;
@@ -143,7 +154,9 @@ export function isQualifiedPropertyRecord(input: {
   bedrooms?: number | null;
   bathrooms?: number | null;
 }) {
-  if (input.listing_market === "caixa" || input.is_auction) return true;
+  if (input.listing_market === "caixa" || input.is_auction || isCaixaPropertyUrl(input.source_url)) {
+    return true;
+  }
 
   const hasStructuredCommercialFact =
     (typeof input.price === "number" && input.price > 0) ||
