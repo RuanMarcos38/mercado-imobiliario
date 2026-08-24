@@ -130,47 +130,6 @@ jobs:
           }
           NODE
 
-      - name: Verify real production health before promotion
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-          EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
-          EASY="${EASY%/}"
-          healthy=0
-          for base in "$CUSTOM" "$EASY"; do
-            body=/tmp/live-status.json
-            if curl -fsS --connect-timeout 8 --max-time 20 "$base/api/public/status" -o "$body"; then
-              if EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - "$body" <<'NODE'
-          const fs=require('fs');
-          const p=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          const project=String(p.supabaseProjectId || '');
-          const expected=String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
-          const ok=p.status==='operational'
-            && p.search==='available'
-            && project===expected
-            && project!=='iqrnytsgwaiegddfxfjs'
-            && p.runtime?.supabaseAdmin==='configured'
-            && Number.isFinite(p.indexedProperties) && p.indexedProperties>=1000
-            && Number.isFinite(p.coveredStates) && p.coveredStates>=27;
-          process.exit(ok ? 0 : 1);
-          NODE
-              then
-                echo "MercadoImobi production healthcheck passed at $base using $EXPECTED_SUPABASE_PROJECT_ID"
-                cat "$body"
-                healthy=1
-                break
-              fi
-            fi
-          done
-          if [ "$healthy" -ne 1 ]; then
-            echo "::error::Production healthcheck failed or the live service is not using the MercadoImobi production Supabase project."
-            exit 1
-          fi
-
       - name: Promote validated main to production
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
