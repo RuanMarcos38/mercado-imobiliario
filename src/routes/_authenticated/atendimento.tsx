@@ -154,7 +154,8 @@ function formatSeconds(total: number) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const rest = seconds % 60;
-  if (hours > 0) return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+  if (hours > 0)
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
   return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
@@ -555,7 +556,9 @@ function AtendimentoPage() {
       await Promise.all([conversations.refetch(), viewer.refetch()]);
       if (showRealtimePanel) await dashboard.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o atendimento.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar o atendimento.",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -588,7 +591,10 @@ function AtendimentoPage() {
     if (!selected) return;
     try {
       await tagsFn({
-        data: { conversationId: selected.id, tags: (selected.tags ?? []).filter((item) => item !== tag) },
+        data: {
+          conversationId: selected.id,
+          tags: (selected.tags ?? []).filter((item) => item !== tag),
+        },
       });
       await conversations.refetch();
     } catch {
@@ -613,7 +619,9 @@ function AtendimentoPage() {
           <div className="border-b border-[var(--mi-border)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">Central</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">
+                  Central
+                </p>
                 <h1 className="text-lg font-black">Conversas</h1>
               </div>
               <Button
@@ -637,7 +645,11 @@ function AtendimentoPage() {
               <span
                 className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
               >
-                {connection.data?.connected ? <Link2 className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                {connection.data?.connected ? (
+                  <Link2 className="h-4 w-4" />
+                ) : (
+                  <WifiOff className="h-4 w-4" />
+                )}
                 {connection.data?.connected ? "Conectado" : "Desconectado"}
               </span>
             </div>
@@ -688,7 +700,9 @@ function AtendimentoPage() {
                     {queueCounts[tab]}
                   </span>
                 )}
-                {queueTab === tab && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-blue-600" />}
+                {queueTab === tab && (
+                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-blue-600" />
+                )}
               </button>
             ))}
           </div>
@@ -705,7 +719,9 @@ function AtendimentoPage() {
                 className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}
               >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-500/10 text-xs font-black text-blue-600">
-                  {(conversation.contact_name || conversation.phone_e164 || "CO").slice(0, 2).toUpperCase()}
+                  {(conversation.contact_name || conversation.phone_e164 || "CO")
+                    .slice(0, 2)
+                    .toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-3">
@@ -714,7 +730,10 @@ function AtendimentoPage() {
                     </span>
                     {conversation.last_message_at && (
                       <span className="shrink-0 text-[10px] text-[var(--mi-text-soft)]">
-                        {new Date(conversation.last_message_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(conversation.last_message_at).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                     )}
                   </span>
@@ -731,7 +750,10 @@ function AtendimentoPage() {
                   {(conversation.tags ?? []).length > 0 && (
                     <span className="mt-1.5 flex flex-wrap gap-1">
                       {conversation.tags.slice(0, 2).map((tag) => (
-                        <span key={tag} className="rounded-md bg-[var(--mi-surface)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--mi-text-soft)]">
+                        <span
+                          key={tag}
+                          className="rounded-md bg-[var(--mi-surface)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--mi-text-soft)]"
+                        >
                           {tag}
                         </span>
                       ))}
@@ -754,7 +776,9 @@ function AtendimentoPage() {
               <header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="truncate font-black">{selected.contact_name || selected.phone_e164}</p>
+                    <p className="truncate font-black">
+                      {selected.contact_name || selected.phone_e164}
+                    </p>
                     <span className="rounded-full border border-[var(--mi-border)] px-2 py-0.5 text-[10px] font-black text-[var(--mi-text-soft)]">
                       {QUEUE_LABELS[selected.attendance_state]}
                     </span>
@@ -766,25 +790,46 @@ function AtendimentoPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {selected.attendance_state === "waiting" && (
-                    <Button size="sm" disabled={actionLoading} onClick={() => void runConversationAction("claim")} className="rounded-xl bg-blue-600 text-white">
+                    <Button
+                      size="sm"
+                      disabled={actionLoading}
+                      onClick={() => void runConversationAction("claim")}
+                      className="rounded-xl bg-blue-600 text-white"
+                    >
                       <UserCheck className="mr-1.5 h-3.5 w-3.5" /> Iniciar atendimento
                     </Button>
                   )}
                   {selected.attendance_state === "automatic" && (
-                    <Button size="sm" variant="outline" disabled={actionLoading} onClick={() => void runConversationAction("queue")} className="rounded-xl">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionLoading}
+                      onClick={() => void runConversationAction("queue")}
+                      className="rounded-xl"
+                    >
                       <Users className="mr-1.5 h-3.5 w-3.5" /> Mover para fila
                     </Button>
                   )}
                   {selected.attendance_state === "in_service" && (
-                    <Button size="sm" variant="outline" disabled={actionLoading} onClick={() => void runConversationAction("end")} className="rounded-xl">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionLoading}
+                      onClick={() => void runConversationAction("end")}
+                      className="rounded-xl"
+                    >
                       <Bot className="mr-1.5 h-3.5 w-3.5" /> Encerrar
                     </Button>
                   )}
                   <div className="hidden items-center gap-2 text-xs font-bold text-[var(--mi-text-soft)] lg:flex">
                     {connection.data?.connected ? (
-                      <><Wifi className="h-4 w-4 text-emerald-600" /> WhatsApp online</>
+                      <>
+                        <Wifi className="h-4 w-4 text-emerald-600" /> WhatsApp online
+                      </>
                     ) : (
-                      <><WifiOff className="h-4 w-4 text-amber-600" /> WhatsApp offline</>
+                      <>
+                        <WifiOff className="h-4 w-4 text-amber-600" /> WhatsApp offline
+                      </>
                     )}
                   </div>
                 </div>
@@ -794,11 +839,20 @@ function AtendimentoPage() {
                 <div className="border-b border-[var(--mi-border)] bg-blue-500/[0.04] px-5 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Imóvel relacionado</p>
-                      <p className="mt-1 truncate text-sm font-bold">{propertyContext.title || "Imóvel selecionado"}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
+                        Imóvel relacionado
+                      </p>
+                      <p className="mt-1 truncate text-sm font-bold">
+                        {propertyContext.title || "Imóvel selecionado"}
+                      </p>
                     </div>
                     {propertyContext.url && (
-                      <a href={propertyContext.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-black text-blue-600">
+                      <a
+                        href={propertyContext.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-black text-blue-600"
+                      >
                         Abrir anúncio <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     )}
@@ -809,43 +863,82 @@ function AtendimentoPage() {
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
                 <div className="space-y-3">
                   {(messages.data ?? []).map((message) => (
-                    <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}>
+                    <div
+                      key={message.id}
+                      className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}
+                      >
                         {message.message_type !== "text" && (
-                          <div className="mb-1 flex items-center gap-2 text-xs font-black"><FileText className="h-4 w-4" /> Arquivo do WhatsApp</div>
+                          <div className="mb-1 flex items-center gap-2 text-xs font-black">
+                            <FileText className="h-4 w-4" /> Arquivo do WhatsApp
+                          </div>
                         )}
                         {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
                         {!message.body && message.media_url && (
-                          <a href={message.media_url} target="_blank" rel="noreferrer" className="font-bold underline">Abrir mídia recebida</a>
+                          <a
+                            href={message.media_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-bold underline"
+                          >
+                            Abrir mídia recebida
+                          </a>
                         )}
-                        <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${message.direction === "outbound" ? "text-blue-100" : "text-[var(--mi-text-soft)]"}`}>
-                          {new Date(message.sent_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        <div
+                          className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${message.direction === "outbound" ? "text-blue-100" : "text-[var(--mi-text-soft)]"}`}
+                        >
+                          {new Date(message.sent_at).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                           {message.direction === "outbound" && <CheckCheck className="h-3 w-3" />}
                         </div>
                       </div>
                     </div>
                   ))}
                   {(messages.data?.length ?? 0) === 0 && (
-                    <div className="py-20 text-center text-sm text-[var(--mi-text-soft)]">Ainda não há mensagens nesta conversa.</div>
+                    <div className="py-20 text-center text-sm text-[var(--mi-text-soft)]">
+                      Ainda não há mensagens nesta conversa.
+                    </div>
                   )}
                 </div>
               </div>
 
               <footer className="relative border-t border-[var(--mi-border)] p-4">
                 <div className="mb-2 flex justify-end">
-                  <Button variant="outline" size="sm" disabled={!aiStatus.data?.configured || drafting} onClick={() => void suggest()} className="rounded-xl border-blue-300/40 text-blue-600">
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {drafting ? "Gerando..." : "Sugerir resposta com IA"}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!aiStatus.data?.configured || drafting}
+                    onClick={() => void suggest()}
+                    className="rounded-xl border-blue-300/40 text-blue-600"
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />{" "}
+                    {drafting ? "Gerando..." : "Sugerir resposta com IA"}
                   </Button>
                 </div>
 
                 {pendingAttachment && (
                   <div className="mb-2 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-slate-800">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-blue-600"><FileText className="h-4 w-4" /></span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-blue-600">
+                      <FileText className="h-4 w-4" />
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-black">{pendingAttachment.fileName}</p>
-                      <p className="text-[10px] text-slate-500">{(pendingAttachment.size / 1024 / 1024).toFixed(2)} MB · pronto para enviar</p>
+                      <p className="text-[10px] text-slate-500">
+                        {(pendingAttachment.size / 1024 / 1024).toFixed(2)} MB · pronto para enviar
+                      </p>
                     </div>
-                    <button type="button" onClick={() => setPendingAttachment(null)} className="rounded-lg p-1 text-slate-500 hover:bg-white" aria-label="Remover anexo"><X className="h-4 w-4" /></button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingAttachment(null)}
+                      className="rounded-lg p-1 text-slate-500 hover:bg-white"
+                      aria-label="Remover anexo"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 )}
 
@@ -853,20 +946,58 @@ function AtendimentoPage() {
                   <div className="absolute bottom-[82px] left-16 z-20 w-72 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 shadow-xl">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-xs font-black">Emojis</p>
-                      <button type="button" onClick={() => setShowEmoji(false)} aria-label="Fechar emojis"><X className="h-4 w-4 text-[var(--mi-text-soft)]" /></button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEmoji(false)}
+                        aria-label="Fechar emojis"
+                      >
+                        <X className="h-4 w-4 text-[var(--mi-text-soft)]" />
+                      </button>
                     </div>
                     <div className="grid grid-cols-8 gap-1">
                       {EMOJIS.map((emoji) => (
-                        <button key={emoji} type="button" onClick={() => setText((current) => `${current}${emoji}`)} className="grid h-8 w-8 place-items-center rounded-lg text-xl hover:bg-[var(--mi-surface-soft)]" title={emoji}>{emoji}</button>
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setText((current) => `${current}${emoji}`)}
+                          className="grid h-8 w-8 place-items-center rounded-lg text-xl hover:bg-[var(--mi-surface-soft)]"
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <input ref={fileInputRef} type="file" className="hidden" accept="image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" onChange={(event) => void selectAttachment(event.target.files?.[0] ?? null)} />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                  onChange={(event) => void selectAttachment(event.target.files?.[0] ?? null)}
+                />
                 <div className="flex items-end gap-2">
-                  <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" disabled={sending || !connection.data?.connected} onClick={() => fileInputRef.current?.click()} title="Anexar documento, foto ou arquivo"><Paperclip className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" disabled={sending} onClick={() => setShowEmoji((open) => !open)} title="Adicionar emoji"><Smile className="h-5 w-5" /></Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl"
+                    disabled={sending || !connection.data?.connected}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Anexar documento, foto ou arquivo"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl"
+                    disabled={sending}
+                    onClick={() => setShowEmoji((open) => !open)}
+                    title="Adicionar emoji"
+                  >
+                    <Smile className="h-5 w-5" />
+                  </Button>
                   <textarea
                     value={text}
                     onChange={(event) => setText(event.target.value)}
@@ -877,14 +1008,30 @@ function AtendimentoPage() {
                       }
                     }}
                     rows={1}
-                    placeholder={pendingAttachment ? "Adicione uma legenda (opcional)" : "Digite uma mensagem"}
+                    placeholder={
+                      pendingAttachment ? "Adicione uma legenda (opcional)" : "Digite uma mensagem"
+                    }
                     className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
                   />
-                  <Button size="icon" onClick={() => void send()} disabled={sending || (!text.trim() && !pendingAttachment) || !connection.data?.connected} className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
-                    {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <Button
+                    size="icon"
+                    onClick={() => void send()}
+                    disabled={
+                      sending || (!text.trim() && !pendingAttachment) || !connection.data?.connected
+                    }
+                    className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    {sending ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
-                <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até {connection.data?.maxAttachmentMb ?? 8} MB.</p>
+                <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
+                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até{" "}
+                  {connection.data?.maxAttachmentMb ?? 8} MB.
+                </p>
               </footer>
             </>
           ) : (
@@ -892,9 +1039,16 @@ function AtendimentoPage() {
               <div>
                 <MessageCircle className="mx-auto h-10 w-10 text-[var(--mi-text-soft)]" />
                 <h2 className="mt-3 text-lg font-black">Selecione uma conversa</h2>
-                <p className="mt-1 text-sm text-[var(--mi-text-soft)]">As mensagens recebidas pelo WhatsApp aparecerão aqui em tempo real.</p>
+                <p className="mt-1 text-sm text-[var(--mi-text-soft)]">
+                  As mensagens recebidas pelo WhatsApp aparecerão aqui em tempo real.
+                </p>
                 {!connection.data?.connected && (
-                  <Button onClick={() => void connect()} className="mt-5 rounded-xl bg-emerald-600 text-white"><Link2 className="mr-2 h-4 w-4" /> Conectar WhatsApp</Button>
+                  <Button
+                    onClick={() => void connect()}
+                    className="mt-5 rounded-xl bg-emerald-600 text-white"
+                  >
+                    <Link2 className="mr-2 h-4 w-4" /> Conectar WhatsApp
+                  </Button>
                 )}
               </div>
             </div>
@@ -904,14 +1058,21 @@ function AtendimentoPage() {
         {selected && (
           <aside className="hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
             <div className="border-b border-[var(--mi-border)] px-5 py-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">Detalhes</p>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                Detalhes
+              </p>
             </div>
             <div className="space-y-5 overflow-y-auto p-5">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">Contato</p>
-                <p className="mt-2 text-sm font-black">{selected.contact_name || "Sem nome cadastrado"}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                  Contato
+                </p>
+                <p className="mt-2 text-sm font-black">
+                  {selected.contact_name || "Sem nome cadastrado"}
+                </p>
                 <p className="mt-1 flex items-center gap-1 text-xs text-[var(--mi-text-muted)]">
-                  {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}{selected.phone_e164}
+                  {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
+                  {selected.phone_e164}
                 </p>
                 {selected.phone_masked && (
                   <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-[10px] leading-4 text-amber-800">
@@ -920,31 +1081,73 @@ function AtendimentoPage() {
                 )}
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">Atendimento</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                  Atendimento
+                </p>
                 <div className="mt-2 space-y-2 text-xs">
                   <DetailRow label="Fila" value={QUEUE_LABELS[selected.attendance_state]} />
                   <DetailRow label="Departamento" value={selected.department_name || "Geral"} />
                   <DetailRow label="Não lidas" value={String(selected.unread_count)} />
-                  <DetailRow label="Última atividade" value={selected.last_message_at ? new Date(selected.last_message_at).toLocaleString("pt-BR") : "—"} />
+                  <DetailRow
+                    label="Última atividade"
+                    value={
+                      selected.last_message_at
+                        ? new Date(selected.last_message_at).toLocaleString("pt-BR")
+                        : "—"
+                    }
+                  />
                 </div>
               </div>
               <div>
-                <div className="flex items-center gap-2"><Tag className="h-4 w-4 text-blue-600" /><p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">Tags</p></div>
+                <div className="flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-blue-600" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                    Tags
+                  </p>
+                </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(selected.tags ?? []).map((tag) => (
-                    <button key={tag} type="button" onClick={() => void removeTag(tag)} className="inline-flex items-center gap-1 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 py-1 text-[10px] font-bold" title="Clique para remover">
-                      {tag}<X className="h-2.5 w-2.5" />
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => void removeTag(tag)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 py-1 text-[10px] font-bold"
+                      title="Clique para remover"
+                    >
+                      {tag}
+                      <X className="h-2.5 w-2.5" />
                     </button>
                   ))}
-                  {!selected.tags?.length && <span className="text-xs text-[var(--mi-text-soft)]">Sem tags.</span>}
+                  {!selected.tags?.length && (
+                    <span className="text-xs text-[var(--mi-text-soft)]">Sem tags.</span>
+                  )}
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addTag(); } }} placeholder="Nova tag" className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 text-xs outline-none focus:border-blue-500" />
-                  <Button size="sm" variant="outline" onClick={() => void addTag()} className="h-9 rounded-lg">Adicionar</Button>
+                  <input
+                    value={tagInput}
+                    onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void addTag();
+                      }
+                    }}
+                    placeholder="Nova tag"
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 text-xs outline-none focus:border-blue-500"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void addTag()}
+                    className="h-9 rounded-lg"
+                  >
+                    Adicionar
+                  </Button>
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 text-[10px] leading-4 text-[var(--mi-text-muted)]">
-                Dados sensíveis são exibidos conforme a permissão do usuário e ficam isolados por organização.
+                Dados sensíveis são exibidos conforme a permissão do usuário e ficam isolados por
+                organização.
               </div>
             </div>
           </aside>
@@ -956,19 +1159,48 @@ function AtendimentoPage() {
           <div className="mx-auto flex h-full max-w-[1500px] flex-col overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-2xl">
             <header className="flex flex-col gap-3 border-b border-[var(--mi-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600/10 text-blue-600"><BarChart3 className="h-5 w-5" /></div>
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600/10 text-blue-600">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
                 <div>
                   <h2 className="font-black">Painel de atendimento em tempo real</h2>
-                  <p className="text-xs text-[var(--mi-text-soft)]">Filas, presença da equipe e tempos operacionais com dados reais.</p>
+                  <p className="text-xs text-[var(--mi-text-soft)]">
+                    Filas, presença da equipe e tempos operacionais com dados reais.
+                  </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs font-bold text-[var(--mi-text-soft)]">Meu status</label>
-                <select value={viewer.data?.presence || "free"} onChange={(event) => void updatePresence(event.target.value as AttendantPresenceStatus)} className="h-9 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-xs font-bold outline-none">
-                  {(Object.keys(PRESENCE_LABELS) as AttendantPresenceStatus[]).map((status) => <option key={status} value={status}>{PRESENCE_LABELS[status]}</option>)}
+                <select
+                  value={viewer.data?.presence || "free"}
+                  onChange={(event) =>
+                    void updatePresence(event.target.value as AttendantPresenceStatus)
+                  }
+                  className="h-9 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-xs font-bold outline-none"
+                >
+                  {(Object.keys(PRESENCE_LABELS) as AttendantPresenceStatus[]).map((status) => (
+                    <option key={status} value={status}>
+                      {PRESENCE_LABELS[status]}
+                    </option>
+                  ))}
                 </select>
-                <Button variant="outline" size="sm" onClick={() => void dashboard.refetch()} className="h-9 rounded-xl"><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Atualizar</Button>
-                <Button variant="outline" size="icon" onClick={() => setShowRealtimePanel(false)} className="h-9 w-9 rounded-xl" aria-label="Fechar painel"><X className="h-4 w-4" /></Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void dashboard.refetch()}
+                  className="h-9 rounded-xl"
+                >
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Atualizar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowRealtimePanel(false)}
+                  className="h-9 w-9 rounded-xl"
+                  aria-label="Fechar painel"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </header>
 
@@ -977,8 +1209,22 @@ function AtendimentoPage() {
                 {(Object.keys(PRESENCE_LABELS) as AttendantPresenceStatus[]).map((status) => {
                   const checked = dashboardStatuses.includes(status);
                   return (
-                    <label key={status} className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
-                      <input type="checkbox" checked={checked} onChange={() => setDashboardStatuses((current) => checked ? current.filter((item) => item !== status) : [...current, status])} className="h-4 w-4 rounded" />
+                    <label
+                      key={status}
+                      className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setDashboardStatuses((current) =>
+                            checked
+                              ? current.filter((item) => item !== status)
+                              : [...current, status],
+                          )
+                        }
+                        className="h-4 w-4 rounded"
+                      />
                       <span className={`h-2.5 w-2.5 rounded-full ${statusDot(status)}`} />
                       {dashboard.data?.statuses?.[status] ?? 0} {PRESENCE_LABELS[status]}
                     </label>
@@ -989,9 +1235,18 @@ function AtendimentoPage() {
 
             <div className="grid min-h-0 flex-1 lg:grid-cols-[230px_1fr]">
               <aside className="border-b border-[var(--mi-border)] p-4 lg:border-b-0 lg:border-r">
-                <div className="flex items-center gap-2"><p className="text-sm font-black">Sumário</p><CircleAlert className="h-3.5 w-3.5 text-[var(--mi-text-soft)]" /></div>
-                <label className="mt-4 block text-[10px] font-bold text-[var(--mi-text-soft)]">Período</label>
-                <select value={dashboardPeriod} onChange={(event) => setDashboardPeriod(event.target.value as DashboardPeriod)} className="mt-1 h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-sm outline-none">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-black">Sumário</p>
+                  <CircleAlert className="h-3.5 w-3.5 text-[var(--mi-text-soft)]" />
+                </div>
+                <label className="mt-4 block text-[10px] font-bold text-[var(--mi-text-soft)]">
+                  Período
+                </label>
+                <select
+                  value={dashboardPeriod}
+                  onChange={(event) => setDashboardPeriod(event.target.value as DashboardPeriod)}
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-sm outline-none"
+                >
                   <option value="today">Hoje</option>
                   <option value="7d">Últimos 7 dias</option>
                   <option value="30d">Últimos 30 dias</option>
@@ -999,9 +1254,18 @@ function AtendimentoPage() {
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                   <SummaryMetric value={String(dashboard.data?.waiting ?? 0)} label="em espera" />
                   <SummaryMetric value={String(dashboard.data?.attended ?? 0)} label="atendidos" />
-                  <SummaryMetric value={formatSeconds(dashboard.data?.avgWaitSeconds ?? 0)} label="tempo médio de espera" />
-                  <SummaryMetric value={formatSeconds(dashboard.data?.avgResponseSeconds ?? 0)} label="tempo médio de resposta" />
-                  <SummaryMetric value={formatSeconds(dashboard.data?.avgAttendanceSeconds ?? 0)} label="tempo médio de atendimento" />
+                  <SummaryMetric
+                    value={formatSeconds(dashboard.data?.avgWaitSeconds ?? 0)}
+                    label="tempo médio de espera"
+                  />
+                  <SummaryMetric
+                    value={formatSeconds(dashboard.data?.avgResponseSeconds ?? 0)}
+                    label="tempo médio de resposta"
+                  />
+                  <SummaryMetric
+                    value={formatSeconds(dashboard.data?.avgAttendanceSeconds ?? 0)}
+                    label="tempo médio de atendimento"
+                  />
                 </div>
               </aside>
 
@@ -1009,45 +1273,105 @@ function AtendimentoPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-black">Equipe de atendimento</p>
-                    <p className="mt-1 text-xs text-[var(--mi-text-soft)]">Status atualizado em tempo real e quantidade de conversas em atendimento.</p>
+                    <p className="mt-1 text-xs text-[var(--mi-text-soft)]">
+                      Status atualizado em tempo real e quantidade de conversas em atendimento.
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <div className="relative w-full sm:w-64">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
-                      <input value={dashboardSearch} onChange={(event) => setDashboardSearch(event.target.value)} placeholder="Buscar atendente" className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] pl-9 pr-3 text-sm outline-none" />
+                      <input
+                        value={dashboardSearch}
+                        onChange={(event) => setDashboardSearch(event.target.value)}
+                        placeholder="Buscar atendente"
+                        className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] pl-9 pr-3 text-sm outline-none"
+                      />
                     </div>
-                    <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl" title="Filtros ativos"><Filter className="h-4 w-4" /></Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 rounded-xl"
+                      title="Filtros ativos"
+                    >
+                      <Filter className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
 
                 <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--mi-border)]">
                   <div className="hidden grid-cols-[1.5fr_1fr_120px_170px] gap-3 bg-[var(--mi-surface-soft)] px-4 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--mi-text-soft)] md:grid">
-                    <span>Atendente</span><span>Status</span><span>Conversas</span><span>Dados sensíveis</span>
+                    <span>Atendente</span>
+                    <span>Status</span>
+                    <span>Conversas</span>
+                    <span>Dados sensíveis</span>
                   </div>
                   {filteredAgents.map((agent) => (
-                    <div key={agent.userId} className="grid gap-3 border-t border-[var(--mi-border)] px-4 py-4 md:grid-cols-[1.5fr_1fr_120px_170px] md:items-center">
+                    <div
+                      key={agent.userId}
+                      className="grid gap-3 border-t border-[var(--mi-border)] px-4 py-4 md:grid-cols-[1.5fr_1fr_120px_170px] md:items-center"
+                    >
                       <div className="flex items-center gap-3">
-                        <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600/10 text-xs font-black text-blue-600">{agent.name.slice(0, 2).toUpperCase()}</span>
-                        <div><p className="text-sm font-black">{agent.name}</p><p className="text-[10px] text-[var(--mi-text-soft)]">desde {new Date(agent.statusSince).getFullYear() > 2000 ? new Date(agent.statusSince).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}</p></div>
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600/10 text-xs font-black text-blue-600">
+                          {agent.name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div>
+                          <p className="text-sm font-black">{agent.name}</p>
+                          <p className="text-[10px] text-[var(--mi-text-soft)]">
+                            desde{" "}
+                            {new Date(agent.statusSince).getFullYear() > 2000
+                              ? new Date(agent.statusSince).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "—"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-bold"><span className={`h-2.5 w-2.5 rounded-full ${statusDot(agent.status)}`} />{PRESENCE_LABELS[agent.status]}</div>
+                      <div className="flex items-center gap-2 text-xs font-bold">
+                        <span className={`h-2.5 w-2.5 rounded-full ${statusDot(agent.status)}`} />
+                        {PRESENCE_LABELS[agent.status]}
+                      </div>
                       <div className="text-sm font-black">{agent.activeConversations}</div>
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2 py-1 text-[10px] font-black ${agent.canViewSensitiveData ? "bg-emerald-500/10 text-emerald-700" : "bg-slate-500/10 text-slate-600"}`}>{agent.canViewSensitiveData ? "Visível" : "Protegido"}</span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-black ${agent.canViewSensitiveData ? "bg-emerald-500/10 text-emerald-700" : "bg-slate-500/10 text-slate-600"}`}
+                        >
+                          {agent.canViewSensitiveData ? "Visível" : "Protegido"}
+                        </span>
                         {dashboard.data?.canManageSensitiveVisibility && (
-                          <button type="button" onClick={() => void toggleSensitivePermission(agent.userId, !agent.canViewSensitiveData)} className="text-[10px] font-black text-blue-600 hover:underline">Alterar</button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void toggleSensitivePermission(
+                                agent.userId,
+                                !agent.canViewSensitiveData,
+                              )
+                            }
+                            className="text-[10px] font-black text-blue-600 hover:underline"
+                          >
+                            Alterar
+                          </button>
                         )}
                       </div>
                     </div>
                   ))}
                   {!filteredAgents.length && (
-                    <div className="grid min-h-56 place-items-center p-6 text-center text-sm text-[var(--mi-text-soft)]"><div><Users className="mx-auto mb-2 h-7 w-7" />Nenhum atendente corresponde aos filtros.</div></div>
+                    <div className="grid min-h-56 place-items-center p-6 text-center text-sm text-[var(--mi-text-soft)]">
+                      <div>
+                        <Users className="mx-auto mb-2 h-7 w-7" />
+                        Nenhum atendente corresponde aos filtros.
+                      </div>
+                    </div>
                   )}
                 </div>
 
                 <div className="mt-4 flex items-start gap-2 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-3 text-xs leading-5 text-[var(--mi-text-muted)]">
                   <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                  <span>A visibilidade de dados sensíveis é controlada por usuário. Proprietários e administradores mantêm acesso; os demais podem ter o telefone mascarado sem afetar o envio de mensagens.</span>
+                  <span>
+                    A visibilidade de dados sensíveis é controlada por usuário. Proprietários e
+                    administradores mantêm acesso; os demais podem ter o telefone mascarado sem
+                    afetar o envio de mensagens.
+                  </span>
                 </div>
               </section>
             </div>
@@ -1058,23 +1382,70 @@ function AtendimentoPage() {
       {showQr && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-950 shadow-2xl">
-            <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-black">Conectar meu WhatsApp</h2><button type="button" onClick={() => setShowQr(false)} aria-label="Fechar"><X className="h-5 w-5" /></button></div>
-            <p className="mt-2 text-sm text-slate-600">No WhatsApp do celular, abra Configurações → Aparelhos conectados → Conectar aparelho e leia o QR Code abaixo.</p>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-black">Conectar meu WhatsApp</h2>
+              <button type="button" onClick={() => setShowQr(false)} aria-label="Fechar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">
+              No WhatsApp do celular, abra Configurações → Aparelhos conectados → Conectar aparelho
+              e leia o QR Code abaixo.
+            </p>
             <div className="mt-5 grid min-h-60 place-items-center rounded-2xl bg-slate-50 p-4">
               {qrBase64 ? (
-                <img src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`} alt="QR Code para conectar o WhatsApp" className="h-56 w-56" />
+                <img
+                  src={
+                    qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`
+                  }
+                  alt="QR Code para conectar o WhatsApp"
+                  className="h-56 w-56"
+                />
               ) : qrCode ? (
-                <div className="break-all rounded-xl bg-white p-3 text-xs text-slate-600">{qrCode}</div>
+                <div className="break-all rounded-xl bg-white p-3 text-xs text-slate-600">
+                  {qrCode}
+                </div>
               ) : (
-                <div className="text-center"><RefreshCw className={`mx-auto h-7 w-7 text-slate-400 ${qrLoading ? "animate-spin" : ""}`} /><p className="mt-3 text-sm text-slate-500">Gerando QR Code seguro para esta conta...</p></div>
+                <div className="text-center">
+                  <RefreshCw
+                    className={`mx-auto h-7 w-7 text-slate-400 ${qrLoading ? "animate-spin" : ""}`}
+                  />
+                  <p className="mt-3 text-sm text-slate-500">
+                    Gerando QR Code seguro para esta conta...
+                  </p>
+                </div>
               )}
             </div>
             {pairingCode && (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Código de pareamento</p><p className="mt-1 font-mono text-xl font-black tracking-[0.18em]">{pairingCode}</p></div>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                  Código de pareamento
+                </p>
+                <p className="mt-1 font-mono text-xl font-black tracking-[0.18em]">{pairingCode}</p>
+              </div>
             )}
-            <p className="mt-3 text-center text-xs text-slate-500">O status é atualizado automaticamente. Após a leitura, esta janela fecha quando a conexão estiver online.</p>
-            <Button variant="outline" onClick={() => void refreshQr()} disabled={qrLoading} className="mt-4 h-10 w-full rounded-xl"><RefreshCw className={`mr-2 h-4 w-4 ${qrLoading ? "animate-spin" : ""}`} /> Atualizar QR Code</Button>
-            <Button onClick={() => { setShowQr(false); void connection.refetch(); }} className="mt-2 h-11 w-full rounded-xl bg-blue-600 font-black text-white"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao atendimento</Button>
+            <p className="mt-3 text-center text-xs text-slate-500">
+              O status é atualizado automaticamente. Após a leitura, esta janela fecha quando a
+              conexão estiver online.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => void refreshQr()}
+              disabled={qrLoading}
+              className="mt-4 h-10 w-full rounded-xl"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${qrLoading ? "animate-spin" : ""}`} /> Atualizar
+              QR Code
+            </Button>
+            <Button
+              onClick={() => {
+                setShowQr(false);
+                void connection.refetch();
+              }}
+              className="mt-2 h-11 w-full rounded-xl bg-blue-600 font-black text-white"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao atendimento
+            </Button>
           </div>
         </div>
       )}
@@ -1083,7 +1454,12 @@ function AtendimentoPage() {
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-start justify-between gap-3"><span className="text-[var(--mi-text-soft)]">{label}</span><span className="text-right font-bold">{value}</span></div>;
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-[var(--mi-text-soft)]">{label}</span>
+      <span className="text-right font-bold">{value}</span>
+    </div>
+  );
 }
 
 function SummaryMetric({ value, label }: { value: string; label: string }) {

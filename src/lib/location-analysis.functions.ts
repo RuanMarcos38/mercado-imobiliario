@@ -272,7 +272,8 @@ function countOsmAmenities(elements: unknown[]): AmenityCounts {
     const amenity = String(tags["amenity"] ?? "");
     if (["school", "college", "university", "kindergarten"].includes(amenity)) counts.schools += 1;
     if (["hospital", "clinic", "doctors", "pharmacy"].includes(amenity)) counts.health += 1;
-    if (["supermarket", "convenience"].includes(String(tags["shop"] ?? ""))) counts.supermarkets += 1;
+    if (["supermarket", "convenience"].includes(String(tags["shop"] ?? "")))
+      counts.supermarkets += 1;
     if (["park", "playground", "garden"].includes(String(tags["leisure"] ?? ""))) counts.parks += 1;
     if (
       tags["public_transport"] ||
@@ -409,7 +410,8 @@ async function getMarketEvidence(db: any, city: string, state: string, neighborh
     recentListings90d: Number(row["recent_listings_90d"] ?? 0),
     sourceCount: Number(row["source_count"] ?? 0),
     latestSeenAt: row["latest_seen_at"] ? String(row["latest_seen_at"]) : null,
-    pricingScope: row["pricing_scope"] === "residencial" ? ("residencial" as const) : ("todos" as const),
+    pricingScope:
+      row["pricing_scope"] === "residencial" ? ("residencial" as const) : ("todos" as const),
     scope: row["scope"] === "bairro" ? ("bairro" as const) : ("cidade" as const),
   };
 }

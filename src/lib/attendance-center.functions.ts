@@ -110,7 +110,12 @@ async function ensureConversation(db: any, tenantId: string, conversationId: str
   return data;
 }
 
-async function setOwnPresence(db: any, tenantId: string, userId: string, status: AttendantPresenceStatus) {
+async function setOwnPresence(
+  db: any,
+  tenantId: string,
+  userId: string,
+  status: AttendantPresenceStatus,
+) {
   const now = new Date().toISOString();
   const { error } = await db.from("whatsapp_attendant_presence").upsert(
     {
@@ -257,10 +262,7 @@ export const endAttendanceConversation = createServerFn({ method: "POST" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
     const conversation = await ensureConversation(db, tenantId, data.conversationId);
-    if (
-      conversation.assigned_user_id &&
-      conversation.assigned_user_id !== context.userId
-    ) {
+    if (conversation.assigned_user_id && conversation.assigned_user_id !== context.userId) {
       throw new Error("Somente o atendente responsável pode encerrar este atendimento.");
     }
     const now = new Date().toISOString();
@@ -387,7 +389,12 @@ export const setSensitiveDataVisibility = createServerFn({ method: "POST" })
       .maybeSingle();
     if (targetError) throw new Error(targetError.message);
     if (!target) throw new Error("Usuário não pertence a esta organização.");
-    if (["owner", "admin", "administrator"].includes(String(target.member_role ?? "").toLowerCase()) && !data.allowed) {
+    if (
+      ["owner", "admin", "administrator"].includes(
+        String(target.member_role ?? "").toLowerCase(),
+      ) &&
+      !data.allowed
+    ) {
       throw new Error("A visibilidade do proprietário/administrador não pode ser removida.");
     }
     const { error } = await admin
@@ -406,7 +413,13 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
     const db = context.supabase as any;
     const requester = await membership(db, tenantId, context.userId);
 
-    const [{ count: waiting }, { data: sessions, error: sessionError }, { data: members, error: membersError }, { data: presence, error: presenceError }, { data: active, error: activeError }] = await Promise.all([
+    const [
+      { count: waiting },
+      { data: sessions, error: sessionError },
+      { data: members, error: membersError },
+      { data: presence, error: presenceError },
+      { data: active, error: activeError },
+    ] = await Promise.all([
       db
         .from("whatsapp_conversations")
         .select("id", { count: "exact", head: true })
@@ -442,7 +455,9 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
     const { data: profiles } = userIds.length
       ? await db.from("profiles").select("id,full_name").in("id", userIds)
       : { data: [] };
-    const names = new Map((profiles ?? []).map((row: any) => [String(row.id), String(row.full_name || "Atendente")]));
+    const names = new Map(
+      (profiles ?? []).map((row: any) => [String(row.id), String(row.full_name || "Atendente")]),
+    );
     const presenceByUser = new Map((presence ?? []).map((row: any) => [String(row.user_id), row]));
     const activeCounts = new Map<string, number>();
     for (const row of active ?? []) {
@@ -461,7 +476,8 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
         statusSince: String(live?.status_since || new Date(0).toISOString()),
         activeConversations: activeCounts.get(userId) ?? 0,
         canViewSensitiveData:
-          Boolean(row.can_view_sensitive_data) || ["owner", "admin", "administrator"].includes(role),
+          Boolean(row.can_view_sensitive_data) ||
+          ["owner", "admin", "administrator"].includes(role),
       };
     });
 
