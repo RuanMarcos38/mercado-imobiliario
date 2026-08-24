@@ -37,9 +37,7 @@ function createSupabaseAdminClient() {
   const SUPABASE_SERVICE_ROLE_KEY = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
   if (!PUBLIC_SUPABASE_URL) {
-    throw new Error(
-      "Missing MercadoImobi Supabase URL. Configure the dedicated MercadoImobi/Casa Conectada project in EasyPanel.",
-    );
+    throw new Error("Missing MercadoImobi Supabase URL. Configure the dedicated MercadoImobi/Casa Conectada project in EasyPanel.");
   }
 
   if (!SUPABASE_SERVICE_ROLE_KEY) {

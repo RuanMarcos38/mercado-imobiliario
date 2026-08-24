@@ -10,7 +10,7 @@ function normalize(value: string | undefined): string {
 function projectIdFromUrl(url: string): string {
   try {
     const host = new URL(url).hostname;
-    return host.endsWith(".supabase.co") ? (host.split(".")[0] ?? "") : "";
+    return host.endsWith(".supabase.co") ? host.split(".")[0] ?? "" : "";
   } catch {
     return "";
   }
