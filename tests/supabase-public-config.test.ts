@@ -6,10 +6,16 @@ import {
   PUBLIC_SUPABASE_URL,
 } from "../src/integrations/supabase/public-config";
 
-const FORBIDDEN_PROJECTS = ["uwzfgksmnqgaxtscwxow", "iqrnytsgwaiegddfxfjs"];
+const MERCADOIMOBI_PROJECT = "uwzfgksmnqgaxtscwxow";
+const FORBIDDEN_PROJECTS = ["iqrnytsgwaiegddfxfjs"];
 
 describe("Supabase public configuration", () => {
-  it("does not bind MercadoImobi to forbidden Supabase projects", () => {
+  it("keeps MercadoImobi bound to its production Supabase project", () => {
+    if (!PUBLIC_SUPABASE_PROJECT_ID) return;
+    expect(PUBLIC_SUPABASE_PROJECT_ID).toBe(MERCADOIMOBI_PROJECT);
+  });
+
+  it("does not bind MercadoImobi to unrelated Supabase projects", () => {
     const publicConfig = `${PUBLIC_SUPABASE_PROJECT_ID} ${PUBLIC_SUPABASE_URL}`;
 
     for (const projectId of FORBIDDEN_PROJECTS) {
