@@ -25,8 +25,7 @@ const configuredProjectId =
   projectIdFromUrl(configuredUrl) ||
   MERCADOIMOBI_SUPABASE_PROJECT_ID;
 const configuredPublishableKey =
-  normalize(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) ||
-  MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY;
+  normalize(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) || MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY;
 
 if (configuredProjectId && FORBIDDEN_SUPABASE_PROJECT_IDS.has(configuredProjectId)) {
   throw new Error("MercadoImobi cannot use the CRM R2 MARKETING DIGITAL Supabase project");
