@@ -9,7 +9,6 @@ import {
   Bookmark,
   Building2,
   Check,
-  ExternalLink,
   Gavel,
   Heart,
   Mail,
@@ -299,7 +298,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
       sessionStorage.setItem("mercadoimobi:selectedConversation", conversation.id);
       sessionStorage.setItem(
         "mercadoimobi:propertyContext",
-        JSON.stringify({ id: property.id, title: property.title, url: property.source_url }),
+        JSON.stringify({ id: property.id, title: property.title, url: null }),
       );
       void navigate({ to: "/atendimento" });
     } catch {
@@ -766,7 +765,7 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                 <p className="mt-1 text-sm font-semibold text-[var(--mi-text)]">{property.title}</p>
                 {!available && (
                   <Badge className="mt-2 bg-amber-500/10 text-amber-700 dark:text-amber-200">
-                    Anúncio indisponível
+                    Imóvel indisponível
                   </Badge>
                 )}
               </div>
@@ -921,7 +920,7 @@ function PropertyCard({
         <p className="mi-property-meta mt-2 flex items-center gap-1.5 text-[11px]">
           <MapPin className="h-3.5 w-3.5 shrink-0" />{" "}
           {[property.location_city, property.location_state].filter(Boolean).join(" - ") ||
-            "Localização no anúncio"}
+            "Localização não informada"}
         </p>
 
         <div className="mt-3 flex items-end justify-between gap-3">
@@ -1013,17 +1012,6 @@ function PropertyCard({
                 title="E-mail"
               >
                 <Mail className="h-3.5 w-3.5" />
-              </a>
-            )}
-            {property.source_url && (
-              <a
-                href={property.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-white"
-                title="Abrir anúncio original"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
           </div>
@@ -1158,7 +1146,7 @@ function PropertyModal({
             label="Localização"
             value={
               [property.location_city, property.location_state].filter(Boolean).join(" - ") ||
-              "No anúncio"
+              "Não informada"
             }
           />
           <Detail
@@ -1189,16 +1177,6 @@ function PropertyModal({
             >
               <MessageCircle className="h-3.5 w-3.5" /> Atendimento
             </button>
-          )}
-          {property.source_url && (
-            <a
-              href={property.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-black text-white"
-            >
-              Abrir anúncio original <ExternalLink className="h-3.5 w-3.5" />
-            </a>
           )}
         </div>
       </div>
@@ -1382,7 +1360,7 @@ function calculateBestValueKeys(items: PropertySearchItem[]) {
 
 function formatPrice(value: number | null) {
   return value == null
-    ? "Preço no anúncio"
+    ? "Preço não informado"
     : new Intl.NumberFormat("pt-BR", {
         style: "currency",
         currency: "BRL",

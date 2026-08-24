@@ -40,10 +40,12 @@ export const listFavoritePropertiesWithStatus = createServerFn({ method: "GET" }
       }
     }
 
-    return snapshots.map((item) => ({
-      ...item,
-      available: item.property.source_url
-        ? currentUrls.has(item.property.source_url.trim().toLowerCase())
-        : true,
-    }));
+    return snapshots.map((item) => {
+      const sourceUrl = item.property.source_url;
+      return {
+        ...item,
+        property: { ...item.property, source_url: null },
+        available: sourceUrl ? currentUrls.has(sourceUrl.trim().toLowerCase()) : true,
+      };
+    });
   });

@@ -83,6 +83,23 @@ export interface PropertySearchItem {
   evaluation_value: number | null;
 }
 
+function stripExternalUrls(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = value
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || null;
+}
+
+function sanitizePropertyForClient(item: PropertySearchItem): PropertySearchItem {
+  return {
+    ...item,
+    source_url: null,
+    description: stripExternalUrls(item.description),
+  };
+}
+
 function keyFor(item: PropertySearchItem): string {
   if (item.source_url) return item.source_url.trim().toLowerCase();
   return [item.title, item.location_address, item.location_city, item.location_state, item.price]
@@ -453,7 +470,9 @@ export const searchRealProperties = createServerFn({ method: "POST" })
       deduped.set(key, item);
     }
 
-    const items = sortItems(Array.from(deduped.values()), input.sort, input.market).slice(0, limit);
+    const items = sortItems(Array.from(deduped.values()), input.sort, input.market)
+      .slice(0, limit)
+      .map(sanitizePropertyForClient);
     const latestTimestamp =
       items
         .map((item) => item.updated_at)
