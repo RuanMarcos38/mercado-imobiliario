@@ -1,0 +1,150 @@
+name: Repair WhatsApp attendance
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Apply attendance repair
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"Expected snippet not found in {path}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          # 1) Connection lifecycle: correct production webhook fallback + explicit disconnect.
+          path = Path('src/lib/whatsapp-connection.functions.ts')
+          text = path.read_text()
+          text = text.replace(
+              'const DEFAULT_MERCADOIMOBI_URL = "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br";',
+              'const DEFAULT_MERCADOIMOBI_URL = "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host";'
+          )
+          text = text.replace(
+              '  const appBaseUrl =\n    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\\/$/, "") ?? DEFAULT_MERCADOIMOBI_URL;\n  return `${appBaseUrl}/api/public/hooks/whatsapp`;',
+              '  const appBaseUrl =\n    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\\/$/, "") ||\n    process.env["EASYPANEL_PUBLIC_URL"]?.trim().replace(/\\/$/, "") ||\n    process.env["APP_URL"]?.trim().replace(/\\/$/, "") ||\n    DEFAULT_MERCADOIMOBI_URL;\n  return `${appBaseUrl}/api/public/hooks/whatsapp`;'
+          )
+          if 'export const disconnectWhatsAppConnection' not in text:
+              text += '''\n\nexport const disconnectWhatsAppConnection = createServerFn({ method: "POST" })\n  .middleware([requireSupabaseAuth])\n  .handler(async ({ context }) => {\n    const config = evolutionGatewayConfig();\n    if (!config) throw new Error("EVOLUTION_ENV_MISSING");\n\n    const tenantId = await requireTenantId(context.supabase, context.userId);\n    const db = context.supabase as any;\n    const instance = await getTenantEvolutionInstance(db, tenantId);\n    if (!instance) {\n      return { success: true, connected: false, state: "disconnected" as EvolutionState };\n    }\n\n    let response = await evolutionRequest(\n      config,\n      `/instance/logout/${encodeURIComponent(instance)}`,\n      { method: "DELETE" },\n    );\n    if (response.status === 405) {\n      response = await evolutionRequest(\n        config,\n        `/instance/logout/${encodeURIComponent(instance)}`,\n        { method: "POST" },\n      );\n    }\n    if (!response.ok && response.status !== 404) {\n      if (response.status === 401 || response.status === 403) {\n        throw new Error("EVOLUTION_API_AUTH_FAILED");\n      }\n      throw new Error(`EVOLUTION_LOGOUT_HTTP_${response.status}`);\n    }\n\n    const now = new Date().toISOString();\n    const { error } = await db\n      .from("whatsapp_connections")\n      .update({ status: "disconnected", last_connected_at: null, updated_at: now })\n      .eq("tenant_id", tenantId)\n      .eq("instance_name", instance);\n    if (error) throw new Error(error.message);\n\n    return { success: true, connected: false, state: "disconnected" as EvolutionState };\n  });\n'''
+          path.write_text(text)
+
+          # 2) Incoming webhook: tolerate the currently observed Evolution instance-name mismatch.
+          replace_once(
+              'src/routes/api/public/hooks/whatsapp.tsx',
+              '''  if (!connection?.tenant_id) {\n    return Response.json({ ok: true, ignored: true, reason: "connection_not_found" });\n  }''',
+              '''  if (!connection?.tenant_id) {\n    // Production can temporarily receive an Evolution-generated instance name while the\n    // tenant still has one legacy instance saved. Only fall back when the project has\n    // exactly one eligible WhatsApp connection, avoiding cross-tenant ambiguity.\n    const connectedCandidates = await db\n      .from("whatsapp_connections")\n      .select("tenant_id,id,instance_name")\n      .eq("status", "connected")\n      .limit(2);\n    if ((connectedCandidates.data ?? []).length === 1) {\n      connection = connectedCandidates.data[0];\n    }\n  }\n\n  if (!connection?.tenant_id) {\n    const allCandidates = await db\n      .from("whatsapp_connections")\n      .select("tenant_id,id,instance_name")\n      .limit(2);\n    if ((allCandidates.data ?? []).length === 1) {\n      connection = allCandidates.data[0];\n    }\n  }\n\n  if (!connection?.tenant_id) {\n    return Response.json({ ok: true, ignored: true, reason: "connection_not_found" });\n  }'''
+          )
+          replace_once(
+              'src/routes/api/public/hooks/whatsapp.tsx',
+              '''          phone,\n          inboundText: body,\n        });''',
+              '''          phone,\n          inboundText: body,\n          inboundSentAt: sentAt,\n        });'''
+          )
+
+          # 3) Attendance page: auto-repair webhook, expose connect/disconnect and AI config shortcut.
+          replace_once(
+              'src/routes/_authenticated/atendimento.tsx',
+              'import { prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";',
+              'import { disconnectWhatsAppConnection, prepareWhatsAppConnection } from "@/lib/whatsapp-connection.functions";'
+          )
+          replace_once(
+              'src/routes/_authenticated/atendimento.tsx',
+              '  const prepareFn = useServerFn(prepareWhatsAppConnection);',
+              '  const prepareFn = useServerFn(prepareWhatsAppConnection);\n  const disconnectFn = useServerFn(disconnectWhatsAppConnection);'
+          )
+          replace_once(
+              'src/routes/_authenticated/atendimento.tsx',
+              '  const [actionLoading, setActionLoading] = useState(false);',
+              '  const [actionLoading, setActionLoading] = useState(false);\n  const [disconnecting, setDisconnecting] = useState(false);'
+          )
+          replace_once(
+              'src/routes/_authenticated/atendimento.tsx',
+              '''  const dashboard = useQuery({\n    queryKey: ["attendance-dashboard", dashboardPeriod],\n    queryFn: () => dashboardFn({ data: { startIso: startIsoForPeriod(dashboardPeriod) } }),\n    enabled: showRealtimePanel,\n    refetchInterval: showRealtimePanel ? 15_000 : false,\n  });\n\n  useEffect(() => {''',
+              '''  const dashboard = useQuery({\n    queryKey: ["attendance-dashboard", dashboardPeriod],\n    queryFn: () => dashboardFn({ data: { startIso: startIsoForPeriod(dashboardPeriod) } }),\n    enabled: showRealtimePanel,\n    refetchInterval: showRealtimePanel ? 15_000 : false,\n  });\n\n  useEffect(() => {\n    // Opening the attendance center also reconciles the Evolution webhook for the\n    // tenant's currently saved instance, so inbound messages keep flowing after deploys.\n    void prepareFn()\n      .then(() => connection.refetch())\n      .catch(() => undefined);\n  }, []);\n\n  useEffect(() => {'''
+          )
+          replace_once(
+              'src/routes/_authenticated/atendimento.tsx',
+              '''  const startConversation = async () => {''',
+              '''  const disconnect = async () => {\n    if (disconnecting) return;\n    if (!window.confirm("Desconectar este WhatsApp do MercadoImobi?")) return;\n    setDisconnecting(true);\n    try {\n      await disconnectFn();\n      setShowQr(false);\n      setQrBase64(null);\n      setQrCode(null);\n      setPairingCode(null);\n      await connection.refetch();\n      toast.success("WhatsApp desconectado. Você pode conectar novamente por QR Code.");\n    } catch (error) {\n      toast.error(error instanceof Error ? error.message : "Não foi possível desconectar o WhatsApp.");\n    } finally {\n      setDisconnecting(false);\n    }\n  };\n\n  const startConversation = async () => {'''
+          )
+          replace_once(
+              'src/routes/_authenticated/atendimento.tsx',
+              '''            {!connection.data?.connected && (\n              <Button\n                onClick={() => void connect()}\n                className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"\n              >\n                <Link2 className="mr-2 h-4 w-4" /> Conectar meu WhatsApp por QR Code\n              </Button>\n            )}''',
+              '''            {connection.data?.connected ? (\n              <Button\n                variant="outline"\n                disabled={disconnecting}\n                onClick={() => void disconnect()}\n                className="mt-3 h-11 w-full rounded-xl border-rose-300/50 font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"\n              >\n                <WifiOff className="mr-2 h-4 w-4" />\n                {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}\n              </Button>\n            ) : (\n              <Button\n                onClick={() => void connect()}\n                className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"\n              >\n                <Link2 className="mr-2 h-4 w-4" /> Conectar meu WhatsApp por QR Code\n              </Button>\n            )}\n            <Button\n              variant="outline"\n              onClick={() => window.location.assign("/fluxos")}\n              className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"\n            >\n              <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA e automático\n            </Button>'''
+          )
+
+          # 4) Flows page: make the AI/automatic controls editable instead of merely documented.
+          replace_once(
+              'src/routes/_authenticated/fluxos.tsx',
+              'import { useState } from "react";',
+              'import { useEffect, useState } from "react";'
+          )
+          replace_once(
+              'src/routes/_authenticated/fluxos.tsx',
+              '''import {\n  addWhatsAppFlowStep,\n  createWhatsAppFlow,\n  listWhatsAppFlows,\n} from "@/lib/whatsapp-admin.functions";''',
+              '''import {\n  addWhatsAppFlowStep,\n  createWhatsAppFlow,\n  getAiAgentSettings,\n  listWhatsAppFlows,\n  saveAiAgentSettings,\n} from "@/lib/whatsapp-admin.functions";'''
+          )
+          replace_once(
+              'src/routes/_authenticated/fluxos.tsx',
+              '''  const addStepFn = useServerFn(addWhatsAppFlowStep);\n  const [name, setName] = useState("Novo fluxo");''',
+              '''  const addStepFn = useServerFn(addWhatsAppFlowStep);\n  const getAiSettingsFn = useServerFn(getAiAgentSettings);\n  const saveAiSettingsFn = useServerFn(saveAiAgentSettings);\n  const [aiEnabled, setAiEnabled] = useState(true);\n  const [autoReply, setAutoReply] = useState(true);\n  const [agentName, setAgentName] = useState("Assistente MercadoImobi");\n  const [systemPrompt, setSystemPrompt] = useState("");\n  const [handoffKeywords, setHandoffKeywords] = useState("humano, corretor, atendente");\n  const [savingAi, setSavingAi] = useState(false);\n  const [name, setName] = useState("Novo fluxo");'''
+          )
+          replace_once(
+              'src/routes/_authenticated/fluxos.tsx',
+              '''  const flows = useQuery({ queryKey: ["whatsapp-flows"], queryFn: () => listFn() });\n\n  const create = async () => {''',
+              '''  const flows = useQuery({ queryKey: ["whatsapp-flows"], queryFn: () => listFn() });\n  const aiSettings = useQuery({\n    queryKey: ["ai-agent-settings"],\n    queryFn: () => getAiSettingsFn(),\n  });\n\n  useEffect(() => {\n    if (!aiSettings.data) return;\n    setAiEnabled(Boolean(aiSettings.data.enabled));\n    setAutoReply(Boolean(aiSettings.data.auto_reply));\n    setAgentName(aiSettings.data.agent_name || "Assistente MercadoImobi");\n    setSystemPrompt(aiSettings.data.system_prompt || "");\n    setHandoffKeywords((aiSettings.data.handoff_keywords ?? []).join(", "));\n  }, [aiSettings.data]);\n\n  const saveAi = async () => {\n    setSavingAi(true);\n    try {\n      const keywords = handoffKeywords\n        .split(",")\n        .map((item) => item.trim())\n        .filter(Boolean);\n      await saveAiSettingsFn({\n        data: {\n          enabled: aiEnabled,\n          agentName,\n          systemPrompt,\n          autoReply,\n          handoffKeywords: keywords.length ? keywords : ["humano", "corretor", "atendente"],\n        },\n      });\n      await aiSettings.refetch();\n      toast.success("Agente de IA e atendimento automático atualizados.");\n    } catch (error) {\n      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o agente de IA.");\n    } finally {\n      setSavingAi(false);\n    }\n  };\n\n  const create = async () => {'''
+          )
+          replace_once(
+              'src/routes/_authenticated/fluxos.tsx',
+              '''        <div className="mt-7 grid gap-6 xl:grid-cols-[420px_1fr]">''',
+              '''        <section className="mt-7 rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">\n          <div className="flex flex-wrap items-center justify-between gap-3">\n            <div>\n              <div className="flex items-center gap-2">\n                <Bot className="h-5 w-5 text-emerald-600" />\n                <h2 className="font-black">Agente de IA · Atendimento automático</h2>\n              </div>\n              <p className="mt-1 text-xs text-[var(--mi-text-soft)]">\n                O modo automático responde novas mensagens recebidas e transfere para humano quando necessário.\n              </p>\n            </div>\n            <span className={`rounded-full px-3 py-1 text-[10px] font-black ${aiEnabled && autoReply ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>\n              {aiEnabled && autoReply ? "AUTOMÁTICO ATIVO" : "AUTOMÁTICO PAUSADO"}\n            </span>\n          </div>\n\n          <div className="mt-5 grid gap-4 lg:grid-cols-2">\n            <label className="flex items-center justify-between rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm font-bold">\n              Ativar agente de IA\n              <input type="checkbox" checked={aiEnabled} onChange={(e) => setAiEnabled(e.target.checked)} className="h-4 w-4" />\n            </label>\n            <label className="flex items-center justify-between rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm font-bold">\n              Responder automaticamente\n              <input type="checkbox" checked={autoReply} onChange={(e) => setAutoReply(e.target.checked)} className="h-4 w-4" />\n            </label>\n            <Field label="Nome do agente">\n              <input value={agentName} onChange={(e) => setAgentName(e.target.value)} />\n            </Field>\n            <Field label="Palavras para transferir ao humano">\n              <input value={handoffKeywords} onChange={(e) => setHandoffKeywords(e.target.value)} placeholder="humano, corretor, atendente" />\n            </Field>\n            <div className="lg:col-span-2">\n              <Field label="Instruções do agente">\n                <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={5} />\n              </Field>\n            </div>\n          </div>\n          <Button\n            onClick={() => void saveAi()}\n            disabled={savingAi || aiSettings.isLoading}\n            className="mt-4 h-11 rounded-xl bg-emerald-600 px-5 font-black text-white hover:bg-emerald-700"\n          >\n            <Bot className="mr-2 h-4 w-4" /> {savingAi ? "Salvando..." : "Salvar agente e automático"}\n          </Button>\n        </section>\n\n        <div className="mt-7 grid gap-6 xl:grid-cols-[420px_1fr]">'''
+          )
+          PY
+
+          npx prettier --write \
+            src/lib/whatsapp-connection.functions.ts \
+            src/routes/api/public/hooks/whatsapp.tsx \
+            src/routes/_authenticated/atendimento.tsx \
+            src/routes/_authenticated/fluxos.tsx
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No repair changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/whatsapp-connection.functions.ts \
+                  src/routes/api/public/hooks/whatsapp.tsx \
+                  src/routes/_authenticated/atendimento.tsx \
+                  src/routes/_authenticated/fluxos.tsx
+          git commit -m "fix: complete WhatsApp attendance, inbound and AI automation"
+          git pull --rebase origin main
+          git push origin HEAD:main
