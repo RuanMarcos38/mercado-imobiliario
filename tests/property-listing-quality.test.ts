@@ -49,6 +49,43 @@ describe("property listing quality guardrails", () => {
     ).toBe(true);
   });
 
+  it("rejeita páginas institucionais, contato e marketing", () => {
+    expect(
+      isRealEstateListing({
+        source_url: "https://www.patrimar.com.br/fale-conosco/canal-do-terreno/",
+        title: "Canal do Terreno - Patrimar",
+        property_type: "Terreno",
+      }),
+    ).toBe(false);
+    expect(
+      isRealEstateListing({
+        source_url: "https://www.helbor.com.br/empreendimentos/casa-piaui-studios/preview",
+        title: "Casa Piauí Studios | Helbor",
+        property_type: "Studio",
+      }),
+    ).toBe(false);
+  });
+
+  it("rejeita página imobiliária sem dado comercial estruturado", () => {
+    expect(
+      isFreshRealEstateListing(
+        {
+          source_url: "https://www.patrimar.com.br/empreendimento/connect-square/",
+          title: "Connect Square - Patrimar",
+          property_type: "Studio",
+          updated_at: "2026-08-17T17:30:00.000Z",
+          price: null,
+          location_address: null,
+          location_city: null,
+          area_sqm: null,
+          bedrooms: null,
+          bathrooms: null,
+        },
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
   it("rejeita veículo mesmo em URL de portal conhecido", () => {
     expect(
       isRealEstateListing({
