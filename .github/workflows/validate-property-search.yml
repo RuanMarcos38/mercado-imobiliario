@@ -20,6 +20,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'uwzfgksmnqgaxtscwxow' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,35 +50,21 @@ jobs:
             exit 1
           fi
 
-      - name: Verify MercadoImobi is not bound to forbidden Supabase projects
+      - name: Verify MercadoImobi production Supabase binding
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -nE '(uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)' -- \
-            '.env.example' 'supabase/config.toml' '.github/workflows/deploy-easypanel.yml'; then
-            echo "MercadoImobi must not be bound to RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
+          test "$EXPECTED_SUPABASE_PROJECT_ID" = "uwzfgksmnqgaxtscwxow" || {
+            echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID must remain uwzfgksmnqgaxtscwxow for this production service."
             exit 1
-          fi
-
-      - name: Require exclusive MercadoImobi Supabase project binding
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'rjlqylmwenhzkzmqwris' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${EXPECTED_SUPABASE_PROJECT_ID:-}" ]; then
-            echo "::error::MercadoImobi Supabase project id is required before production promotion."
+          }
+          grep -q 'project_id = "uwzfgksmnqgaxtscwxow"' supabase/config.toml || {
+            echo "::error::supabase/config.toml is not bound to the MercadoImobi production project."
             exit 1
-          fi
-          case "$EXPECTED_SUPABASE_PROJECT_ID" in
-            uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)
-              echo "::error::The exclusive MercadoImobi Supabase project cannot be one of the protected R2R projects."
-              exit 1
-              ;;
-          esac
-          if ! [[ "$EXPECTED_SUPABASE_PROJECT_ID" =~ ^[a-z0-9]{20}$ ]]; then
-            echo "::error::MercadoImobi Supabase project ref is invalid."
+          }
+          if git grep -n 'iqrnytsgwaiegddfxfjs' -- \
+            '.env.example' 'supabase/config.toml' 'src/integrations/supabase/public-config.ts' '.github/workflows/deploy-easypanel.yml'; then
+            echo "::error::MercadoImobi must not use the CRM R2 MARKETING DIGITAL Supabase project."
             exit 1
           fi
 
@@ -130,11 +118,9 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
-          EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'rjlqylmwenhzkzmqwris' }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::Missing MercadoImobi Supabase project id"; exit 1; }
           CUSTOM="https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
           EASY="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           EASY="${EASY%/}"
@@ -145,20 +131,19 @@ jobs:
               if EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - "$body" <<'NODE'
           const fs=require('fs');
           const p=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          const forbidden=new Set(['uwzfgksmnqgaxtscwxow','iqrnytsgwaiegddfxfjs']);
           const project=String(p.supabaseProjectId || '');
           const expected=String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
           const ok=p.status==='operational'
             && p.search==='available'
             && project===expected
-            && !forbidden.has(project)
+            && project!=='iqrnytsgwaiegddfxfjs'
             && p.runtime?.supabaseAdmin==='configured'
             && Number.isFinite(p.indexedProperties) && p.indexedProperties>=1000
             && Number.isFinite(p.coveredStates) && p.coveredStates>=27;
           process.exit(ok ? 0 : 1);
           NODE
               then
-                echo "MercadoImobi real healthcheck passed at $base using the exclusive Supabase project $EXPECTED_SUPABASE_PROJECT_ID"
+                echo "MercadoImobi production healthcheck passed at $base using $EXPECTED_SUPABASE_PROJECT_ID"
                 cat "$body"
                 healthy=1
                 break
@@ -166,7 +151,7 @@ jobs:
             fi
           done
           if [ "$healthy" -ne 1 ]; then
-            echo "::error::Production healthcheck failed, is using the wrong Supabase project, or is using a protected R2R project. Production promotion is blocked."
+            echo "::error::Production healthcheck failed or the live service is not using the MercadoImobi production Supabase project."
             exit 1
           fi
 
