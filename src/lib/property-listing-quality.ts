@@ -53,6 +53,32 @@ const ALLOWED_PROPERTY_HOSTS = [
   "canalpro.grupozap.com",
 ];
 
+const NON_LISTING_PATH_MARKERS = [
+  "/blog",
+  "/noticia",
+  "/noticias",
+  "/news",
+  "/conteudo",
+  "/artigo",
+  "/artigos",
+  "/fale-conosco",
+  "/contato",
+  "/institucional",
+  "/sobre",
+  "/quem-somos",
+  "/trabalhe-conosco",
+  "/politica-de-privacidade",
+  "/privacidade",
+  "/termos",
+  "/categoria/",
+  "/tag/",
+  "/author/",
+  "/search/",
+  "/acompanhe-sua-obra",
+  "/preview",
+  "/canal-do-terreno",
+];
+
 function normalize(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFD")
@@ -64,6 +90,11 @@ function normalize(value: string | null | undefined) {
 function hostAllowed(hostname: string) {
   const host = hostname.toLowerCase();
   return ALLOWED_PROPERTY_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+}
+
+function isNonListingPath(pathname: string) {
+  const path = pathname.toLowerCase();
+  return NON_LISTING_PATH_MARKERS.some((marker) => path.includes(marker));
 }
 
 export function isFreshListing(timestamp: string | null | undefined, nowMs = Date.now()) {
@@ -89,6 +120,7 @@ export function isRealEstateListing(input: {
     return false;
   }
   if (!["http:", "https:"].includes(url.protocol) || !hostAllowed(url.hostname)) return false;
+  if (isNonListingPath(url.pathname)) return false;
 
   const context = normalize(
     [input.property_type, input.title, input.description].filter(Boolean).join(" "),
@@ -96,10 +128,32 @@ export function isRealEstateListing(input: {
   const hasPropertyContext = REAL_ESTATE_TERMS.some((term) => context.includes(term));
   if (!hasPropertyContext) return false;
 
-  // OLX possui várias categorias; nela o contexto imobiliário é obrigatório e nunca é inferido só pelo domínio.
   if (url.hostname === "olx.com.br" || url.hostname.endsWith(".olx.com.br"))
     return hasPropertyContext;
   return true;
+}
+
+export function isQualifiedPropertyRecord(input: {
+  listing_market?: string | null;
+  is_auction?: boolean | null;
+  price?: number | null;
+  location_address?: string | null;
+  location_city?: string | null;
+  area_sqm?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+}) {
+  if (input.listing_market === "caixa" || input.is_auction) return true;
+
+  const hasStructuredCommercialFact =
+    (typeof input.price === "number" && input.price > 0) ||
+    Boolean(input.location_address?.trim()) ||
+    Boolean(input.location_city?.trim()) ||
+    (typeof input.area_sqm === "number" && input.area_sqm > 0) ||
+    (typeof input.bedrooms === "number" && input.bedrooms > 0) ||
+    (typeof input.bathrooms === "number" && input.bathrooms > 0);
+
+  return hasStructuredCommercialFact;
 }
 
 export function isFreshRealEstateListing(
@@ -109,8 +163,20 @@ export function isFreshRealEstateListing(
     description?: string | null;
     property_type?: string | null;
     updated_at?: string | null;
+    listing_market?: string | null;
+    is_auction?: boolean | null;
+    price?: number | null;
+    location_address?: string | null;
+    location_city?: string | null;
+    area_sqm?: number | null;
+    bedrooms?: number | null;
+    bathrooms?: number | null;
   },
   nowMs = Date.now(),
 ) {
-  return isRealEstateListing(input) && isFreshListing(input.updated_at, nowMs);
+  return (
+    isRealEstateListing(input) &&
+    isFreshListing(input.updated_at, nowMs) &&
+    isQualifiedPropertyRecord(input)
+  );
 }
