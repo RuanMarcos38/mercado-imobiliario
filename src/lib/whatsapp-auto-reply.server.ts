@@ -28,6 +28,31 @@ async function sendEvolutionText(phone: string, text: string, instanceName: stri
   }
 }
 
+async function queueForHuman(input: { tenantId: string; conversationId: string }) {
+  const db = supabaseAdmin as any;
+  const { data: conversation } = await db
+    .from("whatsapp_conversations")
+    .select("attendance_state,waiting_since")
+    .eq("tenant_id", input.tenantId)
+    .eq("id", input.conversationId)
+    .maybeSingle();
+  if (!conversation || conversation.attendance_state === "in_service") return;
+  const now = new Date().toISOString();
+  await db
+    .from("whatsapp_conversations")
+    .update({
+      attendance_state: "waiting",
+      assigned_user_id: null,
+      waiting_since: conversation.waiting_since || now,
+      accepted_at: null,
+      first_response_at: null,
+      closed_at: null,
+      updated_at: now,
+    })
+    .eq("tenant_id", input.tenantId)
+    .eq("id", input.conversationId);
+}
+
 export async function maybeAutoReply(input: {
   tenantId: string;
   conversationId: string;
@@ -36,8 +61,6 @@ export async function maybeAutoReply(input: {
   inboundSentAt?: string;
 }) {
   if (!input.inboundText?.trim()) return { sent: false, reason: "empty" };
-  const apiKey = process.env["OPENAI_API_KEY"];
-  if (!apiKey) return { sent: false, reason: "ai_not_configured" };
 
   if (input.inboundSentAt) {
     const receivedAt = new Date(input.inboundSentAt).getTime();
@@ -47,19 +70,29 @@ export async function maybeAutoReply(input: {
     }
   }
 
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) {
+    await queueForHuman(input);
+    return { sent: false, reason: "ai_not_configured" };
+  }
+
   const db = supabaseAdmin as any;
   const { data: settings } = await db
     .from("ai_agent_settings")
     .select("enabled,auto_reply,agent_name,system_prompt,handoff_keywords")
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
-  if (!settings?.enabled || !settings?.auto_reply) return { sent: false, reason: "disabled" };
+  if (!settings?.enabled || !settings?.auto_reply) {
+    await queueForHuman(input);
+    return { sent: false, reason: "disabled" };
+  }
 
   const normalizedInbound = input.inboundText.toLowerCase();
   const handoffKeywords = (settings.handoff_keywords ?? [])
     .map((value: unknown) => String(value).trim().toLowerCase())
     .filter(Boolean);
   if (handoffKeywords.some((keyword: string) => normalizedInbound.includes(keyword))) {
+    await queueForHuman(input);
     return { sent: false, reason: "human_handoff" };
   }
 
@@ -72,7 +105,10 @@ export async function maybeAutoReply(input: {
     (connection?.instance_name ? String(connection.instance_name) : "") ||
     process.env["EVOLUTION_INSTANCE"]?.trim() ||
     "";
-  if (!instanceName) return { sent: false, reason: "whatsapp_not_connected" };
+  if (!instanceName) {
+    await queueForHuman(input);
+    return { sent: false, reason: "whatsapp_not_connected" };
+  }
 
   const { data: messages } = await db
     .from("whatsapp_messages")
@@ -110,12 +146,21 @@ export async function maybeAutoReply(input: {
     }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!response.ok) return { sent: false, reason: "ai_request_failed" };
+  if (!response.ok) {
+    await queueForHuman(input);
+    return { sent: false, reason: "ai_request_failed" };
+  }
   const reply = extractText(await response.json());
-  if (!reply) return { sent: false, reason: "ai_empty" };
+  if (!reply) {
+    await queueForHuman(input);
+    return { sent: false, reason: "ai_empty" };
+  }
 
   const evolutionPayload = await sendEvolutionText(input.phone, reply, instanceName);
-  if (!evolutionPayload) return { sent: false, reason: "whatsapp_send_failed" };
+  if (!evolutionPayload) {
+    await queueForHuman(input);
+    return { sent: false, reason: "whatsapp_send_failed" };
+  }
 
   const key = evolutionPayload["key"] as Record<string, unknown> | undefined;
   const externalMessageId =
@@ -137,7 +182,13 @@ export async function maybeAutoReply(input: {
   });
   await db
     .from("whatsapp_conversations")
-    .update({ last_message: reply, last_message_at: now, updated_at: now })
+    .update({
+      attendance_state: "automatic",
+      assigned_user_id: null,
+      last_message: reply,
+      last_message_at: now,
+      updated_at: now,
+    })
     .eq("id", input.conversationId)
     .eq("tenant_id", input.tenantId);
 
