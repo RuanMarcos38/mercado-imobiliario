@@ -289,20 +289,12 @@ function AtendimentoPage() {
         void conversations.refetch();
         if (selectedId) void messages.refetch();
       })
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "whatsapp_attendant_presence" },
-        () => {
-          if (showRealtimePanel) void dashboard.refetch();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "whatsapp_attendance_sessions" },
-        () => {
-          if (showRealtimePanel) void dashboard.refetch();
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_events" }, () => {
+        if (showRealtimePanel) void dashboard.refetch();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_events" }, () => {
+        if (showRealtimePanel) void dashboard.refetch();
+      })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);

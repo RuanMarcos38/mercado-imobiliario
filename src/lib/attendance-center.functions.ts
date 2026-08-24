@@ -243,11 +243,7 @@ async function currentState(
   return stateFromEvent(event, fallbackAssignedUserId);
 }
 
-async function setOwnPresence(
-  tenantId: string,
-  userId: string,
-  status: AttendantPresenceStatus,
-) {
+async function setOwnPresence(tenantId: string, userId: string, status: AttendantPresenceStatus) {
   const now = new Date().toISOString();
   await insertEvent(
     tenantId,
@@ -309,8 +305,7 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
 
     const permissionEvent = latestPermission.get(context.userId);
     const permissionMetadata = metadata(permissionEvent);
-    const canView =
-      member.canManageSensitiveVisibility || permissionMetadata["allowed"] === true;
+    const canView = member.canManageSensitiveVisibility || permissionMetadata["allowed"] === true;
 
     return (conversationsResult.data ?? []).map((row: any) => {
       const state = stateFromEvent(latestState.get(String(row.id)), row.assigned_user_id ?? null);
@@ -620,10 +615,7 @@ export const setSensitiveDataVisibility = createServerFn({ method: "POST" })
     const requester = await membership(tenantId, context.userId);
     if (!requester.canManageSensitiveVisibility) throw new Error("FORBIDDEN_PERMISSION_CHANGE");
     const target = await membership(tenantId, data.userId);
-    if (
-      ["owner", "admin", "administrator"].includes(target.role) &&
-      !data.allowed
-    ) {
+    if (["owner", "admin", "administrator"].includes(target.role) && !data.allowed) {
       throw new Error("A visibilidade do proprietário/administrador não pode ser removida.");
     }
     await insertEvent(
@@ -646,10 +638,7 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
     const [membersResult, conversationsResult, operationalEvents, sessionEventsResult] =
       await Promise.all([
         db.from("tenant_members").select("user_id,member_role").eq("tenant_id", tenantId),
-        db
-          .from("whatsapp_conversations")
-          .select("id,assigned_user_id")
-          .eq("tenant_id", tenantId),
+        db.from("whatsapp_conversations").select("id,assigned_user_id").eq("tenant_id", tenantId),
         loadOperationalEvents(tenantId),
         db
           .from("system_events")
@@ -688,14 +677,13 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
       const state = stateFromEvent(latestState.get(id), row.assigned_user_id ?? null);
       if (state.state === "waiting") waiting += 1;
       if (state.state === "in_service" && state.assignedUserId) {
-        activeCounts.set(
-          state.assignedUserId,
-          (activeCounts.get(state.assignedUserId) ?? 0) + 1,
-        );
+        activeCounts.set(state.assignedUserId, (activeCounts.get(state.assignedUserId) ?? 0) + 1);
       }
     }
 
-    const userIds = (membersResult.data ?? []).map((row: any) => String(row.user_id)).filter(Boolean);
+    const userIds = (membersResult.data ?? [])
+      .map((row: any) => String(row.user_id))
+      .filter(Boolean);
     const { data: profiles, error: profilesError } = userIds.length
       ? await db.from("profiles").select("id,full_name").in("id", userIds)
       : { data: [], error: null };
@@ -716,8 +704,7 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
         userId,
         name: names.get(userId) || "Atendente",
         status,
-        statusSince:
-          stringValue(presenceMetadata["statusSince"]) || new Date(0).toISOString(),
+        statusSince: stringValue(presenceMetadata["statusSince"]) || new Date(0).toISOString(),
         activeConversations: activeCounts.get(userId) ?? 0,
         canViewSensitiveData:
           ["owner", "admin", "administrator"].includes(role) ||
@@ -755,8 +742,7 @@ export const getAttendanceDashboard = createServerFn({ method: "POST" })
         current.queuedAt = stringValue(eventMetadata["queuedAt"]);
         current.acceptedAt = stringValue(eventMetadata["acceptedAt"]) || event.created_at;
       } else if (event.event_type === EVENT.firstResponse) {
-        current.firstResponseAt =
-          stringValue(eventMetadata["firstResponseAt"]) || event.created_at;
+        current.firstResponseAt = stringValue(eventMetadata["firstResponseAt"]) || event.created_at;
       } else if (event.event_type === EVENT.sessionClosed) {
         current.closedAt = stringValue(eventMetadata["closedAt"]) || event.created_at;
       }
