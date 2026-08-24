@@ -20,7 +20,8 @@ function projectIdFromUrl(url: string): string {
   }
 }
 
-const configuredUrl = normalize(import.meta.env.VITE_SUPABASE_URL) || MERCADOIMOBI_SUPABASE_URL;
+const configuredUrl =
+  normalize(import.meta.env.VITE_SUPABASE_URL) || MERCADOIMOBI_SUPABASE_URL;
 const configuredProjectId =
   normalize(import.meta.env.VITE_SUPABASE_PROJECT_ID) ||
   projectIdFromUrl(configuredUrl) ||
