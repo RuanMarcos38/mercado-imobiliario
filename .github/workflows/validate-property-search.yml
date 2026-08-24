@@ -68,6 +68,20 @@ jobs:
             exit 1
           fi
 
+      - name: Apply formatting to Supabase binding
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx prettier --write src/integrations/supabase/public-config.ts
+          if ! git diff --quiet -- src/integrations/supabase/public-config.ts; then
+            git config user.name "github-actions[bot]"
+            git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+            git add src/integrations/supabase/public-config.ts
+            git commit -m "chore: format MercadoImobi Supabase binding"
+            git push origin HEAD:main
+          fi
+
       - name: Verify source formatting
         run: npx prettier --check .
 
