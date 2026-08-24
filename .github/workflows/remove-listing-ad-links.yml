@@ -1,0 +1,94 @@
+name: Remove listing ad links
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: remove-listing-ad-links
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove external ad links and sanitize property results
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_required(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"missing expected block: {label}")
+              return text.replace(old, new)
+
+          search = Path('src/lib/property-search.functions.ts')
+          s = search.read_text()
+          marker = '''function keyFor(item: PropertySearchItem): string {\n'''
+          helper = '''function stripExternalUrls(value: string | null | undefined): string | null {\n  if (!value) return null;\n  const cleaned = value\n    .replace(/https?:\\/\\/\\S+/gi, " ")\n    .replace(/\\s{2,}/g, " ")\n    .trim();\n  return cleaned || null;\n}\n\nfunction sanitizePropertyForClient(item: PropertySearchItem): PropertySearchItem {\n  return {\n    ...item,\n    source_url: null,\n    description: stripExternalUrls(item.description),\n  };\n}\n\n'''
+          if helper not in s:
+              s = replace_required(s, marker, helper + marker, 'property sanitizer marker')
+
+          old_items = '''    const items = sortItems(Array.from(deduped.values()), input.sort, input.market).slice(0, limit);\n'''
+          new_items = '''    const items = sortItems(Array.from(deduped.values()), input.sort, input.market)\n      .slice(0, limit)\n      .map(sanitizePropertyForClient);\n'''
+          s = replace_required(s, old_items, new_items, 'sanitize returned search items')
+          search.write_text(s)
+
+          fav = Path('src/lib/favorite-status.functions.ts')
+          f = fav.read_text()
+          old_return = '''    return snapshots.map((item) => ({\n      ...item,\n      available: item.property.source_url\n        ? currentUrls.has(item.property.source_url.trim().toLowerCase())\n        : true,\n    }));\n'''
+          new_return = '''    return snapshots.map((item) => {\n      const sourceUrl = item.property.source_url;\n      return {\n        ...item,\n        property: { ...item.property, source_url: null },\n        available: sourceUrl ? currentUrls.has(sourceUrl.trim().toLowerCase()) : true,\n      };\n    });\n'''
+          f = replace_required(f, old_return, new_return, 'sanitize favorite links')
+          fav.write_text(f)
+
+          ui = Path('src/components/property/PropertyWorkspace.tsx')
+          u = ui.read_text()
+          u = u.replace('  ExternalLink,\n', '')
+          u = replace_required(
+              u,
+              'JSON.stringify({ id: property.id, title: property.title, url: property.source_url }),',
+              'JSON.stringify({ id: property.id, title: property.title, url: null }),',
+              'remove source url from attendance context',
+          )
+          replacements = {
+              'acompanhe novos\\n              anúncios em um único ambiente.': 'acompanhe novos\\n              imóveis em um único ambiente.',
+              '"Localização no anúncio"': '"Localização não informada"',
+              'Anúncio indisponível': 'Imóvel indisponível',
+              '"No anúncio"': '"Não informada"',
+              '"Preço no anúncio"': '"Preço não informado"',
+          }
+          for old, new in replacements.items():
+              u = u.replace(old, new)
+
+          card_link = '''            {property.source_url && (\n              <a\n                href={property.source_url}\n                target="_blank"\n                rel="noopener noreferrer"\n                className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-white"\n                title="Abrir anúncio original"\n              >\n                <ExternalLink className="h-3.5 w-3.5" />\n              </a>\n            )}\n'''
+          if card_link in u:
+              u = u.replace(card_link, '')
+          modal_link = '''          {property.source_url && (\n            <a\n              href={property.source_url}\n              target="_blank"\n              rel="noopener noreferrer"\n              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-black text-white"\n            >\n              Abrir anúncio original <ExternalLink className="h-3.5 w-3.5" />\n            </a>\n          )}\n'''
+          if modal_link in u:
+              u = u.replace(modal_link, '')
+          if 'Abrir anúncio original' in u or '<ExternalLink' in u:
+              raise SystemExit('external listing link remained in PropertyWorkspace')
+          ui.write_text(u)
+          PY
+
+          npx prettier --write src/lib/property-search.functions.ts src/lib/favorite-status.functions.ts src/components/property/PropertyWorkspace.tsx
+          git diff --check
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed."
+            exit 0
+          fi
+          git config user.name "RuanMarcos38"
+          git config user.email "ruanessencia8@gmail.com"
+          git add src/lib/property-search.functions.ts src/lib/favorite-status.functions.ts src/components/property/PropertyWorkspace.tsx
+          git commit -m "fix: remove advertising pages and external listing links"
+          git push origin HEAD:main
