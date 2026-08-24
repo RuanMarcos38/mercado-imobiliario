@@ -45,32 +45,15 @@ jobs:
           from pathlib import Path
           p = Path('src/routes/_authenticated/atendimento.tsx')
           text = p.read_text()
-          old = '''      .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "whatsapp_attendant_presence" },
-                () => {
-                  if (showRealtimePanel) void dashboard.refetch();
-                },
-              )
-              .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "whatsapp_attendance_sessions" },
-                () => {
-                  if (showRealtimePanel) void dashboard.refetch();
-                },
-              )'''
-          new = '''      .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "system_events" },
-                () => {
-                  void conversations.refetch();
-                  if (showRealtimePanel) void dashboard.refetch();
-                },
-              )'''
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif 'table: "system_events"' not in text:
-              raise SystemExit('Expected attendance realtime block not found')
+          old_names = ['whatsapp_attendant_presence', 'whatsapp_attendance_sessions']
+          changed = False
+          for name in old_names:
+              token = f'table: "{name}"'
+              if token in text:
+                  text = text.replace(token, 'table: "system_events"')
+                  changed = True
+          if not changed and 'table: "system_events"' not in text:
+              raise SystemExit('Expected attendance realtime subscriptions not found')
           p.write_text(text)
           PY
           git show origin/main:src/integrations/supabase/client.ts > src/integrations/supabase/client.ts
