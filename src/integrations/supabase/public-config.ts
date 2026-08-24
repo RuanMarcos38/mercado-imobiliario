@@ -1,7 +1,6 @@
 const MERCADOIMOBI_SUPABASE_PROJECT_ID = "uwzfgksmnqgaxtscwxow";
 const MERCADOIMOBI_SUPABASE_URL = "https://uwzfgksmnqgaxtscwxow.supabase.co";
-const MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i";
+const MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i";
 
 const FORBIDDEN_SUPABASE_PROJECT_IDS = new Set([
   "iqrnytsgwaiegddfxfjs", // CRM R2 MARKETING DIGITAL — outro projeto, não alterar/usar aqui.
@@ -20,8 +19,7 @@ function projectIdFromUrl(url: string): string {
   }
 }
 
-const configuredUrl =
-  normalize(import.meta.env.VITE_SUPABASE_URL) || MERCADOIMOBI_SUPABASE_URL;
+const configuredUrl = normalize(import.meta.env.VITE_SUPABASE_URL) || MERCADOIMOBI_SUPABASE_URL;
 const configuredProjectId =
   normalize(import.meta.env.VITE_SUPABASE_PROJECT_ID) ||
   projectIdFromUrl(configuredUrl) ||
