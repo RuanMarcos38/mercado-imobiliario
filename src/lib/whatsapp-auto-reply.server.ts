@@ -52,7 +52,9 @@ async function recordAttendanceState(
   extra: Record<string, unknown> = {},
 ) {
   const db = supabaseAdmin as any;
-  await db.from("system_events").insert({
+  const events = db.from("system_events");
+  if (!events || typeof events.insert !== "function") return;
+  await events.insert({
     tenant_id: tenantId,
     event_type: "attendance_state",
     severity: "info",
