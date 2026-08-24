@@ -5,7 +5,7 @@ on:
     branches: [feature/atendimento-suri-senior]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   migrate:
@@ -23,28 +23,55 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/atendimento-suri-senior
-      - name: Confirm exclusive MercadoImobi target
+      - name: Apply additive attendance migration safely
+        id: migrate
         shell: bash
         run: |
-          set -euo pipefail
-          if [ "${EXPECTED_PROJECT_ID:-}" != "rjlqylmwenhzkzmqwris" ]; then
-            echo "::error::Migration target is not the dedicated MercadoImobi Supabase project."
-            exit 1
-          fi
-      - name: Apply additive attendance migration
-        shell: bash
-        run: |
-          set -euo pipefail
+          set +e
           MIGRATION="supabase/migrations/20260824153000_atendimento_operacional_privacidade.sql"
-          URL="${SUPABASE_DB_URL:-${SUPABASE_DATABASE_URL:-${DIRECT_URL:-${DATABASE_URL:-}}}}"
-          if [ -n "$URL" ]; then
-            psql "$URL" -v ON_ERROR_STOP=1 -f "$MIGRATION"
-            exit 0
+          STATUS="UNKNOWN"
+
+          if [ "${EXPECTED_PROJECT_ID:-}" != "rjlqylmwenhzkzmqwris" ]; then
+            STATUS="TARGET_MISMATCH"
+          else
+            URL="${SUPABASE_DB_URL:-${SUPABASE_DATABASE_URL:-${DIRECT_URL:-${DATABASE_URL:-}}}}"
+            if [ -n "$URL" ]; then
+              case "$URL" in
+                *rjlqylmwenhzkzmqwris*)
+                  psql "$URL" -v ON_ERROR_STOP=1 -1 -f "$MIGRATION"
+                  if [ "$?" -eq 0 ]; then STATUS="SUCCESS"; else STATUS="CONNECTION_OR_SQL_FAILURE"; fi
+                  ;;
+                *)
+                  STATUS="UNSAFE_DATABASE_URL_REJECTED"
+                  ;;
+              esac
+            elif [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+              export PGPASSWORD="$SUPABASE_DB_PASSWORD"
+              psql "host=db.rjlqylmwenhzkzmqwris.supabase.co port=5432 dbname=postgres user=postgres sslmode=require connect_timeout=15" -v ON_ERROR_STOP=1 -1 -f "$MIGRATION"
+              if [ "$?" -eq 0 ]; then STATUS="SUCCESS"; else STATUS="CONNECTION_OR_SQL_FAILURE"; fi
+            else
+              STATUS="NO_DATABASE_SECRET"
+            fi
           fi
-          if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
-            export PGPASSWORD="$SUPABASE_DB_PASSWORD"
-            psql "host=db.${EXPECTED_PROJECT_ID}.supabase.co port=5432 dbname=postgres user=postgres sslmode=require connect_timeout=15" -v ON_ERROR_STOP=1 -f "$MIGRATION"
-            exit 0
+
+          printf '%s\n' "$STATUS" > .attendance-migration-status
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "Attendance migration result: $STATUS"
+          exit 0
+      - name: Commit generic migration status marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add .attendance-migration-status
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: record attendance migration status"
+            git push origin HEAD:feature/atendimento-suri-senior
           fi
-          echo "::error::No database connection secret is available in this repository."
-          exit 2
+      - name: Require successful migration
+        if: steps.migrate.outputs.status != 'SUCCESS'
+        shell: bash
+        run: |
+          echo "::error::Attendance migration did not complete: ${{ steps.migrate.outputs.status }}"
+          exit 1
