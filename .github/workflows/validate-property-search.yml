@@ -117,15 +117,17 @@ jobs:
             sleep 1
           done
           test -s /tmp/status.json || { cat /tmp/mercadoimobi-server.log || true; exit 1; }
-          node - <<'NODE'
+          EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - <<'NODE'
           const fs = require('fs');
           const status = JSON.parse(fs.readFileSync('/tmp/status.json', 'utf8'));
-          const missingDatabase = status.database === 'not_configured' && status.search === 'unavailable';
-          if (missingDatabase) {
-            if (status.status !== 'degraded') throw new Error(`status=${status.status}`);
-            process.exit(0);
+          const expected = String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
+          if (String(status.supabaseProjectId || '') !== expected) {
+            throw new Error(`project=${status.supabaseProjectId || 'missing'}`);
           }
-          if (status.status !== 'operational') throw new Error(`status=${status.status}`);
+          const noRuntimeSecrets = status.runtime?.supabaseAdmin === 'not_configured';
+          if (status.status !== 'operational' && !(status.status === 'degraded' && noRuntimeSecrets)) {
+            throw new Error(`status=${status.status}`);
+          }
           NODE
 
       - name: Verify real production health before promotion
