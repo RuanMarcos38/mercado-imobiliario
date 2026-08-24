@@ -1,0 +1,84 @@
+name: Implement attendance decision dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: implement-attendance-dashboard
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch attendance center without changing its structure
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/routes/_authenticated/atendimento.tsx")
+          text = path.read_text()
+
+          import_anchor = 'import { Button } from "@/components/ui/button";\n'
+          dashboard_import = 'import { AttendanceDecisionDashboard } from "@/components/attendance/AttendanceDecisionDashboard";\n'
+          if dashboard_import not in text:
+              if import_anchor not in text:
+                  raise SystemExit("Button import anchor not found")
+              text = text.replace(import_anchor, import_anchor + dashboard_import, 1)
+
+          text = text.replace('Painel em tempo real', 'Dashboard Atendimento', 1)
+          text = text.replace(
+              '<h2 className="font-black">Painel de atendimento em tempo real</h2>',
+              '<h2 className="font-black">Dashboard de Atendimento · Tempo Real</h2>',
+              1,
+          )
+          text = text.replace(
+              'Filas, presença da equipe e tempos operacionais com dados reais.',
+              'SLA, conversas sem resposta, risco operacional, capacidade da equipe e prioridades em dados reais.',
+              1,
+          )
+
+          section_anchor = '''              <section className="min-h-0 overflow-y-auto p-5">\n                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">'''
+          section_replacement = '''              <section className="min-h-0 overflow-y-auto p-5">\n                <AttendanceDecisionDashboard\n                  startIso={startIsoForPeriod(dashboardPeriod)}\n                  onOpenConversation={(conversationId, state) => {\n                    setSelectedId(conversationId);\n                    setQueueTab(state);\n                    setShowRealtimePanel(false);\n                  }}\n                />\n\n                <div className="flex flex-col gap-3 border-t border-[var(--mi-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">'''
+          if '<AttendanceDecisionDashboard' not in text:
+              if section_anchor not in text:
+                  raise SystemExit("Realtime panel section anchor not found")
+              text = text.replace(section_anchor, section_replacement, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Format changed files
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npx prettier --write \
+            src/routes/_authenticated/atendimento.tsx \
+            src/components/attendance/AttendanceDecisionDashboard.tsx \
+            src/lib/attendance-intelligence.functions.ts
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Attendance dashboard is already installed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/atendimento.tsx src/components/attendance/AttendanceDecisionDashboard.tsx src/lib/attendance-intelligence.functions.ts
+          git commit -m "feat: add strategic attendance decision dashboard"
+          git pull --rebase origin main
+          git push origin HEAD:main
