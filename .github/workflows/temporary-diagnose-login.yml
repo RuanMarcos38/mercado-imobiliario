@@ -1,0 +1,92 @@
+name: Temporary diagnose MercadoImobi login
+
+on:
+  push:
+    branches: [feature/atendimento-suri-senior]
+    paths:
+      - ".github/workflows/temporary-diagnose-login.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_PROJECT: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      VITE_SUPABASE_URL_SECRET: ${{ secrets.VITE_SUPABASE_URL }}
+      SUPABASE_URL_SECRET: ${{ secrets.SUPABASE_URL }}
+      SERVICE_ROLE_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/atendimento-suri-senior
+      - name: Diagnose without exposing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=.login-diagnostic-status
+          : > "$OUT"
+
+          derive_project() {
+            node -e 'try { const u=new URL(process.argv[1]); const h=u.hostname; console.log(h.endsWith(".supabase.co") ? h.split(".")[0] : ""); } catch { console.log(""); }' "$1"
+          }
+
+          EXPECTED="${EXPECTED_PROJECT:-}"
+          URL="${VITE_SUPABASE_URL_SECRET:-${SUPABASE_URL_SECRET:-}}"
+          SECRET_PROJECT=""
+          if [ -n "$URL" ]; then SECRET_PROJECT="$(derive_project "$URL")"; fi
+
+          LIVE_JSON=/tmp/live-status.json
+          LIVE_PROJECT=""
+          LIVE_STATUS="unreachable"
+          LIVE_SEARCH="unknown"
+          LIVE_ADMIN="unknown"
+          if curl -fsS --connect-timeout 8 --max-time 20 'https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host/api/public/status' -o "$LIVE_JSON"; then
+            LIVE_PROJECT="$(node -e 'const p=require(process.argv[1]); console.log(p.supabaseProjectId||"")' "$LIVE_JSON")"
+            LIVE_STATUS="$(node -e 'const p=require(process.argv[1]); console.log(p.status||"unknown")' "$LIVE_JSON")"
+            LIVE_SEARCH="$(node -e 'const p=require(process.argv[1]); console.log(p.search||"unknown")' "$LIVE_JSON")"
+            LIVE_ADMIN="$(node -e 'const p=require(process.argv[1]); console.log(p.runtime?.supabaseAdmin||"unknown")' "$LIVE_JSON")"
+          fi
+
+          ADMIN_EXISTS="not_checked"
+          ADMIN_CONFIRMED="not_checked"
+          if [ -n "$URL" ] && [ -n "${SERVICE_ROLE_SECRET:-}" ]; then
+            USERS=/tmp/admin-users.json
+            CODE="$(curl -sS --connect-timeout 8 --max-time 20 -w '%{http_code}' \
+              "$URL/auth/v1/admin/users?per_page=1000" \
+              -H "apikey: ${SERVICE_ROLE_SECRET}" \
+              -H "Authorization: Bearer ${SERVICE_ROLE_SECRET}" \
+              -o "$USERS" || true)"
+            if [ "$CODE" = "200" ]; then
+              ADMIN_EXISTS="$(node -e 'const p=require(process.argv[1]); const a=(p.users||[]).find(u=>String(u.email||"").toLowerCase()==="admin@r2rmarketingdigital.com.br"); console.log(a?"yes":"no")' "$USERS")"
+              ADMIN_CONFIRMED="$(node -e 'const p=require(process.argv[1]); const a=(p.users||[]).find(u=>String(u.email||"").toLowerCase()==="admin@r2rmarketingdigital.com.br"); console.log(a?.email_confirmed_at?"yes":a?"no":"n/a")' "$USERS")"
+            else
+              ADMIN_EXISTS="admin_api_http_${CODE:-000}"
+              ADMIN_CONFIRMED="unknown"
+            fi
+          fi
+
+          {
+            echo "EXPECTED_PROJECT=${EXPECTED:-unset}"
+            echo "SECRET_URL_PROJECT=${SECRET_PROJECT:-unset}"
+            echo "LIVE_PROJECT=${LIVE_PROJECT:-unset}"
+            echo "LIVE_STATUS=${LIVE_STATUS}"
+            echo "LIVE_SEARCH=${LIVE_SEARCH}"
+            echo "LIVE_ADMIN=${LIVE_ADMIN}"
+            echo "SERVICE_ROLE_AVAILABLE=$([ -n "${SERVICE_ROLE_SECRET:-}" ] && echo yes || echo no)"
+            echo "ADMIN_EXISTS=${ADMIN_EXISTS}"
+            echo "ADMIN_CONFIRMED=${ADMIN_CONFIRMED}"
+          } > "$OUT"
+          cat "$OUT"
+      - name: Commit sanitized diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add .login-diagnostic-status
+          git commit -m "chore: record sanitized login diagnostic" || exit 0
+          git push origin HEAD:feature/atendimento-suri-senior
