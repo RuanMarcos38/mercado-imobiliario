@@ -154,7 +154,11 @@ export function isQualifiedPropertyRecord(input: {
   bedrooms?: number | null;
   bathrooms?: number | null;
 }) {
-  if (input.listing_market === "caixa" || input.is_auction || isCaixaPropertyUrl(input.source_url)) {
+  if (
+    input.listing_market === "caixa" ||
+    input.is_auction ||
+    isCaixaPropertyUrl(input.source_url)
+  ) {
     return true;
   }
 
