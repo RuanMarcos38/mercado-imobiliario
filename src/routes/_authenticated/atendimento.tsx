@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { AttendanceDecisionDashboard } from "@/components/attendance/AttendanceDecisionDashboard";
 import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
 import {
   claimAttendanceConversation,
@@ -656,7 +657,7 @@ function AtendimentoPage() {
                 onClick={() => setShowRealtimePanel(true)}
                 className="rounded-xl border-blue-300/50 bg-[var(--mi-surface)] text-xs font-black text-blue-600"
               >
-                <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Painel em tempo real
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Dashboard Atendimento
               </Button>
             </div>
 
@@ -1206,9 +1207,10 @@ function AtendimentoPage() {
                   <BarChart3 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="font-black">Painel de atendimento em tempo real</h2>
+                  <h2 className="font-black">Dashboard de Atendimento · Tempo Real</h2>
                   <p className="text-xs text-[var(--mi-text-soft)]">
-                    Filas, presença da equipe e tempos operacionais com dados reais.
+                    SLA, conversas sem resposta, risco operacional, capacidade da equipe e
+                    prioridades em dados reais.
                   </p>
                 </div>
               </div>
@@ -1313,7 +1315,16 @@ function AtendimentoPage() {
               </aside>
 
               <section className="min-h-0 overflow-y-auto p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <AttendanceDecisionDashboard
+                  startIso={startIsoForPeriod(dashboardPeriod)}
+                  onOpenConversation={(conversationId, state) => {
+                    setSelectedId(conversationId);
+                    setQueueTab(state);
+                    setShowRealtimePanel(false);
+                  }}
+                />
+
+                <div className="flex flex-col gap-3 border-t border-[var(--mi-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-black">Equipe de atendimento</p>
                     <p className="mt-1 text-xs text-[var(--mi-text-soft)]">

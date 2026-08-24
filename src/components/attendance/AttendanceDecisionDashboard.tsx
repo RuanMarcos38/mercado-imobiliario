@@ -33,10 +33,14 @@ function duration(totalSeconds: number) {
 }
 
 function toneClasses(tone: "neutral" | "good" | "warn" | "danger" | "info") {
-  if (tone === "good") return "border-emerald-300/40 bg-emerald-500/[0.06] text-emerald-700 dark:text-emerald-300";
-  if (tone === "warn") return "border-amber-300/40 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300";
-  if (tone === "danger") return "border-rose-300/40 bg-rose-500/[0.06] text-rose-700 dark:text-rose-300";
-  if (tone === "info") return "border-blue-300/40 bg-blue-500/[0.06] text-blue-700 dark:text-blue-300";
+  if (tone === "good")
+    return "border-emerald-300/40 bg-emerald-500/[0.06] text-emerald-700 dark:text-emerald-300";
+  if (tone === "warn")
+    return "border-amber-300/40 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300";
+  if (tone === "danger")
+    return "border-rose-300/40 bg-rose-500/[0.06] text-rose-700 dark:text-rose-300";
+  if (tone === "info")
+    return "border-blue-300/40 bg-blue-500/[0.06] text-blue-700 dark:text-blue-300";
   return "border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]";
 }
 
@@ -69,7 +73,10 @@ function AgingBar({ label, count, total }: { label: string; count: number; total
         <span>{count}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-[var(--mi-border)]/60">
-        <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${width}%` }} />
+        <div
+          className="h-full rounded-full bg-blue-600 transition-all"
+          style={{ width: `${width}%` }}
+        />
       </div>
     </div>
   );
@@ -108,11 +115,13 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
             <h3 className="text-sm font-black">Cockpit de decisão do atendimento</h3>
           </div>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--mi-text-soft)]">
-            Indicadores operacionais para priorizar conversas, reduzir perda de lead e acompanhar SLA sem sair da Central.
+            Indicadores operacionais para priorizar conversas, reduzir perda de lead e acompanhar
+            SLA sem sair da Central.
           </p>
         </div>
         <span className="inline-flex items-center gap-2 self-start rounded-full border border-emerald-300/30 bg-emerald-500/[0.06] px-3 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Atualização a cada 15s
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Atualização a cada
+          15s
         </span>
       </div>
 
@@ -182,13 +191,17 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
                   <button
                     type="button"
                     key={conversation.conversationId}
-                    onClick={() => onOpenConversation(conversation.conversationId, conversation.state)}
+                    onClick={() =>
+                      onOpenConversation(conversation.conversationId, conversation.state)
+                    }
                     className="grid w-full gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition hover:bg-[var(--mi-surface-soft)] sm:grid-cols-[1fr_170px_90px] sm:items-center"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-xs font-black">{conversation.contactLabel}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${urgencyClasses(conversation.urgency)}`}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[8px] font-black ${urgencyClasses(conversation.urgency)}`}
+                        >
                           {urgencyLabel(conversation.urgency)}
                         </span>
                       </div>
@@ -209,7 +222,9 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 sm:block sm:text-right">
-                      <span className="text-[10px] text-[var(--mi-text-soft)] sm:hidden">Aguardando</span>
+                      <span className="text-[10px] text-[var(--mi-text-soft)] sm:hidden">
+                        Aguardando
+                      </span>
                       <p className="text-xs font-black">{duration(conversation.ageSeconds)}</p>
                       <p className="mt-0.5 text-[9px] font-bold text-blue-600">Abrir conversa</p>
                     </div>
@@ -238,7 +253,8 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
                       <p className="text-sm font-black">Governança de SLA</p>
                     </div>
                     <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
-                      Meta atual: até {duration(data.sla.waitingTargetSeconds)} para fila e {duration(data.sla.firstResponseTargetSeconds)} para 1ª resposta.
+                      Meta atual: até {duration(data.sla.waitingTargetSeconds)} para fila e{" "}
+                      {duration(data.sla.firstResponseTargetSeconds)} para 1ª resposta.
                     </p>
                   </div>
                   <span className="text-xl font-black">
@@ -247,11 +263,15 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3">
-                    <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[var(--mi-text-soft)]">Taxa de resposta</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[var(--mi-text-soft)]">
+                      Taxa de resposta
+                    </p>
                     <p className="mt-1 text-lg font-black">{data.answerRatePct}%</p>
                   </div>
                   <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3">
-                    <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[var(--mi-text-soft)]">Backlog atual</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[var(--mi-text-soft)]">
+                      Backlog atual
+                    </p>
                     <p className="mt-1 text-lg font-black">{data.backlogNow}</p>
                   </div>
                 </div>
@@ -307,7 +327,10 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
             </div>
             <div className="mt-3 grid gap-2 lg:grid-cols-2">
               {data.insights.map((insight) => (
-                <div key={insight} className="flex items-start gap-2 rounded-xl bg-[var(--mi-surface)] px-3 py-2.5 text-xs leading-5">
+                <div
+                  key={insight}
+                  className="flex items-start gap-2 rounded-xl bg-[var(--mi-surface)] px-3 py-2.5 text-xs leading-5"
+                >
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
                   {insight}
                 </div>

@@ -86,7 +86,10 @@ function isState(value: unknown): value is AttendanceOperationalState {
   return value === "waiting" || value === "in_service" || value === "automatic";
 }
 
-function stateFromEvent(event: EventRow | undefined, fallbackAssignedUserId: string | null): CurrentState {
+function stateFromEvent(
+  event: EventRow | undefined,
+  fallbackAssignedUserId: string | null,
+): CurrentState {
   const metadata = object(event?.metadata);
   return {
     state: isState(metadata["state"])
@@ -149,46 +152,51 @@ export const getAttendanceIntelligence = createServerFn({ method: "POST" })
     const now = new Date();
     const nowMs = now.getTime();
 
-    const [conversationsResult, stateEventsResult, periodMessagesResult, latestMessagesResult, sessionEventsResult] =
-      await Promise.all([
-        database
-          .from("whatsapp_conversations")
-          .select("id,contact_name,phone_e164,last_message_at,unread_count,assigned_user_id")
-          .eq("tenant_id", tenantId)
-          .limit(1000),
-        database
-          .from("system_events")
-          .select("event_type,metadata,created_at")
-          .eq("tenant_id", tenantId)
-          .eq("event_type", "attendance_state")
-          .order("created_at", { ascending: false })
-          .limit(5000),
-        database
-          .from("whatsapp_messages")
-          .select("conversation_id,direction,sent_at")
-          .eq("tenant_id", tenantId)
-          .gte("sent_at", data.startIso)
-          .order("sent_at", { ascending: true })
-          .limit(10000),
-        database
-          .from("whatsapp_messages")
-          .select("conversation_id,direction,sent_at")
-          .eq("tenant_id", tenantId)
-          .order("sent_at", { ascending: false })
-          .limit(10000),
-        database
-          .from("system_events")
-          .select("event_type,metadata,created_at")
-          .eq("tenant_id", tenantId)
-          .in("event_type", [
-            "attendance_session_started",
-            "attendance_first_response",
-            "attendance_session_closed",
-          ])
-          .gte("created_at", data.startIso)
-          .order("created_at", { ascending: true })
-          .limit(5000),
-      ]);
+    const [
+      conversationsResult,
+      stateEventsResult,
+      periodMessagesResult,
+      latestMessagesResult,
+      sessionEventsResult,
+    ] = await Promise.all([
+      database
+        .from("whatsapp_conversations")
+        .select("id,contact_name,phone_e164,last_message_at,unread_count,assigned_user_id")
+        .eq("tenant_id", tenantId)
+        .limit(1000),
+      database
+        .from("system_events")
+        .select("event_type,metadata,created_at")
+        .eq("tenant_id", tenantId)
+        .eq("event_type", "attendance_state")
+        .order("created_at", { ascending: false })
+        .limit(5000),
+      database
+        .from("whatsapp_messages")
+        .select("conversation_id,direction,sent_at")
+        .eq("tenant_id", tenantId)
+        .gte("sent_at", data.startIso)
+        .order("sent_at", { ascending: true })
+        .limit(10000),
+      database
+        .from("whatsapp_messages")
+        .select("conversation_id,direction,sent_at")
+        .eq("tenant_id", tenantId)
+        .order("sent_at", { ascending: false })
+        .limit(10000),
+      database
+        .from("system_events")
+        .select("event_type,metadata,created_at")
+        .eq("tenant_id", tenantId)
+        .in("event_type", [
+          "attendance_session_started",
+          "attendance_first_response",
+          "attendance_session_closed",
+        ])
+        .gte("created_at", data.startIso)
+        .order("created_at", { ascending: true })
+        .limit(5000),
+    ]);
 
     for (const result of [
       conversationsResult,
@@ -203,13 +211,15 @@ export const getAttendanceIntelligence = createServerFn({ method: "POST" })
     const latestState = new Map<string, EventRow>();
     for (const event of (stateEventsResult.data ?? []) as EventRow[]) {
       const conversationId = stringValue(object(event.metadata)["conversationId"]);
-      if (conversationId && !latestState.has(conversationId)) latestState.set(conversationId, event);
+      if (conversationId && !latestState.has(conversationId))
+        latestState.set(conversationId, event);
     }
 
     const latestMessage = new Map<string, any>();
     for (const message of latestMessagesResult.data ?? []) {
       const conversationId = String(message.conversation_id ?? "");
-      if (conversationId && !latestMessage.has(conversationId)) latestMessage.set(conversationId, message);
+      if (conversationId && !latestMessage.has(conversationId))
+        latestMessage.set(conversationId, message);
     }
 
     const activeConversationIds = new Set<string>();
@@ -336,17 +346,32 @@ export const getAttendanceIntelligence = createServerFn({ method: "POST" })
 
       const candidates: Array<{ reason: string; age: number; target: number }> = [];
       if (state.state === "waiting" && waitingAge > 0) {
-        candidates.push({ reason: "Aguardando atendimento humano", age: waitingAge, target: WAITING_SLA_SECONDS });
+        candidates.push({
+          reason: "Aguardando atendimento humano",
+          age: waitingAge,
+          target: WAITING_SLA_SECONDS,
+        });
       }
       if (state.state === "in_service" && !state.firstResponseAt && firstResponseAge > 0) {
-        candidates.push({ reason: "Atendimento assumido sem 1ª resposta", age: firstResponseAge, target: FIRST_RESPONSE_SLA_SECONDS });
+        candidates.push({
+          reason: "Atendimento assumido sem 1ª resposta",
+          age: firstResponseAge,
+          target: FIRST_RESPONSE_SLA_SECONDS,
+        });
       }
       if (latestIsInbound && unansweredAge > 0) {
-        candidates.push({ reason: "Cliente aguardando resposta", age: unansweredAge, target: FIRST_RESPONSE_SLA_SECONDS });
+        candidates.push({
+          reason: "Cliente aguardando resposta",
+          age: unansweredAge,
+          target: FIRST_RESPONSE_SLA_SECONDS,
+        });
       }
 
       const worst = candidates
-        .map((candidate) => ({ ...candidate, pct: Math.round((candidate.age / candidate.target) * 100) }))
+        .map((candidate) => ({
+          ...candidate,
+          pct: Math.round((candidate.age / candidate.target) * 100),
+        }))
         .sort((a, b) => b.pct - a.pct)[0];
       if (!worst) continue;
 
@@ -406,10 +431,14 @@ export const getAttendanceIntelligence = createServerFn({ method: "POST" })
       );
     }
     if (measuredSessions.length > 0 && slaCompliancePct < 90) {
-      insights.push(`A aderência ao SLA no período está em ${slaCompliancePct}%; a meta recomendada é manter pelo menos 90%.`);
+      insights.push(
+        `A aderência ao SLA no período está em ${slaCompliancePct}%; a meta recomendada é manter pelo menos 90%.`,
+      );
     }
     if (peakInboundHour) {
-      insights.push(`Maior concentração de mensagens recebidas no período: ${peakInboundHour}. Considere reforçar capacidade nesse intervalo.`);
+      insights.push(
+        `Maior concentração de mensagens recebidas no período: ${peakInboundHour}. Considere reforçar capacidade nesse intervalo.`,
+      );
     }
     if (!insights.length) {
       insights.push("Operação estável: não há gargalo crítico identificado neste momento.");
