@@ -28,29 +28,93 @@ async function sendEvolutionText(phone: string, text: string, instanceName: stri
   }
 }
 
+async function latestAttendanceState(tenantId: string, conversationId: string) {
+  const db = supabaseAdmin as any;
+  const { data } = await db
+    .from("system_events")
+    .select("metadata,created_at")
+    .eq("tenant_id", tenantId)
+    .eq("event_type", "attendance_state")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  return (data ?? []).find(
+    (row: any) =>
+      row?.metadata &&
+      typeof row.metadata === "object" &&
+      String(row.metadata.conversationId ?? "") === conversationId,
+  );
+}
+
+async function recordAttendanceState(
+  tenantId: string,
+  conversationId: string,
+  state: "waiting" | "automatic",
+  extra: Record<string, unknown> = {},
+) {
+  const db = supabaseAdmin as any;
+  await db.from("system_events").insert({
+    tenant_id: tenantId,
+    event_type: "attendance_state",
+    severity: "info",
+    message:
+      state === "waiting"
+        ? "Conversa encaminhada automaticamente para atendimento humano"
+        : "Conversa mantida no atendimento automático",
+    metadata: {
+      conversationId,
+      state,
+      assignedUserId: null,
+      departmentName: "Geral",
+      ...extra,
+    },
+  });
+}
+
 async function queueForHuman(input: { tenantId: string; conversationId: string }) {
   const db = supabaseAdmin as any;
   const { data: conversation } = await db
     .from("whatsapp_conversations")
-    .select("attendance_state,waiting_since")
+    .select("assigned_user_id")
     .eq("tenant_id", input.tenantId)
     .eq("id", input.conversationId)
     .maybeSingle();
-  if (!conversation || conversation.attendance_state === "in_service") return;
+  if (!conversation || conversation.assigned_user_id) return;
+
+  const previous = await latestAttendanceState(input.tenantId, input.conversationId);
+  const previousMetadata =
+    previous?.metadata && typeof previous.metadata === "object" ? previous.metadata : {};
+  if (previousMetadata.state === "in_service") return;
   const now = new Date().toISOString();
   await db
     .from("whatsapp_conversations")
-    .update({
-      attendance_state: "waiting",
-      assigned_user_id: null,
-      waiting_since: conversation.waiting_since || now,
-      accepted_at: null,
-      first_response_at: null,
-      closed_at: null,
-      updated_at: now,
-    })
+    .update({ assigned_user_id: null, updated_at: now })
     .eq("tenant_id", input.tenantId)
     .eq("id", input.conversationId);
+  await recordAttendanceState(input.tenantId, input.conversationId, "waiting", {
+    waitingSince:
+      typeof previousMetadata.waitingSince === "string" && previousMetadata.waitingSince
+        ? previousMetadata.waitingSince
+        : now,
+    acceptedAt: null,
+    firstResponseAt: null,
+    closedAt: null,
+  });
+}
+
+async function keepAutomatic(input: { tenantId: string; conversationId: string }) {
+  const db = supabaseAdmin as any;
+  const now = new Date().toISOString();
+  await db
+    .from("whatsapp_conversations")
+    .update({ assigned_user_id: null, updated_at: now })
+    .eq("tenant_id", input.tenantId)
+    .eq("id", input.conversationId);
+  await recordAttendanceState(input.tenantId, input.conversationId, "automatic", {
+    waitingSince: null,
+    acceptedAt: null,
+    firstResponseAt: null,
+    closedAt: null,
+  });
 }
 
 export async function maybeAutoReply(input: {
@@ -182,15 +246,10 @@ export async function maybeAutoReply(input: {
   });
   await db
     .from("whatsapp_conversations")
-    .update({
-      attendance_state: "automatic",
-      assigned_user_id: null,
-      last_message: reply,
-      last_message_at: now,
-      updated_at: now,
-    })
+    .update({ last_message: reply, last_message_at: now, updated_at: now })
     .eq("id", input.conversationId)
     .eq("tenant_id", input.tenantId);
+  await keepAutomatic(input);
 
   return { sent: true, reason: "sent" };
 }
