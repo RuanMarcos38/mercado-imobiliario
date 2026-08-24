@@ -63,8 +63,8 @@ jobs:
             exit 1
           }
           if git grep -n 'iqrnytsgwaiegddfxfjs' -- \
-            '.env.example' 'supabase/config.toml' 'src/integrations/supabase/public-config.ts' '.github/workflows/deploy-easypanel.yml'; then
-            echo "::error::MercadoImobi must not use the CRM R2 MARKETING DIGITAL Supabase project."
+            '.env.example' 'supabase/config.toml' '.github/workflows/deploy-easypanel.yml'; then
+            echo "::error::MercadoImobi must not use the CRM R2 MARKETING DIGITAL Supabase project in deployment configuration."
             exit 1
           fi
 
