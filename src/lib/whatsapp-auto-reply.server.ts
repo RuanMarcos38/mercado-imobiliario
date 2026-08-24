@@ -248,10 +248,20 @@ export async function maybeAutoReply(input: {
   });
   await db
     .from("whatsapp_conversations")
-    .update({ last_message: reply, last_message_at: now, updated_at: now })
+    .update({
+      assigned_user_id: null,
+      last_message: reply,
+      last_message_at: now,
+      updated_at: now,
+    })
     .eq("id", input.conversationId)
     .eq("tenant_id", input.tenantId);
-  await keepAutomatic(input);
+  await recordAttendanceState(input.tenantId, input.conversationId, "automatic", {
+    waitingSince: null,
+    acceptedAt: null,
+    firstResponseAt: null,
+    closedAt: null,
+  });
 
   return { sent: true, reason: "sent" };
 }
