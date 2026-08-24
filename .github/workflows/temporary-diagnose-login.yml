@@ -10,17 +10,16 @@ permissions:
   contents: write
 
 jobs:
-  diagnose:
+  repair:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/atendimento-suri-senior
           fetch-depth: 0
-
-      - name: Repair attendance realtime source
+      - name: Replace obsolete attendance realtime subscriptions
         shell: bash
         run: |
           set -euo pipefail
@@ -28,7 +27,7 @@ jobs:
           from pathlib import Path
           p = Path('src/routes/_authenticated/atendimento.tsx')
           text = p.read_text()
-          old = '''      .on(
+          text = text.replace('''      .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "whatsapp_attendant_presence" },
                 () => {
@@ -41,90 +40,28 @@ jobs:
                 () => {
                   if (showRealtimePanel) void dashboard.refetch();
                 },
-              )'''
-          new = '''      .on(
+              )''', '''      .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "system_events" },
                 () => {
                   void conversations.refetch();
                   if (showRealtimePanel) void dashboard.refetch();
                 },
-              )'''
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif 'table: "system_events"' not in text:
-              raise SystemExit('Expected attendance realtime block not found')
+              )''', 1)
+          if 'whatsapp_attendant_presence' in text or 'whatsapp_attendance_sessions' in text:
+              raise SystemExit('obsolete attendance realtime subscriptions still present')
           p.write_text(text)
           PY
-
-      - name: Diagnose live target and request password recovery safely
+      - name: Commit repair
         shell: bash
         run: |
           set -euo pipefail
-          OUT=.login-diagnostic-status
-          HOST='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host'
-          PROJECT='rjlqylmwenhzkzmqwris'
-          LIVE_JSON=/tmp/live-status.json
-          LIVE_PROJECT=unset
-          LIVE_STATUS=unreachable
-          LIVE_SEARCH=unknown
-          LIVE_ADMIN=unknown
-          RECOVERY=not_attempted
-
-          if curl -fsS --connect-timeout 8 --max-time 20 "$HOST/api/public/status" -o "$LIVE_JSON"; then
-            LIVE_PROJECT="$(node -e 'const p=require(process.argv[1]); console.log(p.supabaseProjectId||"unset")' "$LIVE_JSON")"
-            LIVE_STATUS="$(node -e 'const p=require(process.argv[1]); console.log(p.status||"unknown")' "$LIVE_JSON")"
-            LIVE_SEARCH="$(node -e 'const p=require(process.argv[1]); console.log(p.search||"unknown")' "$LIVE_JSON")"
-            LIVE_ADMIN="$(node -e 'const p=require(process.argv[1]); console.log(p.runtime?.supabaseAdmin||"unknown")' "$LIVE_JSON")"
-          fi
-
-          if [ "$LIVE_PROJECT" = "$PROJECT" ]; then
-            mkdir -p /tmp/mercadoimobi-assets
-            curl -fsS --connect-timeout 8 --max-time 20 "$HOST/auth" -o /tmp/auth.html || true
-            grep -Eo 'src="[^"]+\.js[^" ]*"' /tmp/auth.html 2>/dev/null | sed -E 's/^src="//;s/"$//' | sort -u > /tmp/scripts.txt || true
-            while IFS= read -r SRC; do
-              [ -n "$SRC" ] || continue
-              case "$SRC" in
-                http*) URL="$SRC" ;;
-                /*) URL="$HOST$SRC" ;;
-                *) URL="$HOST/$SRC" ;;
-              esac
-              NAME="$(printf '%s' "$SRC" | sha256sum | cut -c1-16).js"
-              curl -fsS --connect-timeout 8 --max-time 20 "$URL" -o "/tmp/mercadoimobi-assets/$NAME" || true
-            done < /tmp/scripts.txt
-
-            KEY="$(grep -RhoE 'sb_publishable_[A-Za-z0-9_-]+' /tmp/mercadoimobi-assets /tmp/auth.html 2>/dev/null | head -n1 || true)"
-            if [ -n "$KEY" ]; then
-              CODE="$(curl -sS --connect-timeout 8 --max-time 20 -w '%{http_code}' \
-                -X POST "https://${PROJECT}.supabase.co/auth/v1/recover?redirect_to=${HOST}/auth?type=recovery" \
-                -H "apikey: $KEY" \
-                -H 'Content-Type: application/json' \
-                --data '{"email":"admin@r2rmarketingdigital.com.br"}' \
-                -o /tmp/recover-response.json || true)"
-              if [ "$CODE" = "200" ]; then RECOVERY=request_accepted; else RECOVERY="http_${CODE:-000}"; fi
-            else
-              RECOVERY=publishable_key_not_found
-            fi
-          else
-            RECOVERY=live_project_mismatch
-          fi
-
-          {
-            echo "LIVE_PROJECT=$LIVE_PROJECT"
-            echo "LIVE_STATUS=$LIVE_STATUS"
-            echo "LIVE_SEARCH=$LIVE_SEARCH"
-            echo "LIVE_ADMIN=$LIVE_ADMIN"
-            echo "RECOVERY_REQUEST=$RECOVERY"
-          } > "$OUT"
-          cat "$OUT"
-
-      - name: Format and commit sanitized repair result
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx prettier --write src/routes/_authenticated/atendimento.tsx
           git config user.name "github-actions[bot]"
           git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
-          git add src/routes/_authenticated/atendimento.tsx .login-diagnostic-status
-          git commit -m "fix: finalize attendance realtime and verify login recovery" || exit 0
+          git add src/routes/_authenticated/atendimento.tsx
+          if git diff --cached --quiet; then
+            echo "No source change required."
+            exit 0
+          fi
+          git commit -m "fix: use system events for attendance realtime"
           git push origin HEAD:feature/atendimento-suri-senior
