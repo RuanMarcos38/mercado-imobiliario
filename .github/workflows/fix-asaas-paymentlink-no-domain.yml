@@ -1,0 +1,64 @@
+name: Fix Asaas payment link without account domain
+
+on:
+  push:
+    branches: [fix/asaas-paymentlink-no-domain-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/asaas-paymentlink-no-domain-20260825
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Remove callback only from Payment Link fallback
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/asaas-billing.server.ts')
+          text=p.read_text()
+          old='''      notificationEnabled: true,\n      isAddressRequired: false,\n      callback: {\n        successUrl: `${input.origin}/assinatura?checkout=success&gateway=asaas&plan=${encodeURIComponent(input.plan.slug)}`,\n        autoRedirect: true,\n      },'''
+          new='''      notificationEnabled: true,\n      isAddressRequired: false,'''
+          if old not in text:
+              raise SystemExit('Expected Payment Link callback block not found')
+          p.write_text(text.replace(old,new,1))
+          Path('.github/workflows/fix-asaas-paymentlink-no-domain.yml').unlink()
+          PY
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write src/lib/asaas-billing.server.ts
+      - name: Lint
+        run: npm run lint
+      - name: Critical tests
+        run: npx vitest run tests/critical-flows.spec.ts tests/platform-buttons.test.ts tests/asaas-billing.test.ts
+      - name: Production build
+        run: npm run build
+      - name: Restore generated files and commit only the Asaas change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout origin/production -- src/routeTree.gen.ts src/routes/'[.mcp]'/invoke-tool/'$tool.ts' src/routes/'[.mcp]'/list-tools.ts src/routes/'[.well-known]'/oauth-protected-resource.ts src/routes/mcp.ts || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          CHANGED="$(git diff --cached --name-only)"
+          echo "$CHANGED"
+          test "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l)" -eq 2
+          printf '%s\n' "$CHANGED" | grep -qx 'src/lib/asaas-billing.server.ts'
+          printf '%s\n' "$CHANGED" | grep -qx '.github/workflows/fix-asaas-paymentlink-no-domain.yml'
+          git diff --cached --check
+          git commit -m "fix: permitir link Asaas sem domínio cadastrado"
+          git push origin HEAD:fix/asaas-paymentlink-no-domain-20260825
