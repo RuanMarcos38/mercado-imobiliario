@@ -94,7 +94,8 @@ export const Route = createFileRoute("/_authenticated")({
     let subscriptionPlanId: string | null = null;
     let planName: string | null = null;
     let planSlug: string | null = null;
-    let planFeatures: string[] | null = null;
+    let planFeatures: string[] = [];
+    let entitlementLoaded = false;
     let featureOverrides = new Map<string, boolean>();
 
     try {
@@ -120,20 +121,23 @@ export const Route = createFileRoute("/_authenticated")({
       );
 
       if (subscriptionPlanId) {
-        const { data: plan } = await supabase
+        const { data: plan, error: planError } = await supabase
           .from("subscription_plans")
           .select("slug,name,feature_keys")
           .eq("id", subscriptionPlanId)
           .maybeSingle();
+        if (planError) throw planError;
         if (plan) {
           planName = String(plan.name ?? "");
           planSlug = String(plan.slug ?? "");
           planFeatures = Array.isArray(plan.feature_keys) ? plan.feature_keys.map(String) : [];
         }
       }
+      entitlementLoaded = true;
     } catch {
-      // Fail-open preserves the current platform if billing metadata is temporarily unavailable.
-      planFeatures = null;
+      // Fail closed for subscriber features: temporary billing metadata failures must not grant a larger plan.
+      planFeatures = [];
+      entitlementLoaded = false;
     }
 
     const isPlatformAdmin = userRoles.includes("admin");
@@ -153,7 +157,11 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/atendimento" });
     }
 
-    const allowedFeatures = new Set<string>(planFeatures ?? routeFeatureMap.map(([, key]) => key));
+    const hasPlanEntitlement =
+      entitlementLoaded &&
+      ["active", "trialing"].includes(subscriptionStatus ?? "") &&
+      Boolean(subscriptionPlanId);
+    const allowedFeatures = new Set<string>(hasPlanEntitlement ? planFeatures : []);
     for (const [featureKey, allowed] of featureOverrides) {
       if (allowed) allowedFeatures.add(featureKey);
       else allowedFeatures.delete(featureKey);

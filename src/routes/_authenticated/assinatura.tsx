@@ -79,11 +79,16 @@ function SubscriptionPage() {
         return;
       }
       toast.error(
-        message.includes("STRIPE_NOT_CONFIGURED")
-          ? "O checkout ainda precisa das credenciais de cobrança no servidor."
-          : message.includes("PLAN_REQUIRES_COMMERCIAL")
-            ? "Este plano é contratado diretamente com o administrador."
-            : "Não foi possível abrir o pagamento agora.",
+        message.includes("ASAAS_PIX_ACCOUNT_NOT_APPROVED") ||
+          message.includes("ASAAS_PIX_NOT_AVAILABLE")
+          ? "Pix temporariamente indisponível no Asaas. Conclua a aprovação da conta bancária e da documentação; depois disso a chave Pix será ativada automaticamente."
+          : message.includes("ASAAS_PIX_KEY_ACTIVATING")
+            ? "A chave Pix está sendo ativada no Asaas. Aguarde alguns instantes e tente novamente."
+            : message.includes("STRIPE_NOT_CONFIGURED")
+              ? "O checkout ainda precisa das credenciais de cobrança no servidor."
+              : message.includes("PLAN_REQUIRES_COMMERCIAL")
+                ? "Este plano é contratado diretamente com o administrador."
+                : "Não foi possível abrir o pagamento agora.",
       );
     }
   };

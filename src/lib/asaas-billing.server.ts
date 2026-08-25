@@ -183,6 +183,52 @@ async function ensurePaymentWebhook(config: AsaasConfig, origin: string, email?:
   await asaasRequest(config, "/webhooks", { method: "POST", body: JSON.stringify(body) });
 }
 
+async function ensureAsaasPixReady(config: AsaasConfig) {
+  const activeKeys = await asaasRequest(config, "/pix/addressKeys?status=ACTIVE&offset=0&limit=1", {
+    method: "GET",
+  });
+  const keys = Array.isArray(activeKeys["data"]) ? activeKeys["data"] : [];
+  if (keys.length > 0) return;
+
+  const accountStatus = await asaasRequest(config, "/myAccount/status/", { method: "GET" });
+  const general = String(accountStatus["general"] ?? "UNKNOWN").toUpperCase();
+  const bank = String(accountStatus["bankAccountInfo"] ?? "UNKNOWN").toUpperCase();
+  const documentation = String(accountStatus["documentation"] ?? "UNKNOWN").toUpperCase();
+  if (general !== "APPROVED") {
+    throw new Error(`ASAAS_PIX_ACCOUNT_NOT_APPROVED:${general}:${bank}:${documentation}`);
+  }
+
+  let created: JsonObject;
+  try {
+    created = await asaasRequest(config, "/pix/addressKeys", {
+      method: "POST",
+      body: JSON.stringify({ type: "EVP" }),
+    });
+  } catch (error) {
+    const message = String((error as Error)?.message ?? "");
+    if (
+      message.toLowerCase().includes("não está totalmente aprovada") ||
+      message.toLowerCase().includes("nenhuma chave pix")
+    ) {
+      throw new Error("ASAAS_PIX_NOT_AVAILABLE");
+    }
+    throw error;
+  }
+
+  if (String(created["status"] ?? "").toUpperCase() === "ACTIVE") return;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    const refreshed = await asaasRequest(
+      config,
+      "/pix/addressKeys?status=ACTIVE&offset=0&limit=1",
+      { method: "GET" },
+    );
+    const active = Array.isArray(refreshed["data"]) ? refreshed["data"] : [];
+    if (active.length > 0) return;
+  }
+  throw new Error("ASAAS_PIX_KEY_ACTIVATING");
+}
+
 async function createAsaasRecurringPaymentLink(
   config: AsaasConfig,
   input: {
@@ -201,6 +247,7 @@ async function createAsaasRecurringPaymentLink(
       ? `Assinatura ${input.plan.name}. A primeira cobrança inclui a implantação. As próximas cobranças são somente da mensalidade do plano.`
       : `Assinatura mensal MercadoImobi — ${input.plan.name}.`;
   const billingType = normalizeAsaasBillingType(input.paymentMethod);
+  if (billingType === "PIX") await ensureAsaasPixReady(config);
   const payload = await asaasRequest(config, "/paymentLinks", {
     method: "POST",
     body: JSON.stringify({
