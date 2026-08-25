@@ -14,6 +14,7 @@ export interface AffiliateCommissionItem {
   commissionAmount: number;
   status: "pending" | "available" | "paid" | "reversed";
   availableAt: string;
+  paidAt: string | null;
   createdAt: string;
   sourceName: string;
 }
@@ -63,7 +64,7 @@ async function buildOverview(db: any, userId: string): Promise<AffiliateOverview
     db
       .from("affiliate_commissions")
       .select(
-        "id,source_user_id,level,rate,gross_amount,commission_amount,status,available_at,created_at",
+        "id,source_user_id,level,rate,gross_amount,commission_amount,status,available_at,paid_at,created_at",
       )
       .eq("beneficiary_user_id", userId)
       .order("created_at", { ascending: false })
@@ -130,6 +131,7 @@ async function buildOverview(db: any, userId: string): Promise<AffiliateOverview
       commissionAmount: amount,
       status: effectiveStatus,
       availableAt: String(item.available_at),
+      paidAt: item.paid_at ? String(item.paid_at) : null,
       createdAt: String(item.created_at),
       sourceName: sourceNames.get(String(item.source_user_id)) || "Usuário indicado",
     };
