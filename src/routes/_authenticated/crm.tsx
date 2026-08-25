@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CrmPipelineWorkspace } from "@/components/crm/CrmPipelineWorkspace";
+import { CrmWorkspaceShell } from "@/components/crm/CrmWorkspaceShell";
 
 export const Route = createFileRoute("/_authenticated/crm")({
-  component: CrmPipelineWorkspace,
+  component: CrmWorkspaceShell,
   head: () => ({ title: "CRM de Oportunidades | MercadoImobi" }),
 });
