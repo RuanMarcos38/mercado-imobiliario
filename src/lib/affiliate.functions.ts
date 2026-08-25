@@ -29,7 +29,7 @@ export interface AffiliateOverview {
 }
 
 async function ensureAffiliateProfile(db: any, userId: string) {
-  let { data: profile, error } = await db
+  const { data: profile, error } = await db
     .from("affiliate_profiles")
     .select("user_id,referral_code,sponsor_user_id,is_active")
     .eq("user_id", userId)
