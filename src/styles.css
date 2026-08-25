@@ -144,6 +144,10 @@ html.light-mode [class~="bg-[#06101c]"] {
   background-color: #f8fafc !important;
 }
 
+html.light-mode [class~="bg-[#06101c]/88"] {
+  background-color: rgba(248, 250, 252, 0.94) !important;
+}
+
 html.light-mode [class~="bg-[#07111f]"],
 html.light-mode [class~="bg-[#07111f]/95"],
 html.light-mode [class~="bg-[#0b1727]"],
