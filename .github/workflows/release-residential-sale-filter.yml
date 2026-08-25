@@ -1,0 +1,68 @@
+name: Release residential sale catalog filter
+
+on:
+  push:
+    branches: [release/residential-sale-filter-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/residential-sale-filter-20260825
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Format changed source
+        run: npx prettier --write src/lib/property-listing-quality.ts src/lib/property-discovery.server.ts tests/property-listing-quality.test.ts
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test -- --passWithNoTests
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify residential-sale safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'RESIDENTIAL_SALE_TERMS' src/lib/property-listing-quality.ts
+          grep -q 'hasSaleIntent' src/lib/property-listing-quality.ts
+          grep -q 'imóveis residenciais à venda' src/lib/property-discovery.server.ts
+          grep -q 'Grand Golf' tests/property-listing-quality.test.ts
+          grep -q 'trg_property_search_index_residential_sale' supabase/migrations/20260825154500_filter_residential_sale_listings.sql
+          grep -q 'property_rejected_listings' supabase/migrations/20260825154500_filter_residential_sale_listings.sql
+
+      - name: Commit final release tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/release-residential-sale-filter.yml
+          git add src/lib/property-listing-quality.ts src/lib/property-discovery.server.ts tests/property-listing-quality.test.ts supabase/migrations/20260825154500_filter_residential_sale_listings.sql
+          git commit -m "fix: keep only genuine residential sale listings" || true
+
+      - name: Promote targeted release to production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          git push --force-with-lease origin HEAD:refs/heads/production
