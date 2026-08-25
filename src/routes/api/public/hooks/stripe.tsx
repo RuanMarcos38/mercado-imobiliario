@@ -25,7 +25,9 @@ function verifyStripeSignature(rawBody: string, signatureHeader: string, secret:
   return signatures.some((signature) => {
     try {
       const candidate = Buffer.from(signature, "hex");
-      return candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer);
+      return (
+        candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer)
+      );
     } catch {
       return false;
     }

@@ -53,7 +53,9 @@ function SubscriptionPage() {
 
   const checkout = async (plan: BillingPlan) => {
     if (!plan.selfService) {
-      toast.info("O plano Enterprise é contratado sob proposta. Solicite a ativação ao administrador.");
+      toast.info(
+        "O plano Enterprise é contratado sob proposta. Solicite a ativação ao administrador.",
+      );
       return;
     }
     try {
@@ -62,7 +64,9 @@ function SubscriptionPage() {
     } catch (error) {
       const message = String((error as Error)?.message ?? "");
       if (message.includes("ACTIVE_SUBSCRIPTION_USE_PORTAL")) {
-        toast.info("Sua assinatura já está ativa. Use o portal de cobrança para gerenciar a contratação.");
+        toast.info(
+          "Sua assinatura já está ativa. Use o portal de cobrança para gerenciar a contratação.",
+        );
         await portal();
         return;
       }
@@ -93,7 +97,9 @@ function SubscriptionPage() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
               Planos MercadoImobi
             </p>
-            <h1 className="mt-2 text-3xl font-black">Escolha a estrutura ideal para sua operação</h1>
+            <h1 className="mt-2 text-3xl font-black">
+              Escolha a estrutura ideal para sua operação
+            </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--mi-text-muted)]">
               Cada contratação libera automaticamente os módulos e limites correspondentes ao plano,
               preservando seus dados, CRM, conversas e configurações.
@@ -127,7 +133,10 @@ function SubscriptionPage() {
               <div className="mt-6 h-40 animate-pulse rounded-2xl bg-[var(--mi-bg-soft)]" />
             ) : (
               <div className="mt-6 grid gap-3 sm:grid-cols-4">
-                <Metric label="Plano atual" value={subscription?.planName ?? "Sem plano definido"} />
+                <Metric
+                  label="Plano atual"
+                  value={subscription?.planName ?? "Sem plano definido"}
+                />
                 <Metric label="Situação" value={statusLabel[currentStatus] ?? "Sem assinatura"} />
                 <Metric
                   label="Fim do período"
@@ -150,8 +159,8 @@ function SubscriptionPage() {
 
             {!overview.data?.configured && (
               <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-sm leading-6 text-[var(--mi-text-muted)]">
-                Os planos e regras de acesso já estão cadastrados. A contratação online será habilitada
-                assim que a chave do gateway estiver disponível no servidor.
+                Os planos e regras de acesso já estão cadastrados. A contratação online será
+                habilitada assim que a chave do gateway estiver disponível no servidor.
               </div>
             )}
           </section>
@@ -162,9 +171,9 @@ function SubscriptionPage() {
               <h2 className="font-black">Liberação automática</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-[var(--mi-text-muted)]">
-              Depois da confirmação do pagamento, o MercadoImobi reconhece o plano contratado e mantém
-              liberados somente os recursos incluídos nele. O administrador continua podendo conceder
-              exceções individuais quando necessário.
+              Depois da confirmação do pagamento, o MercadoImobi reconhece o plano contratado e
+              mantém liberados somente os recursos incluídos nele. O administrador continua podendo
+              conceder exceções individuais quando necessário.
             </p>
             <div className="mt-5 space-y-3 text-sm">
               {[
@@ -201,7 +210,10 @@ function SubscriptionPage() {
           {overview.isLoading ? (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="h-[520px] animate-pulse rounded-[24px] bg-[var(--mi-surface)]" />
+                <div
+                  key={index}
+                  className="h-[520px] animate-pulse rounded-[24px] bg-[var(--mi-surface)]"
+                />
               ))}
             </div>
           ) : (
@@ -222,10 +234,26 @@ function SubscriptionPage() {
         <section className="mt-7 rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-6">
           <h2 className="text-lg font-black">Como os planos são aplicados</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-4">
-            <FlowStep number="01" title="Escolha" text="O usuário seleciona o plano ideal para sua operação." />
-            <FlowStep number="02" title="Pagamento" text="O checkout registra usuário e plano na mesma contratação." />
-            <FlowStep number="03" title="Reconhecimento" text="O webhook confirma a assinatura e vincula o plano à conta." />
-            <FlowStep number="04" title="Liberação" text="Módulos e limites ficam disponíveis conforme os direitos do plano." />
+            <FlowStep
+              number="01"
+              title="Escolha"
+              text="O usuário seleciona o plano ideal para sua operação."
+            />
+            <FlowStep
+              number="02"
+              title="Pagamento"
+              text="O checkout registra usuário e plano na mesma contratação."
+            />
+            <FlowStep
+              number="03"
+              title="Reconhecimento"
+              text="O webhook confirma a assinatura e vincula o plano à conta."
+            />
+            <FlowStep
+              number="04"
+              title="Liberação"
+              text="Módulos e limites ficam disponíveis conforme os direitos do plano."
+            />
           </div>
         </section>
       </div>
@@ -288,11 +316,17 @@ function PlanCard({
         <Limit icon={Users} label={`${plan.userLimit} usuário${plan.userLimit > 1 ? "s" : ""}`} />
         <Limit
           icon={MessageCircle}
-          label={plan.whatsappConnections ? `${plan.whatsappConnections} WhatsApp` : "Sem WhatsApp IA"}
+          label={
+            plan.whatsappConnections ? `${plan.whatsappConnections} WhatsApp` : "Sem WhatsApp IA"
+          }
         />
         <Limit
           icon={Bot}
-          label={plan.aiInteractionsMonthly ? `${plan.aiInteractionsMonthly.toLocaleString("pt-BR")} IA/mês` : "IA sob upgrade"}
+          label={
+            plan.aiInteractionsMonthly
+              ? `${plan.aiInteractionsMonthly.toLocaleString("pt-BR")} IA/mês`
+              : "IA sob upgrade"
+          }
         />
         <Limit icon={HardDrive} label={`${plan.storageGb} GB`} />
       </div>

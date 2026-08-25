@@ -197,11 +197,26 @@ const primaryItems = [
 ] as const;
 
 const toolItems = [
-  { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle, feature: "atendimento" },
+  {
+    to: "/atendimento",
+    label: "Atendimento WhatsApp",
+    icon: MessageCircle,
+    feature: "atendimento",
+  },
   { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
   { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
-  { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin, feature: "analise_localizacao" },
-  { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator, feature: "simulador" },
+  {
+    to: "/analise-localizacao",
+    label: "Análise de localização",
+    icon: MapPin,
+    feature: "analise_localizacao",
+  },
+  {
+    to: "/simulador-financiamento",
+    label: "Simulador financiamento",
+    icon: Calculator,
+    feature: "simulador",
+  },
   { to: "/fluxos", label: "Fluxos", icon: Workflow, adminOnly: true },
   { to: "/assistente", label: "Assistente IA", icon: Bot, feature: "assistente" },
   { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, adminOnly: true },
@@ -214,7 +229,8 @@ function AuthenticatedLayout() {
   const { roles, tenant, user, access } = Route.useRouteContext();
   const isAdmin = roles.includes("admin");
   const allowedFeatures = new Set(access.allowedFeatures ?? []);
-  const isFeatureAllowed = (feature?: string) => !feature || isAdmin || allowedFeatures.has(feature);
+  const isFeatureAllowed = (feature?: string) =>
+    !feature || isAdmin || allowedFeatures.has(feature);
   const visiblePrimaryItems = primaryItems.filter((item) => isFeatureAllowed(item.feature));
   const visibleToolItems = toolItems.filter(
     (item) =>
@@ -356,7 +372,11 @@ function AuthenticatedLayout() {
               </Link>
             )}
             {isFeatureAllowed("alertas") && (
-              <Link to="/alertas" className="mi-icon-button relative hidden sm:grid" title="Alertas">
+              <Link
+                to="/alertas"
+                className="mi-icon-button relative hidden sm:grid"
+                title="Alertas"
+              >
                 <Bell className="h-4 w-4" />
               </Link>
             )}

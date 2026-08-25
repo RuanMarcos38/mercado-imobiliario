@@ -190,7 +190,10 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
 
     const body = new URLSearchParams();
     body.set("mode", "subscription");
-    body.set("success_url", `${origin}/assinatura?checkout=success&plan=${encodeURIComponent(String(plan.slug))}`);
+    body.set(
+      "success_url",
+      `${origin}/assinatura?checkout=success&plan=${encodeURIComponent(String(plan.slug))}`,
+    );
     body.set("cancel_url", `${origin}/assinatura?checkout=cancel`);
     body.set("line_items[0][quantity]", "1");
 
@@ -198,9 +201,15 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
       body.set("line_items[0][price]", String(plan.stripe_price_id));
     } else {
       body.set("line_items[0][price_data][currency]", "brl");
-      body.set("line_items[0][price_data][unit_amount]", String(Math.round(Number(plan.price_monthly) * 100)));
+      body.set(
+        "line_items[0][price_data][unit_amount]",
+        String(Math.round(Number(plan.price_monthly) * 100)),
+      );
       body.set("line_items[0][price_data][recurring][interval]", "month");
-      body.set("line_items[0][price_data][product_data][name]", `MercadoImobi — ${String(plan.name)}`);
+      body.set(
+        "line_items[0][price_data][product_data][name]",
+        `MercadoImobi — ${String(plan.name)}`,
+      );
       body.set(
         "line_items[0][price_data][product_data][description]",
         String(plan.description ?? "Assinatura mensal MercadoImobi").slice(0, 500),
@@ -212,8 +221,14 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
     if (Number(plan.onboarding_fee ?? 0) > 0) {
       body.set("line_items[1][quantity]", "1");
       body.set("line_items[1][price_data][currency]", "brl");
-      body.set("line_items[1][price_data][unit_amount]", String(Math.round(Number(plan.onboarding_fee) * 100)));
-      body.set("line_items[1][price_data][product_data][name]", `Implantação MercadoImobi — ${String(plan.name)}`);
+      body.set(
+        "line_items[1][price_data][unit_amount]",
+        String(Math.round(Number(plan.onboarding_fee) * 100)),
+      );
+      body.set(
+        "line_items[1][price_data][product_data][name]",
+        `Implantação MercadoImobi — ${String(plan.name)}`,
+      );
       body.set(
         "line_items[1][price_data][product_data][description]",
         "Implantação, ativação e onboarding inicial do plano contratado.",
