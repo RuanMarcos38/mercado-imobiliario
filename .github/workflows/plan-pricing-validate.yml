@@ -8,6 +8,21 @@ on:
       - "src/routes/_authenticated/assinatura.tsx"
       - "src/routes/_authenticated.tsx"
       - "src/routes/api/public/hooks/stripe.tsx"
+      - "src/components/attendance/AutomationSafeguards.tsx"
+      - "src/components/crm/CrmAutomationLayer.tsx"
+      - "src/lib/crm-appointments.functions.ts"
+      - "src/lib/customer-automation.functions.ts"
+      - "src/lib/feature-access.functions.ts"
+      - "src/lib/google-workspace.server.ts"
+      - "src/lib/integrations-hub.functions.ts"
+      - "src/lib/property-links.functions.ts"
+      - "src/routes/_authenticated/admin/acessos.tsx"
+      - "src/routes/_authenticated/central-integracoes.tsx"
+      - "src/routes/api/public/jobs/crm-automations.tsx"
+      - "src/routes/api/public/jobs/external-property-links.tsx"
+      - "src/routes/api/v1/appointments.tsx"
+      - "src/routes/api/v1/leads.tsx"
+      - "tests/critical-flows.spec.ts"
       - "supabase/migrations/20260825032000_subscription_plans_and_entitlements.sql"
       - ".github/workflows/plan-pricing-validate.yml"
   workflow_dispatch:
@@ -26,8 +41,28 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Format changed plan files
-        run: npx prettier --write src/lib/billing.functions.ts src/routes/_authenticated/assinatura.tsx src/routes/_authenticated.tsx src/routes/api/public/hooks/stripe.tsx
+      - name: Format rollout files
+        run: >-
+          npx prettier --write
+          src/lib/billing.functions.ts
+          src/routes/_authenticated/assinatura.tsx
+          src/routes/_authenticated.tsx
+          src/routes/api/public/hooks/stripe.tsx
+          src/components/attendance/AutomationSafeguards.tsx
+          src/components/crm/CrmAutomationLayer.tsx
+          src/lib/crm-appointments.functions.ts
+          src/lib/customer-automation.functions.ts
+          src/lib/feature-access.functions.ts
+          src/lib/google-workspace.server.ts
+          src/lib/integrations-hub.functions.ts
+          src/lib/property-links.functions.ts
+          src/routes/_authenticated/admin/acessos.tsx
+          src/routes/_authenticated/central-integracoes.tsx
+          src/routes/api/public/jobs/crm-automations.tsx
+          src/routes/api/public/jobs/external-property-links.tsx
+          src/routes/api/v1/appointments.tsx
+          src/routes/api/v1/leads.tsx
+          tests/critical-flows.spec.ts
       - name: Persist formatting when needed
         shell: bash
         run: |
@@ -37,8 +72,8 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/billing.functions.ts src/routes/_authenticated/assinatura.tsx src/routes/_authenticated.tsx src/routes/api/public/hooks/stripe.tsx
-          git commit -m "style: format subscription plan rollout"
+          git add src tests
+          git commit -m "style: format MercadoImobi rollout files"
           git push
       - run: npm run lint
       - run: npm run test -- --passWithNoTests
