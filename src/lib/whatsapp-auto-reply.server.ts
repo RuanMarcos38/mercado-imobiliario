@@ -1,4 +1,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  AUTOMATIC_REPLY_DEBOUNCE_MS,
+  PLATFORM_HANDOFF_KEYWORDS,
+  buildAutomaticInstructions,
+  isCourtesyOnlyMessage,
+  normalizeAutomaticReply,
+  normalizeComparableText,
+} from "@/lib/ai-conversation-policy";
 import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
 
@@ -12,15 +20,20 @@ function extractText(payload: any): string {
     .trim();
 }
 
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 async function sendEvolutionText(phone: string, text: string, instanceName: string) {
   const normalizedPhone = normalizeWhatsAppPhone(phone);
   if (!normalizedPhone) return null;
 
   try {
+    const humanTypingDelay = Math.min(3_200, 1_200 + text.length * 8);
     return await sendEvolutionTextMessage({
       phone: normalizedPhone,
       text,
-      delay: 900,
+      delay: humanTypingDelay,
       instanceName,
     });
   } catch {
@@ -43,6 +56,91 @@ async function latestAttendanceState(tenantId: string, conversationId: string) {
       typeof row.metadata === "object" &&
       String(row.metadata.conversationId ?? "") === conversationId,
   );
+}
+
+function attendanceStateValue(event: any) {
+  const metadata = event?.metadata && typeof event.metadata === "object" ? event.metadata : {};
+  return String(metadata.state ?? "");
+}
+
+async function automationPausedForHuman(tenantId: string, conversationId: string) {
+  const db = supabaseAdmin as any;
+  const [{ data: conversation }, attendanceEvent] = await Promise.all([
+    db
+      .from("whatsapp_conversations")
+      .select("assigned_user_id")
+      .eq("tenant_id", tenantId)
+      .eq("id", conversationId)
+      .maybeSingle(),
+    latestAttendanceState(tenantId, conversationId),
+  ]);
+  const state = attendanceStateValue(attendanceEvent);
+  return Boolean(conversation?.assigned_user_id) || state === "waiting" || state === "in_service";
+}
+
+async function recentMessages(tenantId: string, conversationId: string, limit = 20) {
+  const db = supabaseAdmin as any;
+  const { data, error } = await db
+    .from("whatsapp_messages")
+    .select("id,external_message_id,direction,body,sent_at")
+    .eq("tenant_id", tenantId)
+    .eq("conversation_id", conversationId)
+    .order("sent_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+function currentInboundIsLatest(
+  messages: any[],
+  input: { inboundText: string | null; inboundExternalMessageId?: string | null; inboundSentAt?: string },
+) {
+  const latest = messages[0];
+  if (!latest) return { current: true, reason: "current" };
+  if (latest.direction === "outbound") return { current: false, reason: "already_replied" };
+
+  if (
+    input.inboundExternalMessageId &&
+    latest.external_message_id &&
+    String(latest.external_message_id) !== input.inboundExternalMessageId
+  ) {
+    return { current: false, reason: "superseded_by_newer_inbound" };
+  }
+
+  if (!input.inboundExternalMessageId) {
+    const latestBody = normalizeComparableText(String(latest.body ?? ""));
+    const inboundBody = normalizeComparableText(input.inboundText ?? "");
+    if (latestBody && inboundBody && latestBody !== inboundBody) {
+      const latestAt = new Date(String(latest.sent_at ?? "")).getTime();
+      const inboundAt = new Date(input.inboundSentAt ?? "").getTime();
+      if (!Number.isFinite(inboundAt) || (Number.isFinite(latestAt) && latestAt >= inboundAt)) {
+        return { current: false, reason: "superseded_by_newer_inbound" };
+      }
+    }
+  }
+
+  return { current: true, reason: "current" };
+}
+
+function looksLikeSelfEcho(messages: any[], inboundText: string) {
+  const inbound = normalizeComparableText(inboundText);
+  if (!inbound) return false;
+  const cutoff = Date.now() - 3 * 60_000;
+  return messages.some((message) => {
+    if (message.direction !== "outbound") return false;
+    const sentAt = new Date(String(message.sent_at ?? "")).getTime();
+    if (!Number.isFinite(sentAt) || sentAt < cutoff) return false;
+    return normalizeComparableText(String(message.body ?? "")) === inbound;
+  });
+}
+
+function duplicatesRecentAssistantReply(messages: any[], reply: string) {
+  const normalizedReply = normalizeComparableText(reply);
+  if (!normalizedReply) return false;
+  return messages
+    .filter((message) => message.direction === "outbound")
+    .slice(0, 3)
+    .some((message) => normalizeComparableText(String(message.body ?? "")) === normalizedReply);
 }
 
 async function recordAttendanceState(
@@ -103,28 +201,13 @@ async function queueForHuman(input: { tenantId: string; conversationId: string }
   });
 }
 
-async function keepAutomatic(input: { tenantId: string; conversationId: string }) {
-  const db = supabaseAdmin as any;
-  const now = new Date().toISOString();
-  await db
-    .from("whatsapp_conversations")
-    .update({ assigned_user_id: null, updated_at: now })
-    .eq("tenant_id", input.tenantId)
-    .eq("id", input.conversationId);
-  await recordAttendanceState(input.tenantId, input.conversationId, "automatic", {
-    waitingSince: null,
-    acceptedAt: null,
-    firstResponseAt: null,
-    closedAt: null,
-  });
-}
-
 export async function maybeAutoReply(input: {
   tenantId: string;
   conversationId: string;
   phone: string;
   inboundText: string | null;
   inboundSentAt?: string;
+  inboundExternalMessageId?: string | null;
 }) {
   if (!input.inboundText?.trim()) return { sent: false, reason: "empty" };
 
@@ -134,6 +217,10 @@ export async function maybeAutoReply(input: {
     if (!Number.isFinite(receivedAt) || ageMs < -60_000 || ageMs > 3 * 60_000) {
       return { sent: false, reason: "stale_inbound" };
     }
+  }
+
+  if (await automationPausedForHuman(input.tenantId, input.conversationId)) {
+    return { sent: false, reason: "human_service_active" };
   }
 
   const apiKey = process.env["OPENAI_API_KEY"];
@@ -153,13 +240,17 @@ export async function maybeAutoReply(input: {
     return { sent: false, reason: "disabled" };
   }
 
-  const normalizedInbound = input.inboundText.toLowerCase();
-  const handoffKeywords = (settings.handoff_keywords ?? [])
-    .map((value: unknown) => String(value).trim().toLowerCase())
+  const normalizedInbound = normalizeComparableText(input.inboundText);
+  const handoffKeywords = [...PLATFORM_HANDOFF_KEYWORDS, ...(settings.handoff_keywords ?? [])]
+    .map((value: unknown) => normalizeComparableText(String(value)))
     .filter(Boolean);
   if (handoffKeywords.some((keyword: string) => normalizedInbound.includes(keyword))) {
     await queueForHuman(input);
     return { sent: false, reason: "human_handoff" };
+  }
+
+  if (isCourtesyOnlyMessage(input.inboundText)) {
+    return { sent: false, reason: "courtesy_only" };
   }
 
   const { data: connection } = await db
@@ -176,15 +267,18 @@ export async function maybeAutoReply(input: {
     return { sent: false, reason: "whatsapp_not_connected" };
   }
 
-  const { data: messages } = await db
-    .from("whatsapp_messages")
-    .select("direction,body,sent_at")
-    .eq("tenant_id", input.tenantId)
-    .eq("conversation_id", input.conversationId)
-    .order("sent_at", { ascending: false })
-    .limit(16);
+  // Humanized debounce: wait for the customer to finish a burst of short messages.
+  // Only the newest inbound message in the conversation is allowed to trigger a reply.
+  await sleep(AUTOMATIC_REPLY_DEBOUNCE_MS);
 
-  const history = [...(messages ?? [])]
+  const messages = await recentMessages(input.tenantId, input.conversationId, 20);
+  const latestCheck = currentInboundIsLatest(messages, input);
+  if (!latestCheck.current) return { sent: false, reason: latestCheck.reason };
+  if (looksLikeSelfEcho(messages, input.inboundText)) {
+    return { sent: false, reason: "self_echo" };
+  }
+
+  const history = [...messages]
     .reverse()
     .map((message: any) => ({
       role: message.direction === "outbound" ? "assistant" : "user",
@@ -197,16 +291,7 @@ export async function maybeAutoReply(input: {
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: process.env["OPENAI_MODEL"] || "gpt-5.6",
-      instructions: [
-        "Você é um assistente de atendimento imobiliário do MercadoImobi.",
-        "Responda em português do Brasil, de forma humana e curta, em até 3 mensagens/frases.",
-        "Faça no máximo uma pergunta por resposta.",
-        "Nunca invente preço, disponibilidade, endereço, condições, contato ou dados de imóvel.",
-        "Se faltar informação, diga que precisa consultar ou ofereça atendimento humano.",
-        settings.system_prompt || "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
+      instructions: buildAutomaticInstructions(settings.system_prompt),
       input: history,
       store: false,
     }),
@@ -216,10 +301,26 @@ export async function maybeAutoReply(input: {
     await queueForHuman(input);
     return { sent: false, reason: "ai_request_failed" };
   }
-  const reply = extractText(await response.json());
-  if (!reply) {
+
+  const extractedReply = extractText(await response.json());
+  if (!extractedReply) {
     await queueForHuman(input);
     return { sent: false, reason: "ai_empty" };
+  }
+
+  const reply = normalizeAutomaticReply(extractedReply);
+  if (!reply) return { sent: false, reason: "no_reply_needed" };
+  if (duplicatesRecentAssistantReply(messages, reply)) {
+    return { sent: false, reason: "duplicate_reply" };
+  }
+
+  // Race guard: while the model was thinking, a customer may have sent another message
+  // or a human attendant may have taken over. In either case, this generated reply is discarded.
+  const beforeSendMessages = await recentMessages(input.tenantId, input.conversationId, 3);
+  const beforeSendCheck = currentInboundIsLatest(beforeSendMessages, input);
+  if (!beforeSendCheck.current) return { sent: false, reason: beforeSendCheck.reason };
+  if (await automationPausedForHuman(input.tenantId, input.conversationId)) {
+    return { sent: false, reason: "human_service_active" };
   }
 
   const evolutionPayload = await sendEvolutionText(input.phone, reply, instanceName);

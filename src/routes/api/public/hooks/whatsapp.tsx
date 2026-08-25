@@ -2,6 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 
 type JsonObject = Record<string, unknown>;
 
+type AutoReplyCandidate = {
+  tenantId: string;
+  conversationId: string;
+  phone: string;
+  inboundText: string;
+  inboundSentAt: string;
+  inboundExternalMessageId: string | null;
+};
+
 function object(value: unknown): JsonObject {
   return value && typeof value === "object" ? (value as JsonObject) : {};
 }
@@ -206,6 +215,7 @@ async function handleWebhook(request: Request) {
 
   const rawData = payload["data"];
   const entries = Array.isArray(rawData) ? rawData : [rawData];
+  const autoReplyCandidates = new Map<string, AutoReplyCandidate>();
   let processed = 0;
   let autoReplies = 0;
 
@@ -284,20 +294,31 @@ async function handleWebhook(request: Request) {
       .eq("id", conversation.id);
     processed += 1;
 
+    // A burst received in the same webhook must generate at most one AI turn per conversation.
+    // The latest inbound entry replaces earlier candidates from the same customer.
     if (!fromMe && body) {
-      try {
-        const { maybeAutoReply } = await import("@/lib/whatsapp-auto-reply.server");
-        const reply = await maybeAutoReply({
-          tenantId: connection.tenant_id,
-          conversationId: conversation.id,
-          phone,
-          inboundText: body,
-          inboundSentAt: sentAt,
-        });
-        if (reply.sent) autoReplies += 1;
-      } catch {
-        // Falha da IA nunca impede o recebimento da mensagem do cliente.
-      }
+      autoReplyCandidates.set(conversation.id, {
+        tenantId: connection.tenant_id,
+        conversationId: conversation.id,
+        phone,
+        inboundText: body,
+        inboundSentAt: sentAt,
+        inboundExternalMessageId: externalMessageId,
+      });
+    }
+  }
+
+  if (autoReplyCandidates.size > 0) {
+    try {
+      const { maybeAutoReply } = await import("@/lib/whatsapp-auto-reply.server");
+      const results = await Promise.all(
+        [...autoReplyCandidates.values()].map((candidate) =>
+          maybeAutoReply(candidate).catch(() => ({ sent: false, reason: "auto_reply_failed" })),
+        ),
+      );
+      autoReplies = results.filter((reply) => reply.sent).length;
+    } catch {
+      // Falha da IA nunca impede o recebimento da mensagem do cliente.
     }
   }
 
