@@ -45,7 +45,7 @@ describe("MercadoImobi product invariants", () => {
     const layout = source("src/routes/_authenticated.tsx");
     const searchRoute = source("src/routes/_authenticated/buscar.tsx");
 
-    expect(layout).toContain('to="/dashboard"');
+    expect(layout).toContain('to: "/dashboard"');
     expect(layout).toContain('to: "/buscar"');
     expect(layout).toContain('to: "/leiloes"');
     expect(layout).toContain('to: "/alertas"');
