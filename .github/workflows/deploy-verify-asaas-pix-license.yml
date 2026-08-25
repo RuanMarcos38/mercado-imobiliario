@@ -1,0 +1,80 @@
+name: Deploy and verify Asaas Pix fix on EasyPanel
+
+on:
+  push:
+    branches:
+      - ops/promote-asaas-pix-license-20260825
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+      EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
+      DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+      EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
+      EXPECTED_PRODUCTION_SHA: 4c1230a6acb39345595885d5eb151b1bd8326a29
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: production
+          fetch-depth: 0
+      - name: Verify approved production commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_PRODUCTION_SHA"
+          grep -F 'ASAAS_PIX_ACCOUNT_NOT_APPROVED' src/lib/asaas-billing.server.ts >/dev/null
+          grep -F 'Pix temporariamente indisponível no Asaas' src/routes/_authenticated/assinatura.tsx >/dev/null
+      - name: Trigger EasyPanel deployment when hook is configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
+          if [ -n "$URL" ]; then
+            if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy-response.txt; then
+              echo "EasyPanel deploy requested with GET."
+            else
+              curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy-response.txt
+              echo "EasyPanel deploy requested with POST."
+            fi
+          else
+            echo "No explicit deploy hook configured; waiting for EasyPanel GitHub auto-deploy."
+          fi
+      - name: Verify live backend and updated frontend bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUBLIC_URL="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          PUBLIC_URL="${PUBLIC_URL%/}"
+          marker='Pix temporariamente indisponível no Asaas'
+          for attempt in $(seq 1 48); do
+            if curl -fsS --connect-timeout 8 --max-time 15 "$PUBLIC_URL/api/public/status" -o /tmp/status.json \
+              && grep -F '"status":"operational"' /tmp/status.json >/dev/null \
+              && curl -fsS --connect-timeout 8 --max-time 20 "$PUBLIC_URL/assinatura" -o /tmp/page.html; then
+              : > /tmp/alljs.txt
+              grep -oE 'src="[^\"]+\.js[^\"]*"' /tmp/page.html | sed -E 's/^src="|"$//g' | head -n 30 > /tmp/jsurls.txt || true
+              while IFS= read -r asset; do
+                [ -n "$asset" ] || continue
+                case "$asset" in
+                  http*) url="$asset" ;;
+                  /*) url="$PUBLIC_URL$asset" ;;
+                  *) url="$PUBLIC_URL/$asset" ;;
+                esac
+                curl -fsS --connect-timeout 8 --max-time 20 "$url" >> /tmp/alljs.txt || true
+              done < /tmp/jsurls.txt
+              if grep -F "$marker" /tmp/alljs.txt >/dev/null; then
+                echo "Updated MercadoImobi frontend confirmed live on EasyPanel."
+                exit 0
+              fi
+            fi
+            echo "Waiting for updated EasyPanel publication ($attempt/48)..."
+            sleep 5
+          done
+          echo "::error::EasyPanel did not expose the updated Pix frontend marker within the verification window."
+          exit 1
