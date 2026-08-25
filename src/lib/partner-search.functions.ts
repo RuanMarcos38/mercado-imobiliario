@@ -46,10 +46,25 @@ type ProviderResult = {
   warning?: string;
 };
 
-function googlePlacesApiKey() {
-  return (
-    process.env["GOOGLE_PLACES_API_KEY"]?.trim() || process.env["GOOGLE_MAPS_API_KEY"]?.trim() || ""
-  );
+const GOOGLE_PLACES_VAULT_SECRET = "mercadoimobi_google_places_api_key";
+
+async function googlePlacesApiKey() {
+  const environmentKey =
+    process.env["GOOGLE_PLACES_API_KEY"]?.trim() ||
+    process.env["GOOGLE_MAPS_API_KEY"]?.trim() ||
+    "";
+  if (environmentKey) return environmentKey;
+
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any).rpc("get_platform_secret", {
+      p_name: GOOGLE_PLACES_VAULT_SECRET,
+    });
+    if (!error && typeof data === "string" && data.trim()) return data.trim();
+  } catch {
+    // Optional provider: OpenAI web search remains available without this secret.
+  }
+  return "";
 }
 
 function openAiConfig() {
@@ -82,7 +97,7 @@ function googleCandidateId(placeId: string | null, name: string, index: number) 
 }
 
 async function searchGooglePlaces(input: z.infer<typeof searchSchema>): Promise<ProviderResult> {
-  const apiKey = googlePlacesApiKey();
+  const apiKey = await googlePlacesApiKey();
   if (!apiKey) return { candidates: [], warning: "Google Places não configurado." };
 
   const types: PartnerEntityType[] =
@@ -410,7 +425,7 @@ export const getPartnerSearchStatus = createServerFn({ method: "GET" })
     await requireTenantId(context.supabase, context.userId);
     return {
       openaiWeb: Boolean(openAiConfig()),
-      googlePlaces: Boolean(googlePlacesApiKey()),
+      googlePlaces: Boolean(await googlePlacesApiKey()),
     };
   });
 
@@ -420,14 +435,18 @@ export const searchRealEstatePartners = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<PartnerSearchResponse> => {
     await requireTenantId(context.supabase, context.userId);
 
-    const [google, openai] = await Promise.all([searchGooglePlaces(data), searchOpenAiWeb(data)]);
+    const [google, openai, googleKey] = await Promise.all([
+      searchGooglePlaces(data),
+      searchOpenAiWeb(data),
+      googlePlacesApiKey(),
+    ]);
     const partners = dedupeAndRankPartners(
       [...openai.candidates, ...google.candidates],
       data.limit,
     );
     const warnings = [google.warning, openai.warning].filter(Boolean) as string[];
 
-    if (!partners.length && !googlePlacesApiKey() && !openAiConfig()) {
+    if (!partners.length && !googleKey && !openAiConfig()) {
       throw new Error("PARTNER_SEARCH_NOT_CONFIGURED");
     }
 
@@ -435,7 +454,7 @@ export const searchRealEstatePartners = createServerFn({ method: "POST" })
       partners,
       providers: {
         openaiWeb: Boolean(openAiConfig()),
-        googlePlaces: Boolean(googlePlacesApiKey()),
+        googlePlaces: Boolean(googleKey),
       },
       warnings,
       searchedAt: new Date().toISOString(),

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   getAuthoritativeAsaasPayment,
   normalizeFutureAsaasSubscriptionValue,
-  parseAsaasExternalReference,
+  resolveAsaasExternalReference,
 } from "@/lib/asaas-billing.server";
 
 type JsonObject = Record<string, unknown>;
@@ -173,7 +173,7 @@ async function handleAsaasWebhook(request: Request) {
     return Response.json({ ok: false, error: "payment_verification_mismatch" }, { status: 401 });
   }
 
-  const reference = parseAsaasExternalReference(payment["externalReference"]);
+  const reference = await resolveAsaasExternalReference(payment);
   if (!reference) return Response.json({ ok: true, ignored: true, reason: "foreign_payment" });
 
   const status = mapPaymentStatus(payment["status"]);

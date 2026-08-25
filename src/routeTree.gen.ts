@@ -22,6 +22,7 @@ import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
 import { Route as AuthenticatedAtendimentoRouteImport } from './routes/_authenticated/atendimento'
 import { Route as AuthenticatedBuscarRouteImport } from './routes/_authenticated/buscar'
+import { Route as AuthenticatedCentralIntegracoesRouteImport } from './routes/_authenticated/central-integracoes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDiagnosticoRouteImport } from './routes/_authenticated/diagnostico'
@@ -31,21 +32,31 @@ import { Route as AuthenticatedFluxosRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenticated/integracoes'
 import { Route as AuthenticatedLeiloesRouteImport } from './routes/_authenticated/leiloes'
 import { Route as AuthenticatedMidiasSociaisRouteImport } from './routes/_authenticated/midias-sociais'
+import { Route as AuthenticatedParceriasRouteImport } from './routes/_authenticated/parcerias'
 import { Route as AuthenticatedSimuladorFinanciamentoRouteImport } from './routes/_authenticated/simulador-financiamento'
 import { Route as AuthenticatedSpeedToLeadRouteImport } from './routes/_authenticated/speed-to-lead'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as Char91DotlovableOauthConsentChar93RouteImport } from './routes/[.lovable.oauth.consent]'
+import { Route as AuthenticatedAdminAcessosRouteImport } from './routes/_authenticated/admin/acessos'
+import { Route as AuthenticatedAdminComissoesRouteImport } from './routes/_authenticated/admin/comissoes'
 import { Route as AuthenticatedAdminParametrosRouteImport } from './routes/_authenticated/admin/parametros'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
 import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings/security'
 import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
+import { Route as ApiV1AppointmentsRouteImport } from './routes/api/v1/appointments'
+import { Route as ApiV1LeadsRouteImport } from './routes/api/v1/leads'
+import { Route as ApiV1PropertiesRouteImport } from './routes/api/v1/properties'
+import { Route as ApiPublicHooksAsaasRouteImport } from './routes/api/public/hooks/asaas'
 import { Route as ApiPublicHooksLeadsRouteImport } from './routes/api/public/hooks/leads'
 import { Route as ApiPublicHooksN8nWebhookRouteImport } from './routes/api/public/hooks/n8n-webhook'
 import { Route as ApiPublicHooksPropertiesRouteImport } from './routes/api/public/hooks/properties'
 import { Route as ApiPublicHooksStripeRouteImport } from './routes/api/public/hooks/stripe'
 import { Route as ApiPublicHooksWhatsappRouteImport } from './routes/api/public/hooks/whatsapp'
+import { Route as ApiPublicJobsCrmAutomationsRouteImport } from './routes/api/public/jobs/crm-automations'
+import { Route as ApiPublicJobsExternalPropertyLinksRouteImport } from './routes/api/public/jobs/external-property-links'
 import { Route as ApiPublicJobsPropertyDiscoveryRouteImport } from './routes/api/public/jobs/property-discovery'
 import { Route as ApiPublicJobsPropertyFeedsRouteImport } from './routes/api/public/jobs/property-feeds'
+import { Route as ApiPublicOauthGoogleRouteImport } from './routes/api/public/oauth/google'
 import { Route as ApiPublicOauthMetaRouteImport } from './routes/api/public/oauth/meta'
 import { Route as ApiPublicVoiceBridgeRouteImport } from './routes/api/public/voice/bridge'
 
@@ -117,6 +128,12 @@ const AuthenticatedBuscarRoute = AuthenticatedBuscarRouteImport.update({
   path: '/buscar',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCentralIntegracoesRoute =
+  AuthenticatedCentralIntegracoesRouteImport.update({
+    id: '/central-integracoes',
+    path: '/central-integracoes',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
   id: '/crm',
   path: '/crm',
@@ -165,6 +182,11 @@ const AuthenticatedMidiasSociaisRoute =
     path: '/midias-sociais',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedParceriasRoute = AuthenticatedParceriasRouteImport.update({
+  id: '/parcerias',
+  path: '/parcerias',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSimuladorFinanciamentoRoute =
   AuthenticatedSimuladorFinanciamentoRouteImport.update({
     id: '/simulador-financiamento',
@@ -189,6 +211,18 @@ const Char91DotlovableOauthConsentChar93Route =
     path: '/[.lovable/oauth/consent]',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAdminAcessosRoute =
+  AuthenticatedAdminAcessosRouteImport.update({
+    id: '/admin/acessos',
+    path: '/admin/acessos',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminComissoesRoute =
+  AuthenticatedAdminComissoesRouteImport.update({
+    id: '/admin/comissoes',
+    path: '/admin/comissoes',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminParametrosRoute =
   AuthenticatedAdminParametrosRouteImport.update({
     id: '/admin/parametros',
@@ -210,6 +244,26 @@ const AuthenticatedSettingsSecurityRoute =
 const ApiPublicStatusRoute = ApiPublicStatusRouteImport.update({
   id: '/api/public/status',
   path: '/api/public/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1AppointmentsRoute = ApiV1AppointmentsRouteImport.update({
+  id: '/api/v1/appointments',
+  path: '/api/v1/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1LeadsRoute = ApiV1LeadsRouteImport.update({
+  id: '/api/v1/leads',
+  path: '/api/v1/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1PropertiesRoute = ApiV1PropertiesRouteImport.update({
+  id: '/api/v1/properties',
+  path: '/api/v1/properties',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksAsaasRoute = ApiPublicHooksAsaasRouteImport.update({
+  id: '/api/public/hooks/asaas',
+  path: '/api/public/hooks/asaas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksLeadsRoute = ApiPublicHooksLeadsRouteImport.update({
@@ -239,6 +293,18 @@ const ApiPublicHooksWhatsappRoute = ApiPublicHooksWhatsappRouteImport.update({
   path: '/api/public/hooks/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicJobsCrmAutomationsRoute =
+  ApiPublicJobsCrmAutomationsRouteImport.update({
+    id: '/api/public/jobs/crm-automations',
+    path: '/api/public/jobs/crm-automations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicJobsExternalPropertyLinksRoute =
+  ApiPublicJobsExternalPropertyLinksRouteImport.update({
+    id: '/api/public/jobs/external-property-links',
+    path: '/api/public/jobs/external-property-links',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJobsPropertyDiscoveryRoute =
   ApiPublicJobsPropertyDiscoveryRouteImport.update({
     id: '/api/public/jobs/property-discovery',
@@ -251,6 +317,11 @@ const ApiPublicJobsPropertyFeedsRoute =
     path: '/api/public/jobs/property-feeds',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicOauthGoogleRoute = ApiPublicOauthGoogleRouteImport.update({
+  id: '/api/public/oauth/google',
+  path: '/api/public/oauth/google',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicOauthMetaRoute = ApiPublicOauthMetaRouteImport.update({
   id: '/api/public/oauth/meta',
   path: '/api/public/oauth/meta',
@@ -275,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/buscar': typeof AuthenticatedBuscarRoute
+  '/central-integracoes': typeof AuthenticatedCentralIntegracoesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diagnostico': typeof AuthenticatedDiagnosticoRoute
@@ -284,21 +356,31 @@ export interface FileRoutesByFullPath {
   '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/leiloes': typeof AuthenticatedLeiloesRoute
   '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/parcerias': typeof AuthenticatedParceriasRoute
   '/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
+  '/admin/acessos': typeof AuthenticatedAdminAcessosRoute
+  '/admin/comissoes': typeof AuthenticatedAdminComissoesRoute
   '/admin/parametros': typeof AuthenticatedAdminParametrosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/api/public/status': typeof ApiPublicStatusRoute
+  '/api/v1/appointments': typeof ApiV1AppointmentsRoute
+  '/api/v1/leads': typeof ApiV1LeadsRoute
+  '/api/v1/properties': typeof ApiV1PropertiesRoute
+  '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
   '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/crm-automations': typeof ApiPublicJobsCrmAutomationsRoute
+  '/api/public/jobs/external-property-links': typeof ApiPublicJobsExternalPropertyLinksRoute
   '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
   '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/oauth/google': typeof ApiPublicOauthGoogleRoute
   '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
   '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
 }
@@ -315,6 +397,7 @@ export interface FileRoutesByTo {
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/buscar': typeof AuthenticatedBuscarRoute
+  '/central-integracoes': typeof AuthenticatedCentralIntegracoesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/diagnostico': typeof AuthenticatedDiagnosticoRoute
@@ -324,21 +407,31 @@ export interface FileRoutesByTo {
   '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/leiloes': typeof AuthenticatedLeiloesRoute
   '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/parcerias': typeof AuthenticatedParceriasRoute
   '/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
+  '/admin/acessos': typeof AuthenticatedAdminAcessosRoute
+  '/admin/comissoes': typeof AuthenticatedAdminComissoesRoute
   '/admin/parametros': typeof AuthenticatedAdminParametrosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/api/public/status': typeof ApiPublicStatusRoute
+  '/api/v1/appointments': typeof ApiV1AppointmentsRoute
+  '/api/v1/leads': typeof ApiV1LeadsRoute
+  '/api/v1/properties': typeof ApiV1PropertiesRoute
+  '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
   '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/crm-automations': typeof ApiPublicJobsCrmAutomationsRoute
+  '/api/public/jobs/external-property-links': typeof ApiPublicJobsExternalPropertyLinksRoute
   '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
   '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/oauth/google': typeof ApiPublicOauthGoogleRoute
   '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
   '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
 }
@@ -357,6 +450,7 @@ export interface FileRoutesById {
   '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
   '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
   '/_authenticated/buscar': typeof AuthenticatedBuscarRoute
+  '/_authenticated/central-integracoes': typeof AuthenticatedCentralIntegracoesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/diagnostico': typeof AuthenticatedDiagnosticoRoute
@@ -366,21 +460,31 @@ export interface FileRoutesById {
   '/_authenticated/integracoes': typeof AuthenticatedIntegracoesRoute
   '/_authenticated/leiloes': typeof AuthenticatedLeiloesRoute
   '/_authenticated/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
+  '/_authenticated/parcerias': typeof AuthenticatedParceriasRoute
   '/_authenticated/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/_authenticated/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/[.lovable/oauth/consent]': typeof Char91DotlovableOauthConsentChar93Route
+  '/_authenticated/admin/acessos': typeof AuthenticatedAdminAcessosRoute
+  '/_authenticated/admin/comissoes': typeof AuthenticatedAdminComissoesRoute
   '/_authenticated/admin/parametros': typeof AuthenticatedAdminParametrosRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/api/public/status': typeof ApiPublicStatusRoute
+  '/api/v1/appointments': typeof ApiV1AppointmentsRoute
+  '/api/v1/leads': typeof ApiV1LeadsRoute
+  '/api/v1/properties': typeof ApiV1PropertiesRoute
+  '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
   '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/crm-automations': typeof ApiPublicJobsCrmAutomationsRoute
+  '/api/public/jobs/external-property-links': typeof ApiPublicJobsExternalPropertyLinksRoute
   '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
   '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/oauth/google': typeof ApiPublicOauthGoogleRoute
   '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
   '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
 }
@@ -399,6 +503,7 @@ export interface FileRouteTypes {
     | '/assistente'
     | '/atendimento'
     | '/buscar'
+    | '/central-integracoes'
     | '/crm'
     | '/dashboard'
     | '/diagnostico'
@@ -408,21 +513,31 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/leiloes'
     | '/midias-sociais'
+    | '/parcerias'
     | '/simulador-financiamento'
     | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
+    | '/admin/acessos'
+    | '/admin/comissoes'
     | '/admin/parametros'
     | '/admin/usuarios'
     | '/settings/security'
     | '/api/public/status'
+    | '/api/v1/appointments'
+    | '/api/v1/leads'
+    | '/api/v1/properties'
+    | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
     | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/crm-automations'
+    | '/api/public/jobs/external-property-links'
     | '/api/public/jobs/property-discovery'
     | '/api/public/jobs/property-feeds'
+    | '/api/public/oauth/google'
     | '/api/public/oauth/meta'
     | '/api/public/voice/bridge'
   fileRoutesByTo: FileRoutesByTo
@@ -439,6 +554,7 @@ export interface FileRouteTypes {
     | '/assistente'
     | '/atendimento'
     | '/buscar'
+    | '/central-integracoes'
     | '/crm'
     | '/dashboard'
     | '/diagnostico'
@@ -448,21 +564,31 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/leiloes'
     | '/midias-sociais'
+    | '/parcerias'
     | '/simulador-financiamento'
     | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
+    | '/admin/acessos'
+    | '/admin/comissoes'
     | '/admin/parametros'
     | '/admin/usuarios'
     | '/settings/security'
     | '/api/public/status'
+    | '/api/v1/appointments'
+    | '/api/v1/leads'
+    | '/api/v1/properties'
+    | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
     | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/crm-automations'
+    | '/api/public/jobs/external-property-links'
     | '/api/public/jobs/property-discovery'
     | '/api/public/jobs/property-feeds'
+    | '/api/public/oauth/google'
     | '/api/public/oauth/meta'
     | '/api/public/voice/bridge'
   id:
@@ -480,6 +606,7 @@ export interface FileRouteTypes {
     | '/_authenticated/assistente'
     | '/_authenticated/atendimento'
     | '/_authenticated/buscar'
+    | '/_authenticated/central-integracoes'
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/diagnostico'
@@ -489,21 +616,31 @@ export interface FileRouteTypes {
     | '/_authenticated/integracoes'
     | '/_authenticated/leiloes'
     | '/_authenticated/midias-sociais'
+    | '/_authenticated/parcerias'
     | '/_authenticated/simulador-financiamento'
     | '/_authenticated/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
     | '/[.lovable/oauth/consent]'
+    | '/_authenticated/admin/acessos'
+    | '/_authenticated/admin/comissoes'
     | '/_authenticated/admin/parametros'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/settings/security'
     | '/api/public/status'
+    | '/api/v1/appointments'
+    | '/api/v1/leads'
+    | '/api/v1/properties'
+    | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
     | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/crm-automations'
+    | '/api/public/jobs/external-property-links'
     | '/api/public/jobs/property-discovery'
     | '/api/public/jobs/property-feeds'
+    | '/api/public/oauth/google'
     | '/api/public/oauth/meta'
     | '/api/public/voice/bridge'
   fileRoutesById: FileRoutesById
@@ -518,13 +655,20 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   Char91DotlovableOauthConsentChar93Route: typeof Char91DotlovableOauthConsentChar93Route
   ApiPublicStatusRoute: typeof ApiPublicStatusRoute
+  ApiV1AppointmentsRoute: typeof ApiV1AppointmentsRoute
+  ApiV1LeadsRoute: typeof ApiV1LeadsRoute
+  ApiV1PropertiesRoute: typeof ApiV1PropertiesRoute
+  ApiPublicHooksAsaasRoute: typeof ApiPublicHooksAsaasRoute
   ApiPublicHooksLeadsRoute: typeof ApiPublicHooksLeadsRoute
   ApiPublicHooksN8nWebhookRoute: typeof ApiPublicHooksN8nWebhookRoute
   ApiPublicHooksPropertiesRoute: typeof ApiPublicHooksPropertiesRoute
   ApiPublicHooksStripeRoute: typeof ApiPublicHooksStripeRoute
   ApiPublicHooksWhatsappRoute: typeof ApiPublicHooksWhatsappRoute
+  ApiPublicJobsCrmAutomationsRoute: typeof ApiPublicJobsCrmAutomationsRoute
+  ApiPublicJobsExternalPropertyLinksRoute: typeof ApiPublicJobsExternalPropertyLinksRoute
   ApiPublicJobsPropertyDiscoveryRoute: typeof ApiPublicJobsPropertyDiscoveryRoute
   ApiPublicJobsPropertyFeedsRoute: typeof ApiPublicJobsPropertyFeedsRoute
+  ApiPublicOauthGoogleRoute: typeof ApiPublicOauthGoogleRoute
   ApiPublicOauthMetaRoute: typeof ApiPublicOauthMetaRoute
   ApiPublicVoiceBridgeRoute: typeof ApiPublicVoiceBridgeRoute
 }
@@ -622,6 +766,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBuscarRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/central-integracoes': {
+      id: '/_authenticated/central-integracoes'
+      path: '/central-integracoes'
+      fullPath: '/central-integracoes'
+      preLoaderRoute: typeof AuthenticatedCentralIntegracoesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/crm': {
       id: '/_authenticated/crm'
       path: '/crm'
@@ -685,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMidiasSociaisRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/parcerias': {
+      id: '/_authenticated/parcerias'
+      path: '/parcerias'
+      fullPath: '/parcerias'
+      preLoaderRoute: typeof AuthenticatedParceriasRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/simulador-financiamento': {
       id: '/_authenticated/simulador-financiamento'
       path: '/simulador-financiamento'
@@ -713,6 +871,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotlovableOauthConsentChar93RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/acessos': {
+      id: '/_authenticated/admin/acessos'
+      path: '/admin/acessos'
+      fullPath: '/admin/acessos'
+      preLoaderRoute: typeof AuthenticatedAdminAcessosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/comissoes': {
+      id: '/_authenticated/admin/comissoes'
+      path: '/admin/comissoes'
+      fullPath: '/admin/comissoes'
+      preLoaderRoute: typeof AuthenticatedAdminComissoesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/parametros': {
       id: '/_authenticated/admin/parametros'
       path: '/admin/parametros'
@@ -739,6 +911,34 @@ declare module '@tanstack/react-router' {
       path: '/api/public/status'
       fullPath: '/api/public/status'
       preLoaderRoute: typeof ApiPublicStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/appointments': {
+      id: '/api/v1/appointments'
+      path: '/api/v1/appointments'
+      fullPath: '/api/v1/appointments'
+      preLoaderRoute: typeof ApiV1AppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/leads': {
+      id: '/api/v1/leads'
+      path: '/api/v1/leads'
+      fullPath: '/api/v1/leads'
+      preLoaderRoute: typeof ApiV1LeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/properties': {
+      id: '/api/v1/properties'
+      path: '/api/v1/properties'
+      fullPath: '/api/v1/properties'
+      preLoaderRoute: typeof ApiV1PropertiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/asaas': {
+      id: '/api/public/hooks/asaas'
+      path: '/api/public/hooks/asaas'
+      fullPath: '/api/public/hooks/asaas'
+      preLoaderRoute: typeof ApiPublicHooksAsaasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/leads': {
@@ -776,6 +976,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/jobs/crm-automations': {
+      id: '/api/public/jobs/crm-automations'
+      path: '/api/public/jobs/crm-automations'
+      fullPath: '/api/public/jobs/crm-automations'
+      preLoaderRoute: typeof ApiPublicJobsCrmAutomationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/jobs/external-property-links': {
+      id: '/api/public/jobs/external-property-links'
+      path: '/api/public/jobs/external-property-links'
+      fullPath: '/api/public/jobs/external-property-links'
+      preLoaderRoute: typeof ApiPublicJobsExternalPropertyLinksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/property-discovery': {
       id: '/api/public/jobs/property-discovery'
       path: '/api/public/jobs/property-discovery'
@@ -788,6 +1002,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/jobs/property-feeds'
       fullPath: '/api/public/jobs/property-feeds'
       preLoaderRoute: typeof ApiPublicJobsPropertyFeedsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/google': {
+      id: '/api/public/oauth/google'
+      path: '/api/public/oauth/google'
+      fullPath: '/api/public/oauth/google'
+      preLoaderRoute: typeof ApiPublicOauthGoogleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/oauth/meta': {
@@ -815,6 +1036,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
   AuthenticatedAtendimentoRoute: typeof AuthenticatedAtendimentoRoute
   AuthenticatedBuscarRoute: typeof AuthenticatedBuscarRoute
+  AuthenticatedCentralIntegracoesRoute: typeof AuthenticatedCentralIntegracoesRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDiagnosticoRoute: typeof AuthenticatedDiagnosticoRoute
@@ -824,8 +1046,11 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIntegracoesRoute: typeof AuthenticatedIntegracoesRoute
   AuthenticatedLeiloesRoute: typeof AuthenticatedLeiloesRoute
   AuthenticatedMidiasSociaisRoute: typeof AuthenticatedMidiasSociaisRoute
+  AuthenticatedParceriasRoute: typeof AuthenticatedParceriasRoute
   AuthenticatedSimuladorFinanciamentoRoute: typeof AuthenticatedSimuladorFinanciamentoRoute
   AuthenticatedSpeedToLeadRoute: typeof AuthenticatedSpeedToLeadRoute
+  AuthenticatedAdminAcessosRoute: typeof AuthenticatedAdminAcessosRoute
+  AuthenticatedAdminComissoesRoute: typeof AuthenticatedAdminComissoesRoute
   AuthenticatedAdminParametrosRoute: typeof AuthenticatedAdminParametrosRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
@@ -839,6 +1064,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
   AuthenticatedAtendimentoRoute: AuthenticatedAtendimentoRoute,
   AuthenticatedBuscarRoute: AuthenticatedBuscarRoute,
+  AuthenticatedCentralIntegracoesRoute: AuthenticatedCentralIntegracoesRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDiagnosticoRoute: AuthenticatedDiagnosticoRoute,
@@ -848,9 +1074,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIntegracoesRoute: AuthenticatedIntegracoesRoute,
   AuthenticatedLeiloesRoute: AuthenticatedLeiloesRoute,
   AuthenticatedMidiasSociaisRoute: AuthenticatedMidiasSociaisRoute,
+  AuthenticatedParceriasRoute: AuthenticatedParceriasRoute,
   AuthenticatedSimuladorFinanciamentoRoute:
     AuthenticatedSimuladorFinanciamentoRoute,
   AuthenticatedSpeedToLeadRoute: AuthenticatedSpeedToLeadRoute,
+  AuthenticatedAdminAcessosRoute: AuthenticatedAdminAcessosRoute,
+  AuthenticatedAdminComissoesRoute: AuthenticatedAdminComissoesRoute,
   AuthenticatedAdminParametrosRoute: AuthenticatedAdminParametrosRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
@@ -872,13 +1101,21 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotlovableOauthConsentChar93Route:
     Char91DotlovableOauthConsentChar93Route,
   ApiPublicStatusRoute: ApiPublicStatusRoute,
+  ApiV1AppointmentsRoute: ApiV1AppointmentsRoute,
+  ApiV1LeadsRoute: ApiV1LeadsRoute,
+  ApiV1PropertiesRoute: ApiV1PropertiesRoute,
+  ApiPublicHooksAsaasRoute: ApiPublicHooksAsaasRoute,
   ApiPublicHooksLeadsRoute: ApiPublicHooksLeadsRoute,
   ApiPublicHooksN8nWebhookRoute: ApiPublicHooksN8nWebhookRoute,
   ApiPublicHooksPropertiesRoute: ApiPublicHooksPropertiesRoute,
   ApiPublicHooksStripeRoute: ApiPublicHooksStripeRoute,
   ApiPublicHooksWhatsappRoute: ApiPublicHooksWhatsappRoute,
+  ApiPublicJobsCrmAutomationsRoute: ApiPublicJobsCrmAutomationsRoute,
+  ApiPublicJobsExternalPropertyLinksRoute:
+    ApiPublicJobsExternalPropertyLinksRoute,
   ApiPublicJobsPropertyDiscoveryRoute: ApiPublicJobsPropertyDiscoveryRoute,
   ApiPublicJobsPropertyFeedsRoute: ApiPublicJobsPropertyFeedsRoute,
+  ApiPublicOauthGoogleRoute: ApiPublicOauthGoogleRoute,
   ApiPublicOauthMetaRoute: ApiPublicOauthMetaRoute,
   ApiPublicVoiceBridgeRoute: ApiPublicVoiceBridgeRoute,
 }

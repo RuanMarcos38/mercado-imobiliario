@@ -49,7 +49,21 @@ const checkoutSchema = z.object({ planId: z.string().uuid() });
 function requestOrigin() {
   const request = getRequest();
   if (!request?.url) return platformBaseUrl();
-  return new URL(request.url).origin;
+
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.trim();
+
+  if (forwardedHost) {
+    const easypanelHost = forwardedHost.toLowerCase().endsWith(".easypanel.host");
+    const protocol =
+      forwardedProto === "https" || easypanelHost ? "https" : url.protocol.replace(":", "");
+    return `${protocol}://${forwardedHost}`;
+  }
+
+  return url.origin.replace(/^http:\/\/([^/]*\.easypanel\.host)/i, "https://$1");
 }
 
 async function stripePost(path: string, body: URLSearchParams) {
