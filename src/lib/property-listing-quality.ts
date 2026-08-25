@@ -21,6 +21,21 @@ const REAL_ESTATE_TERMS = [
   "condominio",
 ];
 
+const RESIDENTIAL_SALE_TERMS = [
+  "casa",
+  "apartamento",
+  "apto",
+  "sobrado",
+  "studio",
+  "kitnet",
+  "loft",
+  "cobertura",
+  "duplex",
+  "triplex",
+];
+
+const SALE_INTENT_TERMS = ["venda", "a venda", "comprar", "compre", "vende-se", "vende se"];
+
 const ALLOWED_PROPERTY_HOSTS = [
   "venda-imoveis.caixa.gov.br",
   "zapimoveis.com.br",
@@ -107,6 +122,37 @@ function isCaixaPropertyUrl(sourceUrl: string | null | undefined) {
   }
 }
 
+function hasResidentialSaleType(input: {
+  title?: string | null;
+  property_type?: string | null;
+}) {
+  const explicitType = normalize(input.property_type);
+  const context = explicitType || normalize(input.title);
+  return RESIDENTIAL_SALE_TERMS.some((term) => context.includes(term));
+}
+
+function hasSaleIntent(input: {
+  title?: string | null;
+  description?: string | null;
+  source_url?: string | null;
+  sale_mode?: string | null;
+  listing_market?: string | null;
+  is_auction?: boolean | null;
+}) {
+  if (
+    input.listing_market === "caixa" ||
+    input.is_auction ||
+    isCaixaPropertyUrl(input.source_url)
+  ) {
+    return true;
+  }
+
+  const context = normalize(
+    [input.title, input.description, input.sale_mode, input.source_url].filter(Boolean).join(" "),
+  );
+  return SALE_INTENT_TERMS.some((term) => context.includes(term));
+}
+
 export function isFreshListing(timestamp: string | null | undefined, nowMs = Date.now()) {
   if (!timestamp) return false;
   const parsed = Date.parse(timestamp);
@@ -144,33 +190,28 @@ export function isRealEstateListing(input: {
 }
 
 export function isQualifiedPropertyRecord(input: {
+  title?: string | null;
+  description?: string | null;
   source_url?: string | null;
   listing_market?: string | null;
   is_auction?: boolean | null;
+  sale_mode?: string | null;
   price?: number | null;
   location_address?: string | null;
   location_city?: string | null;
-  area_sqm?: number | null;
-  bedrooms?: number | null;
-  bathrooms?: number | null;
+  property_type?: string | null;
 }) {
-  if (
-    input.listing_market === "caixa" ||
-    input.is_auction ||
-    isCaixaPropertyUrl(input.source_url)
-  ) {
-    return true;
-  }
+  const hasPrice = typeof input.price === "number" && input.price > 0;
+  const hasLocation = Boolean(input.location_address?.trim()) || Boolean(input.location_city?.trim());
+  const hasSource = Boolean(input.source_url?.trim());
 
-  const hasStructuredCommercialFact =
-    (typeof input.price === "number" && input.price > 0) ||
-    Boolean(input.location_address?.trim()) ||
-    Boolean(input.location_city?.trim()) ||
-    (typeof input.area_sqm === "number" && input.area_sqm > 0) ||
-    (typeof input.bedrooms === "number" && input.bedrooms > 0) ||
-    (typeof input.bathrooms === "number" && input.bathrooms > 0);
-
-  return hasStructuredCommercialFact;
+  return (
+    hasPrice &&
+    hasLocation &&
+    hasSource &&
+    hasResidentialSaleType(input) &&
+    hasSaleIntent(input)
+  );
 }
 
 export function isFreshRealEstateListing(
@@ -182,6 +223,7 @@ export function isFreshRealEstateListing(
     updated_at?: string | null;
     listing_market?: string | null;
     is_auction?: boolean | null;
+    sale_mode?: string | null;
     price?: number | null;
     location_address?: string | null;
     location_city?: string | null;
