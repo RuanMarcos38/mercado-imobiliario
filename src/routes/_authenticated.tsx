@@ -37,6 +37,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { resolveTenantContext, type TenantContext } from "@/lib/tenant";
 import { recordUserActivity, touchUserPresence } from "@/lib/user-activity.functions";
 
+const routeFeatureMap = [
+  ["/dashboard", "dashboard"],
+  ["/buscar", "buscar"],
+  ["/leiloes", "leiloes"],
+  ["/alertas", "alertas"],
+  ["/atendimento", "atendimento"],
+  ["/crm", "crm"],
+  ["/afiliados", "afiliados"],
+  ["/analise-localizacao", "analise_localizacao"],
+  ["/simulador-financiamento", "simulador"],
+  ["/assistente", "assistente"],
+  ["/central-integracoes", "central_integracoes"],
+  ["/discador", "discador"],
+  ["/midias-sociais", "midias"],
+] as const;
+
+function featureForPath(pathname: string) {
+  return routeFeatureMap.find(
+    ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )?.[1];
+}
+
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
     const {
@@ -67,21 +89,49 @@ export const Route = createFileRoute("/_authenticated")({
 
     let profileActive = true;
     let subscriptionStatus: string | null = null;
+    let subscriptionPlanId: string | null = null;
+    let planName: string | null = null;
+    let planSlug: string | null = null;
+    let planFeatures: string[] | null = null;
+    let featureOverrides = new Map<string, boolean>();
+
     try {
-      const [{ data: profile }, { data: subscription }] = await Promise.all([
+      const [{ data: profile }, { data: subscription }, { data: overrides }] = await Promise.all([
         supabase.from("profiles").select("is_active").eq("id", session.user.id).maybeSingle(),
         supabase
           .from("subscriptions")
-          .select("status")
+          .select("status,plan_id")
           .eq("user_id", session.user.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("user_feature_access")
+          .select("feature_key,allowed")
+          .eq("user_id", session.user.id),
       ]);
       profileActive = profile?.is_active !== false;
       subscriptionStatus = subscription?.status ? String(subscription.status) : null;
+      subscriptionPlanId = subscription?.plan_id ? String(subscription.plan_id) : null;
+      featureOverrides = new Map(
+        (overrides ?? []).map((row: any) => [String(row.feature_key), Boolean(row.allowed)]),
+      );
+
+      if (subscriptionPlanId) {
+        const { data: plan } = await supabase
+          .from("subscription_plans")
+          .select("slug,name,feature_keys")
+          .eq("id", subscriptionPlanId)
+          .maybeSingle();
+        if (plan) {
+          planName = String(plan.name ?? "");
+          planSlug = String(plan.slug ?? "");
+          planFeatures = Array.isArray(plan.feature_keys) ? plan.feature_keys.map(String) : [];
+        }
+      }
     } catch {
-      // Preserve current access if billing tables are temporarily unavailable.
+      // Fail-open preserves the current platform if billing metadata is temporarily unavailable.
+      planFeatures = null;
     }
 
     const isPlatformAdmin = userRoles.includes("admin");
@@ -101,32 +151,59 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/atendimento" });
     }
 
+    const allowedFeatures = new Set<string>(planFeatures ?? routeFeatureMap.map(([, key]) => key));
+    for (const [featureKey, allowed] of featureOverrides) {
+      if (allowed) allowedFeatures.add(featureKey);
+      else allowedFeatures.delete(featureKey);
+    }
+    if (isPlatformAdmin) {
+      for (const [, featureKey] of routeFeatureMap) allowedFeatures.add(featureKey);
+    }
+
+    const requestedFeature = featureForPath(location.pathname);
+    if (
+      requestedFeature &&
+      !isPlatformAdmin &&
+      !allowedFeatures.has(requestedFeature) &&
+      location.pathname !== "/assinatura"
+    ) {
+      throw redirect({ to: "/assinatura" });
+    }
+
     return {
       session,
       user: session.user,
       roles: userRoles,
       tenant,
-      access: { profileActive, subscriptionStatus, accountBlocked },
+      access: {
+        profileActive,
+        subscriptionStatus,
+        accountBlocked,
+        planId: subscriptionPlanId,
+        planName,
+        planSlug,
+        allowedFeatures: Array.from(allowedFeatures),
+      },
     };
   },
   component: AuthenticatedLayout,
 });
 
 const primaryItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/buscar", label: "Buscar imóveis", icon: Search },
-  { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel },
-  { to: "/alertas", label: "Alertas", icon: Bell },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: "dashboard" },
+  { to: "/buscar", label: "Buscar imóveis", icon: Search, feature: "buscar" },
+  { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel, feature: "leiloes" },
+  { to: "/alertas", label: "Alertas", icon: Bell, feature: "alertas" },
 ] as const;
 
 const toolItems = [
-  { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
-  { to: "/crm", label: "CRM / Oportunidades", icon: Users },
-  { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards },
-  { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
-  { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator },
+  { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle, feature: "atendimento" },
+  { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
+  { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
+  { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin, feature: "analise_localizacao" },
+  { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator, feature: "simulador" },
   { to: "/fluxos", label: "Fluxos", icon: Workflow, adminOnly: true },
-  { to: "/assistente", label: "Assistente IA", icon: Bot },
+  { to: "/assistente", label: "Assistente IA", icon: Bot, feature: "assistente" },
   { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, adminOnly: true },
   { to: "/integracoes", label: "Fontes de imóveis", icon: Plug, adminOnly: true },
 ] as const;
@@ -134,10 +211,15 @@ const toolItems = [
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { roles, tenant, user } = Route.useRouteContext();
+  const { roles, tenant, user, access } = Route.useRouteContext();
   const isAdmin = roles.includes("admin");
+  const allowedFeatures = new Set(access.allowedFeatures ?? []);
+  const isFeatureAllowed = (feature?: string) => !feature || isAdmin || allowedFeatures.has(feature);
+  const visiblePrimaryItems = primaryItems.filter((item) => isFeatureAllowed(item.feature));
   const visibleToolItems = toolItems.filter(
-    (item) => !("adminOnly" in item) || item.adminOnly !== true || isAdmin,
+    (item) =>
+      (!("adminOnly" in item) || item.adminOnly !== true || isAdmin) &&
+      (!("feature" in item) || isFeatureAllowed(item.feature)),
   );
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -193,6 +275,10 @@ function AuthenticatedLayout() {
   };
 
   const runGlobalSearch = () => {
+    if (!isFeatureAllowed("buscar")) {
+      void navigate({ to: "/assinatura" });
+      return;
+    }
     const value = globalSearch.trim();
     if (!value) return;
     sessionStorage.setItem("mercadoimobi:globalSearch", value);
@@ -217,7 +303,7 @@ function AuthenticatedLayout() {
       <nav className="mi-appbar sticky top-0 z-50 border-b">
         <div className="mx-auto flex h-14 max-w-[1720px] items-center gap-3 px-3 sm:px-5 lg:px-6">
           <Link
-            to="/dashboard"
+            to={isFeatureAllowed("dashboard") ? "/dashboard" : "/assinatura"}
             className="mi-brand flex shrink-0 items-center gap-2.5"
             aria-label="MercadoImobi"
           >
@@ -237,37 +323,43 @@ function AuthenticatedLayout() {
           <span className="hidden h-4 w-px bg-[var(--mi-border)] lg:block" />
 
           <div className="hidden items-center gap-1 lg:flex">
-            {primaryItems.map((item) => (
+            {visiblePrimaryItems.map((item) => (
               <TopNavLink key={item.to} item={item} pathname={location.pathname} />
             ))}
           </div>
 
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              runGlobalSearch();
-            }}
-            className="mi-global-search ml-auto hidden h-9 min-w-0 max-w-[430px] flex-1 items-center gap-2 rounded-lg border px-3 xl:flex"
-          >
-            <Search className="h-3.5 w-3.5 shrink-0 text-[var(--mi-text-soft)]" />
-            <input
-              value={globalSearch}
-              onChange={(event) => setGlobalSearch(event.target.value)}
-              placeholder="Buscar cidade, bairro ou imóvel..."
-              className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]"
-            />
-            <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[8px] font-bold text-[var(--mi-text-soft)]">
-              Enter
-            </span>
-          </form>
+          {isFeatureAllowed("buscar") && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                runGlobalSearch();
+              }}
+              className="mi-global-search ml-auto hidden h-9 min-w-0 max-w-[430px] flex-1 items-center gap-2 rounded-lg border px-3 xl:flex"
+            >
+              <Search className="h-3.5 w-3.5 shrink-0 text-[var(--mi-text-soft)]" />
+              <input
+                value={globalSearch}
+                onChange={(event) => setGlobalSearch(event.target.value)}
+                placeholder="Buscar cidade, bairro ou imóvel..."
+                className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]"
+              />
+              <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[8px] font-bold text-[var(--mi-text-soft)]">
+                Enter
+              </span>
+            </form>
+          )}
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:ml-0">
-            <Link to="/atendimento" className="mi-icon-button hidden sm:grid" title="Atendimento">
-              <MessageCircle className="h-4 w-4" />
-            </Link>
-            <Link to="/alertas" className="mi-icon-button relative hidden sm:grid" title="Alertas">
-              <Bell className="h-4 w-4" />
-            </Link>
+            {isFeatureAllowed("atendimento") && (
+              <Link to="/atendimento" className="mi-icon-button hidden sm:grid" title="Atendimento">
+                <MessageCircle className="h-4 w-4" />
+              </Link>
+            )}
+            {isFeatureAllowed("alertas") && (
+              <Link to="/alertas" className="mi-icon-button relative hidden sm:grid" title="Alertas">
+                <Bell className="h-4 w-4" />
+              </Link>
+            )}
             <ThemeToggle compact />
 
             <div className="relative hidden lg:block">
@@ -312,7 +404,9 @@ function AuthenticatedLayout() {
                     {displayName}
                   </span>
                   <span className="block truncate text-[8px] text-[var(--mi-text-soft)]">
-                    {tenant?.tenantName || "MercadoImobi"}
+                    {access.planName && access.planSlug !== "legacy_full"
+                      ? access.planName
+                      : tenant?.tenantName || "MercadoImobi"}
                   </span>
                 </span>
                 <ChevronDown className="hidden h-3 w-3 text-[var(--mi-text-soft)] 2xl:block" />
@@ -410,28 +504,30 @@ function AuthenticatedLayout() {
               </button>
             </div>
 
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                runGlobalSearch();
-                setMobileOpen(false);
-              }}
-              className="mi-global-search mt-4 flex h-10 items-center gap-2 rounded-lg border px-3"
-            >
-              <Search className="h-4 w-4 text-[var(--mi-text-soft)]" />
-              <input
-                value={globalSearch}
-                onChange={(event) => setGlobalSearch(event.target.value)}
-                placeholder="Buscar imóveis..."
-                className="min-w-0 flex-1 bg-transparent text-xs outline-none"
-              />
-            </form>
+            {isFeatureAllowed("buscar") && (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  runGlobalSearch();
+                  setMobileOpen(false);
+                }}
+                className="mi-global-search mt-4 flex h-10 items-center gap-2 rounded-lg border px-3"
+              >
+                <Search className="h-4 w-4 text-[var(--mi-text-soft)]" />
+                <input
+                  value={globalSearch}
+                  onChange={(event) => setGlobalSearch(event.target.value)}
+                  placeholder="Buscar imóveis..."
+                  className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+                />
+              </form>
+            )}
 
             <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
               <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">
                 Navegação
               </p>
-              {[...primaryItems, ...visibleToolItems].map((item) => (
+              {[...visiblePrimaryItems, ...visibleToolItems].map((item) => (
                 <MobileNavLink
                   key={item.to}
                   item={item}
