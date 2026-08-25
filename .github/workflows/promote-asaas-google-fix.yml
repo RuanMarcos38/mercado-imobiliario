@@ -1,0 +1,44 @@
+name: Promote validated Asaas Google fix
+
+on:
+  push:
+    branches: [fix/asaas-checkout-google-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_SHA: dd8d3d52a1b8de90645a49cf776258da6dde2685
+      EXPECTED_PRODUCTION_SHA: 615bf4f7e6843c06056177dca81fb5c49e28080a
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact validated target and production base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          CURRENT="$(git rev-parse origin/production)"
+          test "$CURRENT" = "$EXPECTED_PRODUCTION_SHA" || {
+            echo "::error::Production moved unexpectedly: $CURRENT"
+            exit 1
+          }
+          git cat-file -e "$TARGET_SHA^{commit}"
+          git merge-base --is-ancestor "$EXPECTED_PRODUCTION_SHA" "$TARGET_SHA"
+          CHANGED="$(git diff --name-only "$EXPECTED_PRODUCTION_SHA" "$TARGET_SHA")"
+          echo "$CHANGED"
+          test "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l)" -eq 4
+          printf '%s\n' "$CHANGED" | grep -qx 'src/lib/asaas-billing.server.ts'
+          printf '%s\n' "$CHANGED" | grep -qx 'src/lib/billing.functions.ts'
+          printf '%s\n' "$CHANGED" | grep -qx 'src/lib/partner-search.functions.ts'
+          printf '%s\n' "$CHANGED" | grep -qx 'src/routes/api/public/hooks/asaas.tsx'
+      - name: Promote exact validated commit to production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "$TARGET_SHA:refs/heads/production"
