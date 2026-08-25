@@ -5,7 +5,11 @@ import {
   evolutionGatewayConfig,
   getTenantEvolutionInstance,
 } from "@/lib/evolution-instance.server";
-import { sendEvolutionMediaMessage, type EvolutionMediaType } from "@/lib/evolution-media.server";
+import {
+  sendEvolutionAudioMessage,
+  sendEvolutionMediaMessage,
+  type EvolutionMediaType,
+} from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
@@ -18,10 +22,11 @@ const mediaSchema = z.object({
   caption: z.string().trim().max(1024).optional(),
 });
 
-function mediaTypeFromMime(mimeType: string): EvolutionMediaType {
+function mediaTypeFromMime(mimeType: string): EvolutionMediaType | "audio" {
   const mime = mimeType.toLowerCase();
   if (mime.startsWith("image/")) return "image";
   if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
   return "document";
 }
 
@@ -54,15 +59,22 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
     if (!phone) throw new Error(whatsappPhoneErrorMessage(String(conversation.phone_e164 ?? "")));
 
     const mediaType = mediaTypeFromMime(data.mimeType);
-    const payload = await sendEvolutionMediaMessage({
-      phone,
-      mediaType,
-      mimeType: data.mimeType,
-      fileName: data.fileName,
-      base64: data.base64,
-      caption: data.caption,
-      instanceName,
-    });
+    const payload =
+      mediaType === "audio"
+        ? await sendEvolutionAudioMessage({
+            phone,
+            base64: data.base64,
+            instanceName,
+          })
+        : await sendEvolutionMediaMessage({
+            phone,
+            mediaType,
+            mimeType: data.mimeType,
+            fileName: data.fileName,
+            base64: data.base64,
+            caption: data.caption,
+            instanceName,
+          });
 
     const key = payload["key"] as Record<string, unknown> | undefined;
     const externalMessageId =
@@ -70,7 +82,8 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       (typeof payload["id"] === "string" && payload["id"]) ||
       null;
     const now = new Date().toISOString();
-    const label = data.caption?.trim() || `📎 ${data.fileName}`;
+    const label =
+      mediaType === "audio" ? "🎤 Áudio" : data.caption?.trim() || `📎 ${data.fileName}`;
 
     const { error: insertError } = await db.from("whatsapp_messages").insert({
       tenant_id: tenantId,

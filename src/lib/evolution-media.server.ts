@@ -69,3 +69,33 @@ export async function sendEvolutionMediaMessage(input: {
 
   throw new Error(`EVOLUTION_MEDIA_FAILED:${response.status}:${responseMessage(payload)}`);
 }
+
+export async function sendEvolutionAudioMessage(input: {
+  phone: string;
+  base64: string;
+  instanceName: string;
+}): Promise<JsonObject> {
+  const config = evolutionGatewayConfig();
+  if (!config) throw new Error("WHATSAPP_NOT_CONFIGURED");
+
+  const endpoint = `${config.baseUrl}/message/sendWhatsAppAudio/${encodeURIComponent(input.instanceName)}`;
+  const cleanBase64 = input.base64.replace(/^data:[^;]+;base64,/, "").trim();
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: config.apiKey,
+    },
+    body: JSON.stringify({
+      number: input.phone,
+      audio: cleanBase64,
+      encoding: true,
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  const raw = await response.text();
+  const payload = parsePayload(raw);
+  if (response.ok) return payload;
+
+  throw new Error(`EVOLUTION_AUDIO_FAILED:${response.status}:${responseMessage(payload)}`);
+}
