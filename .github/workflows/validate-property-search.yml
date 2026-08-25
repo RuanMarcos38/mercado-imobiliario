@@ -19,9 +19,10 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
-      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID || 'uwzfgksmnqgaxtscwxow' }}
+      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      LIVE_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,36 +51,24 @@ jobs:
             exit 1
           fi
 
-      - name: Verify MercadoImobi production Supabase binding
+      - name: Verify exclusive MercadoImobi Supabase binding
         shell: bash
         run: |
           set -euo pipefail
-          test "$EXPECTED_SUPABASE_PROJECT_ID" = "uwzfgksmnqgaxtscwxow" || {
-            echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID must remain uwzfgksmnqgaxtscwxow for this production service."
+          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || {
+            echo "::error::Repository variable MERCADOIMOBI_SUPABASE_PROJECT_ID is required."
             exit 1
           }
-          grep -q 'project_id = "uwzfgksmnqgaxtscwxow"' supabase/config.toml || {
-            echo "::error::supabase/config.toml is not bound to the MercadoImobi production project."
+          case "$EXPECTED_SUPABASE_PROJECT_ID" in
+            uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)
+              echo "::error::MercadoImobi must use its exclusive Supabase project, never RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
+              exit 1
+              ;;
+          esac
+          if git grep -nE 'uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs' -- \
+            '.env.example' 'supabase/config.toml' '.github/workflows/*.yml' 'src/integrations/supabase/*.ts'; then
+            echo "::error::Forbidden Supabase project reference found in deployment/runtime configuration."
             exit 1
-          }
-          if git grep -n 'iqrnytsgwaiegddfxfjs' -- \
-            '.env.example' 'supabase/config.toml' '.github/workflows/deploy-easypanel.yml'; then
-            echo "::error::MercadoImobi must not use the CRM R2 MARKETING DIGITAL Supabase project in deployment configuration."
-            exit 1
-          fi
-
-      - name: Apply formatting to Supabase binding
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx prettier --write src/integrations/supabase/public-config.ts
-          if ! git diff --quiet -- src/integrations/supabase/public-config.ts; then
-            git config user.name "github-actions[bot]"
-            git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
-            git add src/integrations/supabase/public-config.ts
-            git commit -m "chore: format MercadoImobi Supabase binding"
-            git push origin HEAD:main
           fi
 
       - name: Verify source formatting
@@ -96,19 +85,24 @@ jobs:
 
       - name: Build
         shell: bash
+        env:
+          VITE_SUPABASE_URL: https://${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}.supabase.co
+          VITE_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
-          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
-          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
+          test -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" || { echo "::error::MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY is required."; exit 1; }
           npm run build
           test -f .output/server/index.mjs
 
       - name: Smoke test backend
         shell: bash
+        env:
+          VITE_SUPABASE_URL: https://${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}.supabase.co
+          VITE_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
-          unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID
-          unset SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_PROJECT_ID SUPABASE_SERVICE_ROLE_KEY
           PORT=3000 HOST=127.0.0.1 NODE_ENV=production node .output/server/index.mjs > /tmp/mercadoimobi-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
@@ -121,13 +115,30 @@ jobs:
           const fs = require('fs');
           const status = JSON.parse(fs.readFileSync('/tmp/status.json', 'utf8'));
           const expected = String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
-          if (String(status.supabaseProjectId || '') !== expected) {
-            throw new Error(`project=${status.supabaseProjectId || 'missing'}`);
-          }
-          const noRuntimeSecrets = status.runtime?.supabaseAdmin === 'not_configured';
-          if (status.status !== 'operational' && !(status.status === 'degraded' && noRuntimeSecrets)) {
-            throw new Error(`status=${status.status}`);
-          }
+          if (String(status.supabaseProjectId || '') !== expected) throw new Error(`project=${status.supabaseProjectId || 'missing'}`);
+          if (!['operational','degraded'].includes(status.status)) throw new Error(`status=${status.status}`);
+          NODE
+
+      - name: Real production healthcheck
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUBLIC_URL="${LIVE_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          PUBLIC_URL="${PUBLIC_URL%/}"
+          STATUS_URL="$PUBLIC_URL/api/public/status"
+          curl -fsS --connect-timeout 8 --max-time 20 "$STATUS_URL" -o /tmp/live-status.json
+          EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/live-status.json', 'utf8'));
+          const expected = String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
+          const project = String(status.supabaseProjectId || '');
+          if (project !== expected) throw new Error(`live project=${project || 'missing'}, expected=${expected}`);
+          if (status.status !== 'operational') throw new Error(`live status=${status.status}`);
+          if (status.search !== 'available') throw new Error(`live search=${status.search}`);
+          if (status.runtime?.supabaseAdmin !== 'configured') throw new Error('live Supabase admin runtime is not configured');
+          if (!Number.isFinite(status.indexedProperties) || status.indexedProperties < 1000) throw new Error(`indexedProperties=${status.indexedProperties}`);
+          if (!Number.isFinite(status.coveredStates) || status.coveredStates < 27) throw new Error(`coveredStates=${status.coveredStates}`);
           NODE
 
       - name: Promote validated main to production
