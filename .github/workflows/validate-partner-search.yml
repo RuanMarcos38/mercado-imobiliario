@@ -1,0 +1,53 @@
+name: Validate partner search feature
+
+on:
+  push:
+    branches: [feat/parcerias-corretores-brasil]
+    paths:
+      - .github/workflows/validate-partner-search.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: https://rjlqylmwenhzkzmqwris.supabase.co
+      VITE_SUPABASE_PROJECT_ID: rjlqylmwenhzkzmqwris
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply isolated navigation patch
+        run: python scripts/apply-partner-search-nav.py
+      - name: Format touched files
+        run: npx prettier --write src/lib/partner-search.core.ts src/lib/partner-search.functions.ts src/routes/_authenticated/parcerias.tsx src/routes/_authenticated.tsx tests/partner-search.test.ts
+      - name: Lint
+        run: npm run lint
+      - name: Partner and critical regression tests
+        run: npx vitest run tests/partner-search.test.ts tests/critical-flows.spec.ts tests/platform-buttons.test.ts
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production build
+        run: npm run build
+      - name: Commit only validated product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/partner-search.core.ts src/lib/partner-search.functions.ts src/routes/_authenticated/parcerias.tsx src/routes/_authenticated.tsx tests/partner-search.test.ts
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: add Brazil real estate partner finder"
+          git push origin HEAD:${GITHUB_REF_NAME}
