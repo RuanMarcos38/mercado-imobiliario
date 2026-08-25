@@ -58,7 +58,7 @@ jobs:
           git checkout HEAD -- 'src/routes/[.mcp]/list-tools.ts' 2>/dev/null || true
           git checkout HEAD -- 'src/routes/[.well-known]/oauth-protected-resource.ts' 2>/dev/null || true
           git checkout HEAD -- src/routes/mcp.ts 2>/dev/null || true
-          changed="$(git diff --name-only | sort)"
+          changed="$( { git diff --name-only; git ls-files --others --exclude-standard; } | sort )"
           expected="$(printf '%s\n' 'src/lib/asaas-billing.server.ts' 'src/routes/_authenticated/assinatura.tsx' 'src/routes/_authenticated.tsx' 'supabase/migrations/20260825233500_harden_plan_feature_entitlements.sql' | sort)"
           test "$changed" = "$expected" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
           git config user.name 'github-actions[bot]'
