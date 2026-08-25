@@ -54,7 +54,7 @@ replace_once(
   { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
 ] as const;''',
     '''const toolItems = [
-  { to: "/atendimento", label: "Modo Atendimento", icon: MessageCircle },
+  { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
   { to: "/crm", label: "CRM / Oportunidades", icon: Users },
   { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
