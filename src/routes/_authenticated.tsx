@@ -14,6 +14,7 @@ import {
   ChevronDown,
   CreditCard,
   Gavel,
+  Handshake,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -40,6 +41,7 @@ import { recordUserActivity, touchUserPresence } from "@/lib/user-activity.funct
 const routeFeatureMap = [
   ["/dashboard", "dashboard"],
   ["/buscar", "buscar"],
+  ["/parcerias", "buscar"],
   ["/leiloes", "leiloes"],
   ["/alertas", "alertas"],
   ["/atendimento", "atendimento"],
@@ -204,6 +206,7 @@ const toolItems = [
     feature: "atendimento",
   },
   { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
+  { to: "/parcerias", label: "Parcerias imobiliárias", icon: Handshake, feature: "buscar" },
   { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
   {
     to: "/analise-localizacao",
