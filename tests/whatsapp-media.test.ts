@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sendEvolutionMediaMessage } from "@/lib/evolution-media.server";
+import { sendEvolutionAudioMessage, sendEvolutionMediaMessage } from "@/lib/evolution-media.server";
 
 describe("Evolution media sender", () => {
   afterEach(() => {
@@ -41,6 +41,36 @@ describe("Evolution media sender", () => {
       media: "QUJD",
       fileName: "documento.pdf",
       caption: "Documento do cliente",
+    });
+  });
+
+  it("sends voice audio through the dedicated Evolution WhatsApp audio endpoint", async () => {
+    vi.stubEnv("EVOLUTION_API_URL", "https://evolution.example.test");
+    vi.stubEnv("EVOLUTION_API_KEY", "test-key");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ key: { id: "audio-1" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await sendEvolutionAudioMessage({
+      phone: "5547999999999",
+      base64: "data:audio/webm;base64,QUJD",
+      instanceName: "mercadoimobi-tenant-123",
+    });
+
+    expect(result).toMatchObject({ key: { id: "audio-1" } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/message/sendWhatsAppAudio/mercadoimobi-tenant-123",
+    );
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({
+      number: "5547999999999",
+      audio: "QUJD",
+      encoding: true,
     });
   });
 });
