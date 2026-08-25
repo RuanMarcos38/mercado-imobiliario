@@ -148,9 +148,7 @@ export const getAccountAccessState = createServerFn({ method: "GET" })
       profileActive,
       subscriptionStatus,
       blockedReason,
-      billingConfigured: Boolean(
-        process.env["STRIPE_SECRET_KEY"] && process.env["STRIPE_PRICE_ID"],
-      ),
+      billingConfigured: Boolean(process.env["STRIPE_SECRET_KEY"]),
     };
   });
 
