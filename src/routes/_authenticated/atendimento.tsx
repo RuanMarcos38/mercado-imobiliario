@@ -777,10 +777,10 @@ function AtendimentoPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-112px)] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
-        <aside className="flex w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
-          <div className="border-b border-[var(--mi-border)] p-4">
+    <div className="h-[calc(100dvh-72px)] overflow-hidden bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">
+      <div className="mx-auto flex h-[calc(100dvh-112px)] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
+        <aside className="flex min-h-0 w-[360px] shrink-0 flex-col overflow-hidden border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
+          <div className="shrink-0 border-b border-[var(--mi-border)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">
@@ -879,7 +879,7 @@ function AtendimentoPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">
+          <div className="grid shrink-0 grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">
             {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
               <button
                 key={tab}
@@ -900,7 +900,7 @@ function AtendimentoPage() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {filtered.map((conversation: AttendanceConversation) => (
               <button
                 type="button"
@@ -966,10 +966,10 @@ function AtendimentoPage() {
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {selected ? (
             <>
-              <header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
+              <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-black">
@@ -1035,7 +1035,7 @@ function AtendimentoPage() {
               </header>
 
               {propertyContext && (
-                <div className="border-b border-[var(--mi-border)] bg-blue-500/[0.04] px-5 py-3">
+                <div className="shrink-0 border-b border-[var(--mi-border)] bg-blue-500/[0.04] px-5 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
@@ -1059,7 +1059,7 @@ function AtendimentoPage() {
                 </div>
               )}
 
-              <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
+              <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
                 <div className="space-y-3">
                   {(messages.data ?? []).map((message) => (
                     <div
@@ -1096,7 +1096,7 @@ function AtendimentoPage() {
                 </div>
               </div>
 
-              <footer className="relative border-t border-[var(--mi-border)] p-4">
+              <footer className="relative shrink-0 border-t border-[var(--mi-border)] p-4">
                 <div className="mb-2 flex justify-end">
                   <Button
                     variant="outline"
@@ -1314,13 +1314,13 @@ function AtendimentoPage() {
         </main>
 
         {selected && (
-          <aside className="hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
+          <aside className="hidden min-h-0 w-[300px] shrink-0 flex-col overflow-hidden border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
             <div className="border-b border-[var(--mi-border)] px-5 py-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
                 Detalhes
               </p>
             </div>
-            <div className="space-y-5 overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
                   Contato
