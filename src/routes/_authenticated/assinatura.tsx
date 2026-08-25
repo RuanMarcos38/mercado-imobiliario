@@ -34,6 +34,7 @@ const statusLabel: Record<string, string> = {
   unpaid: "Pagamento necessário",
 };
 
+// Exibe exatamente o valor mensal cadastrado no plano.
 function money(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
