@@ -1,0 +1,45 @@
+name: Apply user delete UI
+
+on:
+  push:
+    branches: [main, production]
+    paths:
+      - .github/workflows/apply-user-delete-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply targeted UI patch
+        run: python scripts/apply-user-delete-ui.py
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm run test -- --passWithNoTests
+      - name: Build
+        run: npm run build
+      - name: Commit targeted changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/admin/usuarios.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: add delete user action to admin"
+          git push origin HEAD:${GITHUB_REF_NAME}
