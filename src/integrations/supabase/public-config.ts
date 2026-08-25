@@ -1,11 +1,30 @@
-const MERCADOIMOBI_SUPABASE_PROJECT_ID = "uwzfgksmnqgaxtscwxow";
-const MERCADOIMOBI_SUPABASE_URL = "https://uwzfgksmnqgaxtscwxow.supabase.co";
-const MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_mZUNYHM3JeRZXR8vWfVECA_7gCgTp7i";
+const FORBIDDEN_SUPABASE_PROJECT_IDS = new Set([
+  "uwzfgksmnqgaxtscwxow", // RM NEGOCIO IMOBILIARIO
+  "iqrnytsgwaiegddfxfjs", // CRM R2 MARKETING DIGITAL
+]);
 
-// MercadoImobi production authentication is intentionally pinned to its existing
-// Supabase project. EasyPanel may still contain stale VITE_* build arguments from
-// an older deployment; those values must never redirect the browser auth client to
-// another Supabase project.
-export const PUBLIC_SUPABASE_URL = MERCADOIMOBI_SUPABASE_URL;
-export const PUBLIC_SUPABASE_PUBLISHABLE_KEY = MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY;
-export const PUBLIC_SUPABASE_PROJECT_ID = MERCADOIMOBI_SUPABASE_PROJECT_ID;
+const env = import.meta.env as Record<string, string | undefined>;
+
+export const PUBLIC_SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").trim();
+export const PUBLIC_SUPABASE_PUBLISHABLE_KEY = String(
+  env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
+).trim();
+export const PUBLIC_SUPABASE_PROJECT_ID = String(env.VITE_SUPABASE_PROJECT_ID || "").trim();
+
+if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY || !PUBLIC_SUPABASE_PROJECT_ID) {
+  throw new Error("MercadoImobi exclusive Supabase configuration is required");
+}
+
+if (FORBIDDEN_SUPABASE_PROJECT_IDS.has(PUBLIC_SUPABASE_PROJECT_ID)) {
+  throw new Error("MercadoImobi must not use RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL");
+}
+
+const expectedHost = `${PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`;
+try {
+  if (new URL(PUBLIC_SUPABASE_URL).hostname !== expectedHost) {
+    throw new Error("MercadoImobi Supabase URL does not match VITE_SUPABASE_PROJECT_ID");
+  }
+} catch (error) {
+  if (error instanceof Error && error.message.includes("does not match")) throw error;
+  throw new Error("MercadoImobi Supabase URL is invalid");
+}
