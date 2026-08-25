@@ -1,0 +1,137 @@
+name: Validate isolated attendance scroll fix
+
+on:
+  push:
+    branches: [fix/atendimento-scroll-fixo]
+    paths:
+      - .github/workflows/fix-atendimento-scroll.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply isolated viewport scroll fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/routes/_authenticated/atendimento.tsx")
+          text = path.read_text(encoding="utf-8")
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected exactly 1 match, found {count}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '<div className="min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">',
+              '<div className="h-[calc(100dvh-72px)] overflow-hidden bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">',
+              "page viewport",
+          )
+          replace_once(
+              '<div className="mx-auto flex min-h-[calc(100vh-112px)] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">',
+              '<div className="mx-auto flex h-[calc(100dvh-112px)] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">',
+              "attendance frame height",
+          )
+          replace_once(
+              '<aside className="flex w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">',
+              '<aside className="flex min-h-0 w-[360px] shrink-0 flex-col overflow-hidden border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">',
+              "contacts sidebar",
+          )
+          replace_once(
+              '<div className="border-b border-[var(--mi-border)] p-4">',
+              '<div className="shrink-0 border-b border-[var(--mi-border)] p-4">',
+              "contacts controls",
+          )
+          replace_once(
+              '<div className="grid grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">',
+              '<div className="grid shrink-0 grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">',
+              "queue tabs",
+          )
+          replace_once(
+              '<div className="flex-1 overflow-y-auto">',
+              '<div className="min-h-0 flex-1 overflow-y-auto">',
+              "contacts list scroll",
+          )
+          replace_once(
+              '<main className="flex min-w-0 flex-1 flex-col">',
+              '<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">',
+              "conversation column",
+          )
+          replace_once(
+              '<header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">',
+              '<header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">',
+              "conversation header",
+          )
+          replace_once(
+              '<div className="border-b border-[var(--mi-border)] bg-blue-500/[0.04] px-5 py-3">',
+              '<div className="shrink-0 border-b border-[var(--mi-border)] bg-blue-500/[0.04] px-5 py-3">',
+              "property context",
+          )
+          replace_once(
+              '<div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">',
+              '<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">',
+              "message scroll pane",
+          )
+          replace_once(
+              '<footer className="relative border-t border-[var(--mi-border)] p-4">',
+              '<footer className="relative shrink-0 border-t border-[var(--mi-border)] p-4">',
+              "composer footer",
+          )
+          replace_once(
+              '<aside className="hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">',
+              '<aside className="hidden min-h-0 w-[300px] shrink-0 flex-col overflow-hidden border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">',
+              "details sidebar",
+          )
+          replace_once(
+              '<div className="space-y-5 overflow-y-auto p-5">',
+              '<div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">',
+              "details scroll",
+          )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+      - name: Format only touched file
+        run: npx prettier --write src/routes/_authenticated/atendimento.tsx
+      - name: Verify isolated layout invariants
+        shell: bash
+        run: |
+          grep -F 'h-[calc(100dvh-72px)] overflow-hidden' src/routes/_authenticated/atendimento.tsx
+          grep -F 'ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto' src/routes/_authenticated/atendimento.tsx
+          grep -F '<aside className="flex min-h-0 w-[360px]' src/routes/_authenticated/atendimento.tsx
+      - name: Lint
+        run: npm run lint
+      - name: Critical regression tests
+        run: npx vitest run tests/critical-flows.spec.ts tests/platform-buttons.test.ts
+      - name: Production build
+        run: npm run build
+      - name: Commit validated product change only
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/atendimento.tsx
+          git diff --cached --exit-code && exit 0 || true
+          git commit -m "fix: manter contatos fixos e rolar somente conversa"
+          git push origin HEAD:${GITHUB_REF_NAME}
