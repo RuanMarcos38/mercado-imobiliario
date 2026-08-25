@@ -68,23 +68,17 @@ jobs:
             exit 1
           fi
 
-      - name: Apply formatting to MercadoImobi sources
+      - name: Apply formatting to Supabase binding
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
-          FORMAT_FILES=(
-            src/integrations/supabase/public-config.ts
-            src/lib/affiliate-live.functions.ts
-            src/routes/_authenticated/admin/comissoes.tsx
-            src/routes/_authenticated/afiliados.tsx
-          )
-          npx prettier --write "${FORMAT_FILES[@]}"
-          if ! git diff --quiet -- "${FORMAT_FILES[@]}"; then
+          npx prettier --write src/integrations/supabase/public-config.ts
+          if ! git diff --quiet -- src/integrations/supabase/public-config.ts; then
             git config user.name "github-actions[bot]"
             git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
-            git add "${FORMAT_FILES[@]}"
-            git commit -m "chore: format MercadoImobi sources"
+            git add src/integrations/supabase/public-config.ts
+            git commit -m "chore: format MercadoImobi Supabase binding"
             git push origin HEAD:main
           fi
 
