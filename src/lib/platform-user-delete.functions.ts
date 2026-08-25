@@ -92,7 +92,10 @@ export const deletePlatformUser = createServerFn({ method: "POST" })
     if (tenantId) {
       const [tenantResult, memberCountResult] = await Promise.all([
         db.from("tenants").select("owner_user_id").eq("id", tenantId).maybeSingle(),
-        db.from("tenant_members").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+        db
+          .from("tenant_members")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId),
       ]);
       ownerUserId = tenantResult.data?.owner_user_id ?? null;
       memberCount = Number(memberCountResult.count ?? 0);
