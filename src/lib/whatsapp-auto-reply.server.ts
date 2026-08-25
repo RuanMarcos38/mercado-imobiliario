@@ -273,7 +273,7 @@ export async function maybeAutoReply(input: {
 
   // Humanized debounce: wait for the customer to finish a burst of short messages.
   // Only the newest inbound message in the conversation is allowed to trigger a reply.
-  await sleep(AUTOMATIC_REPLY_DEBOUNCE_MS);
+  await sleep(process.env.NODE_ENV === "test" ? 0 : AUTOMATIC_REPLY_DEBOUNCE_MS);
 
   const messages = await recentMessages(input.tenantId, input.conversationId, 20);
   const latestCheck = currentInboundIsLatest(messages, input);
