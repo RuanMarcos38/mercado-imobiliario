@@ -35,7 +35,9 @@ function object(value: unknown): JsonObject {
 async function readPlatformSecret(name: string) {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await (supabaseAdmin as any).rpc("get_platform_secret", { p_name: name });
+    const { data, error } = await (supabaseAdmin as any).rpc("get_platform_secret", {
+      p_name: name,
+    });
     if (error || typeof data !== "string" || !data.trim()) return null;
     return data.trim();
   } catch {
@@ -44,7 +46,8 @@ async function readPlatformSecret(name: string) {
 }
 
 export async function getAsaasConfig(): Promise<AsaasConfig | null> {
-  const apiKey = process.env["ASAAS_API_KEY"]?.trim() || (await readPlatformSecret(ASAAS_API_SECRET));
+  const apiKey =
+    process.env["ASAAS_API_KEY"]?.trim() || (await readPlatformSecret(ASAAS_API_SECRET));
   if (!apiKey) return null;
   const walletId =
     process.env["ASAAS_WALLET_ID"]?.trim() || (await readPlatformSecret(ASAAS_WALLET_SECRET));

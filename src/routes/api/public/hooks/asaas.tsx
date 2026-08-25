@@ -97,7 +97,9 @@ async function persistSubscription(
   };
 
   if (existing?.id) {
-    const cleanPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+    const cleanPatch = Object.fromEntries(
+      Object.entries(patch).filter(([, value]) => value !== undefined),
+    );
     const { error } = await db.from("subscriptions").update(cleanPatch).eq("id", existing.id);
     if (error) throw new Error(error.message);
     return true;
@@ -161,7 +163,10 @@ async function handleAsaasWebhook(request: Request) {
     // Não confia apenas no payload recebido: confirma a cobrança diretamente na API autenticada do Asaas.
     payment = await getAuthoritativeAsaasPayment(paymentId);
   } catch {
-    return Response.json({ ok: false, error: "asaas_payment_verification_failed" }, { status: 503 });
+    return Response.json(
+      { ok: false, error: "asaas_payment_verification_failed" },
+      { status: 503 },
+    );
   }
 
   if (String(payment["id"] ?? "") !== paymentId) {

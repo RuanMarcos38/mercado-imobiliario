@@ -7,7 +7,10 @@ describe("Asaas billing helpers", () => {
     const planId = "22222222-2222-4222-8222-222222222222";
     const reference = __asaasBillingTestUtils.buildAsaasExternalReference(userId, planId);
     expect(reference).toBe(`mercadoimobi:${userId}:${planId}`);
-    expect(__asaasBillingTestUtils.parseAsaasExternalReference(reference)).toEqual({ userId, planId });
+    expect(__asaasBillingTestUtils.parseAsaasExternalReference(reference)).toEqual({
+      userId,
+      planId,
+    });
   });
 
   it("rejects foreign references", () => {

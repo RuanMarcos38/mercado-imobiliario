@@ -290,7 +290,12 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
     const payload = await stripePost("/checkout/sessions", body);
     const url = typeof payload["url"] === "string" ? payload["url"] : null;
     if (!url) throw new Error("Checkout não retornou uma URL válida.");
-    return { url, planId: String(plan.id), planSlug: String(plan.slug), provider: "stripe" as const };
+    return {
+      url,
+      planId: String(plan.id),
+      planSlug: String(plan.slug),
+      provider: "stripe" as const,
+    };
   });
 
 export const createSubscriberPortal = createServerFn({ method: "POST" })
