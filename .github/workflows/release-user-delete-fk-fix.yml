@@ -1,0 +1,59 @@
+name: Release user deletion FK fix
+
+on:
+  push:
+    branches: [release/user-delete-fk-fix-20260825]
+    paths:
+      - .github/workflows/release-user-delete-fk-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/user-delete-fk-fix-20260825
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Format changed source
+        run: npx prettier --write src/lib/platform-user-delete.functions.ts
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm run test -- --passWithNoTests
+      - name: Build
+        run: npm run build
+      - name: Verify FK protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'crm_appointments' src/lib/platform-user-delete.functions.ts
+          grep -q '\.delete()' src/lib/platform-user-delete.functions.ts
+          grep -q 'OWNER_HAS_MEMBERS' src/lib/platform-user-delete.functions.ts
+      - name: Commit final release tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/release-user-delete-fk-fix.yml
+          git add src/lib/platform-user-delete.functions.ts
+          git commit -m "fix: protect user deletion foreign key path"
+      - name: Promote targeted fix to production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          git merge-base --is-ancestor origin/production HEAD
+          git push origin HEAD:refs/heads/production
