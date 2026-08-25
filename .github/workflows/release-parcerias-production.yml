@@ -65,7 +65,19 @@ jobs:
           grep -F 'label: "Parcerias imobiliárias"' src/routes/_authenticated.tsx
           grep -F 'createFileRoute("/_authenticated/parcerias")' src/routes/_authenticated/parcerias.tsx
           grep -F 'searchRealEstatePartners' src/lib/partner-search.functions.ts
-          test "$(git diff --name-only | sort | tr '\n' ' ')" = "src/lib/partner-search.core.ts src/lib/partner-search.functions.ts src/routes/_authenticated.tsx src/routes/_authenticated/parcerias.tsx "
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'src/lib/partner-search.core.ts',
+              'src/lib/partner-search.functions.ts',
+              'src/routes/_authenticated.tsx',
+              'src/routes/_authenticated/parcerias.tsx',
+          }
+          lines = subprocess.check_output(['git', 'status', '--porcelain'], text=True).splitlines()
+          paths = {line[3:] for line in lines if line.strip()}
+          if paths != expected:
+              raise SystemExit(f'Unexpected changed files: {sorted(paths)}')
+          PY
       - name: Lint
         run: npm run lint
       - name: Critical regression tests
