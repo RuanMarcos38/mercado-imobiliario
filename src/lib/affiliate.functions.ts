@@ -50,30 +50,35 @@ async function ensureAffiliateProfile(db: any, userId: string) {
 
 async function buildOverview(db: any, userId: string): Promise<AffiliateOverview> {
   const profile = await ensureAffiliateProfile(db, userId);
-  const [{ data: settings, error: settingsError }, { data: commissions, error: commissionError }, statsResult] =
-    await Promise.all([
-      db
-        .from("affiliate_settings")
-        .select("direct_rate,network_rate,max_depth,hold_days")
-        .eq("id", 1)
-        .single(),
-      db
-        .from("affiliate_commissions")
-        .select(
-          "id,source_user_id,level,rate,gross_amount,commission_amount,status,available_at,created_at",
-        )
-        .eq("beneficiary_user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(200),
-      db.rpc("affiliate_network_stats", { p_user_id: userId }),
-    ]);
+  const [
+    { data: settings, error: settingsError },
+    { data: commissions, error: commissionError },
+    statsResult,
+  ] = await Promise.all([
+    db
+      .from("affiliate_settings")
+      .select("direct_rate,network_rate,max_depth,hold_days")
+      .eq("id", 1)
+      .single(),
+    db
+      .from("affiliate_commissions")
+      .select(
+        "id,source_user_id,level,rate,gross_amount,commission_amount,status,available_at,created_at",
+      )
+      .eq("beneficiary_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(200),
+    db.rpc("affiliate_network_stats", { p_user_id: userId }),
+  ]);
 
   if (settingsError) throw new Error(settingsError.message);
   if (commissionError) throw new Error(commissionError.message);
   if (statsResult.error) throw new Error(statsResult.error.message);
 
   const rows = commissions ?? [];
-  const sourceIds = [...new Set(rows.map((item: any) => String(item.source_user_id)).filter(Boolean))];
+  const sourceIds = [
+    ...new Set(rows.map((item: any) => String(item.source_user_id)).filter(Boolean)),
+  ];
   const sourceNames = new Map<string, string>();
   if (sourceIds.length) {
     const { data: sources } = await db.from("profiles").select("id,full_name").in("id", sourceIds);
@@ -108,7 +113,9 @@ async function buildOverview(db: any, userId: string): Promise<AffiliateOverview
     const amount = Number(item.commission_amount ?? 0);
     const rawStatus = String(item.status || "pending") as AffiliateCommissionItem["status"];
     const effectiveStatus: AffiliateCommissionItem["status"] =
-      rawStatus === "pending" && new Date(item.available_at).getTime() <= now ? "available" : rawStatus;
+      rawStatus === "pending" && new Date(item.available_at).getTime() <= now
+        ? "available"
+        : rawStatus;
 
     if (effectiveStatus !== "reversed") total += amount;
     if (effectiveStatus === "available") available += amount;
@@ -165,9 +172,12 @@ export const linkMyAffiliateSponsor = createServerFn({ method: "POST" })
     });
     if (result.error) {
       const message = String(result.error.message || "");
-      if (message.includes("REFERRAL_CODE_NOT_FOUND")) throw new Error("Código de indicação não encontrado.");
-      if (message.includes("SELF_REFERRAL_NOT_ALLOWED")) throw new Error("Você não pode indicar a própria conta.");
-      if (message.includes("AFFILIATE_CYCLE_NOT_ALLOWED")) throw new Error("Essa indicação criaria um ciclo inválido na rede.");
+      if (message.includes("REFERRAL_CODE_NOT_FOUND"))
+        throw new Error("Código de indicação não encontrado.");
+      if (message.includes("SELF_REFERRAL_NOT_ALLOWED"))
+        throw new Error("Você não pode indicar a própria conta.");
+      if (message.includes("AFFILIATE_CYCLE_NOT_ALLOWED"))
+        throw new Error("Essa indicação criaria um ciclo inválido na rede.");
       throw new Error(message || "Não foi possível vincular o indicador.");
     }
     if (result.data === false) throw new Error("Esta conta já possui um indicador vinculado.");

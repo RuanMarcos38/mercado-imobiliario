@@ -80,6 +80,7 @@ function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -99,6 +100,18 @@ function AdminUsersPage() {
         .some((field) => String(field).toLowerCase().includes(value)),
     );
   }, [query, users.data]);
+
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([users.refetch(), usage.refetch(), activity.refetch()]);
+      toast.success("Usuários, acessos e sessões atualizados.");
+    } catch {
+      toast.error("Não foi possível atualizar os dados agora.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const create = async () => {
     setSaving(true);
@@ -159,6 +172,18 @@ function AdminUsersPage() {
     }
   };
 
+  const sendPasswordReset = async (user: PlatformUser) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/auth?type=recovery`,
+      });
+      if (error) throw error;
+      toast.success(`Redefinição de senha enviada para ${user.email}.`);
+    } catch {
+      toast.error("Não foi possível enviar a redefinição de senha.");
+    }
+  };
+
   if (users.error && String(users.error).includes("FORBIDDEN_ADMIN")) {
     return (
       <div className="grid min-h-[calc(100vh-56px)] place-items-center bg-[var(--mi-bg)] p-6">
@@ -188,8 +213,9 @@ function AdminUsersPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void users.refetch()}>
-              <RefreshCcw className="mr-2 h-4 w-4" /> Atualizar
+            <Button variant="outline" onClick={() => void refreshAll()} disabled={refreshing}>
+              <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Atualizando..." : "Atualizar"}
             </Button>
             <Button onClick={() => setOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Novo usuário
@@ -245,6 +271,11 @@ function AdminUsersPage() {
                     <td className="px-5 py-4">
                       <p className="font-black">{user.fullName || "Sem nome"}</p>
                       <p className="mt-1 text-xs text-[var(--mi-text-muted)]">{user.email}</p>
+                      <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                        {user.lastSignInAt
+                          ? `Último acesso: ${new Date(user.lastSignInAt).toLocaleString("pt-BR")}`
+                          : "Nunca acessou"}
+                      </p>
                     </td>
                     <td className="px-5 py-4 capitalize">{user.userType || "—"}</td>
                     <td className="px-5 py-4">
@@ -276,9 +307,19 @@ function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <Button size="sm" variant="outline" onClick={() => void toggle(user)}>
-                        {user.isActive ? "Suspender" : "Reativar"}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => void toggle(user)}>
+                          {user.isActive ? "Suspender" : "Reativar"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void sendPasswordReset(user)}
+                          title="Enviar redefinição de senha"
+                        >
+                          <KeyRound className="mr-1.5 h-3.5 w-3.5" /> Senha
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

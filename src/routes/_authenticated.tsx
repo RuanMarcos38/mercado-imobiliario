@@ -27,6 +27,7 @@ import {
   TrendingUp,
   UserRound,
   Users,
+  WalletCards,
   Workflow,
   X,
 } from "lucide-react";
@@ -111,6 +112,7 @@ const primaryItems = [
 const toolItems = [
   { to: "/atendimento", label: "Atendimento WhatsApp", icon: MessageCircle },
   { to: "/crm", label: "CRM / Oportunidades", icon: Users },
+  { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
   { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator },
   { to: "/fluxos", label: "Fluxos", icon: Workflow },

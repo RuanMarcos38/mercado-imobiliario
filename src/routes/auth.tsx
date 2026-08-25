@@ -188,6 +188,10 @@ function AuthPage() {
   async function onRegister(values: z.infer<typeof registerSchema>) {
     setIsLoading(true);
     try {
+      const referralCode =
+        typeof (searchParams as any).ref === "string"
+          ? String((searchParams as any).ref).trim()
+          : "";
       const { error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -196,6 +200,7 @@ function AuthPage() {
           data: {
             full_name: values.fullName,
             user_type: values.userType,
+            referral_code: referralCode || undefined,
           },
         },
       });

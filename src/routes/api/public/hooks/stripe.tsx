@@ -180,7 +180,7 @@ async function handleStripeWebhook(request: Request) {
     if (typeof customer !== "string") return Response.json({ ok: true, ignored: true });
     const { data: subscription } = await db
       .from("subscriptions")
-      .select("id")
+      .select("id,user_id")
       .eq("stripe_customer_id", customer)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -193,6 +193,19 @@ async function handleStripeWebhook(request: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", subscription.id);
+
+      if (eventType === "invoice.paid" && subscription.user_id) {
+        const paymentId = typeof eventObject["id"] === "string" ? eventObject["id"] : "";
+        const amountPaidCents = Number(eventObject["amount_paid"] ?? 0);
+        if (paymentId && Number.isFinite(amountPaidCents) && amountPaidCents > 0) {
+          const { error: affiliateError } = await db.rpc("accrue_affiliate_commissions", {
+            p_source_user_id: String(subscription.user_id),
+            p_payment_id: paymentId,
+            p_gross_amount: amountPaidCents / 100,
+          });
+          if (affiliateError) throw new Error(affiliateError.message);
+        }
+      }
     }
     return Response.json({ ok: true });
   }

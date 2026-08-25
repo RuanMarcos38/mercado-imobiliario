@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedAfiliadosRouteImport } from './routes/_authenticated/afiliados'
 import { Route as AuthenticatedAlertasRouteImport } from './routes/_authenticated/alertas'
 import { Route as AuthenticatedAnaliseLocalizacaoRouteImport } from './routes/_authenticated/analise-localizacao'
 import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
@@ -79,6 +80,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAfiliadosRoute = AuthenticatedAfiliadosRouteImport.update({
+  id: '/afiliados',
+  path: '/afiliados',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAlertasRoute = AuthenticatedAlertasRouteImport.update({
   id: '/alertas',
   path: '/alertas',
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/afiliados': typeof AuthenticatedAfiliadosRoute
   '/alertas': typeof AuthenticatedAlertasRoute
   '/analise-localizacao': typeof AuthenticatedAnaliseLocalizacaoRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/afiliados': typeof AuthenticatedAfiliadosRoute
   '/alertas': typeof AuthenticatedAlertasRoute
   '/analise-localizacao': typeof AuthenticatedAnaliseLocalizacaoRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
@@ -342,6 +350,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/afiliados': typeof AuthenticatedAfiliadosRoute
   '/_authenticated/alertas': typeof AuthenticatedAlertasRoute
   '/_authenticated/analise-localizacao': typeof AuthenticatedAnaliseLocalizacaoRoute
   '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
@@ -383,6 +392,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/afiliados'
     | '/alertas'
     | '/analise-localizacao'
     | '/assinatura'
@@ -422,6 +432,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/afiliados'
     | '/alertas'
     | '/analise-localizacao'
     | '/assinatura'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/afiliados'
     | '/_authenticated/alertas'
     | '/_authenticated/analise-localizacao'
     | '/_authenticated/assinatura'
@@ -560,6 +572,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.well-known/oauth-protected-resource'
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/afiliados': {
+      id: '/_authenticated/afiliados'
+      path: '/afiliados'
+      fullPath: '/afiliados'
+      preLoaderRoute: typeof AuthenticatedAfiliadosRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/alertas': {
       id: '/_authenticated/alertas'
@@ -789,6 +808,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAfiliadosRoute: typeof AuthenticatedAfiliadosRoute
   AuthenticatedAlertasRoute: typeof AuthenticatedAlertasRoute
   AuthenticatedAnaliseLocalizacaoRoute: typeof AuthenticatedAnaliseLocalizacaoRoute
   AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
@@ -812,6 +832,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAfiliadosRoute: AuthenticatedAfiliadosRoute,
   AuthenticatedAlertasRoute: AuthenticatedAlertasRoute,
   AuthenticatedAnaliseLocalizacaoRoute: AuthenticatedAnaliseLocalizacaoRoute,
   AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
