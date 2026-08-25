@@ -1,0 +1,49 @@
+name: Apply WhatsApp audio media upgrade
+
+on:
+  push:
+    branches: [feat/whatsapp-audio-media-composer]
+    paths:
+      - .github/workflows/apply-whatsapp-audio-media.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply isolated WhatsApp audio/media patch
+        run: python scripts/apply-whatsapp-audio-media.py
+      - name: Format only touched files
+        run: npx prettier --write src/lib/evolution-media.server.ts src/lib/whatsapp-media.functions.ts src/routes/_authenticated/atendimento.tsx tests/whatsapp-media.test.ts
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm run test -- --passWithNoTests
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production build
+        run: npm run build
+      - name: Commit only validated product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/evolution-media.server.ts src/lib/whatsapp-media.functions.ts src/routes/_authenticated/atendimento.tsx tests/whatsapp-media.test.ts
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: add WhatsApp audio and media composer"
+          git push origin HEAD:${GITHUB_REF_NAME}
