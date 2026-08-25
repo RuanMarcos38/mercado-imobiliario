@@ -1,0 +1,35 @@
+name: Promote validated Asaas no-domain fix
+
+on:
+  push:
+    branches: [fix/asaas-paymentlink-no-domain-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_SHA: c66220c2dde7e6efa0f60bb0fe82678a02f32770
+      EXPECTED_PRODUCTION_SHA: dd8d3d52a1b8de90645a49cf776258da6dde2685
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact one-file production change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          CURRENT="$(git rev-parse origin/production)"
+          test "$CURRENT" = "$EXPECTED_PRODUCTION_SHA" || {
+            echo "::error::Production moved unexpectedly: $CURRENT"
+            exit 1
+          }
+          git cat-file -e "$TARGET_SHA^{commit}"
+          CHANGED="$(git diff --name-only "$EXPECTED_PRODUCTION_SHA" "$TARGET_SHA")"
+          test "$CHANGED" = 'src/lib/asaas-billing.server.ts'
+      - name: Promote exact validated commit
+        run: git push origin "$TARGET_SHA:refs/heads/production"
