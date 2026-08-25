@@ -1,0 +1,65 @@
+name: Promote validated navbar contrast
+
+on:
+  push:
+    branches: [ops/promote-navbar-contrast-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+      EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
+      DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact isolated visual change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production fix/navbar-contrast-20260825
+          changed="$(git diff --name-only origin/production..origin/fix/navbar-contrast-20260825)"
+          test "$changed" = "src/styles.css" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
+          git merge-base --is-ancestor origin/production origin/fix/navbar-contrast-20260825
+          git show origin/fix/navbar-contrast-20260825:src/styles.css | grep -F 'html.light-mode [class~="bg-[#06101c]/88"]' >/dev/null
+      - name: Promote validated commit to production as GitHub Actions bot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin origin/fix/navbar-contrast-20260825:refs/heads/production
+      - name: Trigger existing EasyPanel deploy hook when configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
+          if [ -n "$URL" ]; then
+            if ! curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy.txt; then
+              curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy.txt
+            fi
+            echo "EasyPanel deploy hook requested."
+          else
+            echo "No explicit EasyPanel deploy hook configured; relying on the GitHub-linked production branch."
+          fi
+      - name: Verify public site remains operational
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host/api/public/status'
+          for attempt in $(seq 1 36); do
+            if curl -fsS --connect-timeout 6 --max-time 10 "$URL" -o /tmp/status.json; then
+              node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/status.json','utf8'));
+          process.exit(x.status === 'operational' ? 0 : 1);
+          NODE
+              && exit 0
+            fi
+            sleep 5
+          done
+          exit 1
