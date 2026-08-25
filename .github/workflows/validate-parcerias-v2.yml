@@ -1,0 +1,36 @@
+name: Validate partnerships on current production
+
+on:
+  push:
+    branches: [release/parcerias-production-v2-20260825]
+    paths:
+      - .github/workflows/validate-parcerias-v2.yml
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify route and menu
+        run: |
+          grep -F '["/parcerias", "buscar"]' src/routes/_authenticated.tsx
+          grep -F 'label: "Parcerias imobiliárias"' src/routes/_authenticated.tsx
+          grep -F 'createFileRoute("/_authenticated/parcerias")' src/routes/_authenticated/parcerias.tsx
+      - name: Lint
+        run: npm run lint
+      - name: Critical tests
+        run: npx vitest run tests/critical-flows.spec.ts tests/platform-buttons.test.ts
+      - name: Production build
+        run: npm run build
