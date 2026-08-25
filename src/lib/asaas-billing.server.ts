@@ -278,7 +278,7 @@ export async function normalizeFutureAsaasSubscriptionValue(
     body: JSON.stringify({
       value: Math.round(monthlyValue * 100) / 100,
       description: description.slice(0, 500),
-      updatePendingPayments: false,
+      updatePendingPayments: true,
     }),
   });
 }
