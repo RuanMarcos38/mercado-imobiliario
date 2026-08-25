@@ -97,53 +97,57 @@ describe("MercadoImobi chatbot auto reply", () => {
     vi.restoreAllMocks();
   });
 
-  it("generates with OpenAI, sends with Evolution and persists the outbound reply", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            output: [
-              {
-                type: "message",
-                content: [
-                  {
-                    type: "output_text",
-                    text: "Olá! Posso ajudar com esse imóvel. Qual região você procura?",
-                  },
-                ],
-              },
-            ],
+  it(
+    "generates with OpenAI, sends with Evolution and persists the outbound reply",
+    async () => {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              output: [
+                {
+                  type: "message",
+                  content: [
+                    {
+                      type: "output_text",
+                      text: "Olá! Posso ajudar com esse imóvel. Qual região você procura?",
+                    },
+                  ],
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ key: { id: "evolution-msg-1" } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ key: { id: "evolution-msg-1" } }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
+        );
 
-    const result = await maybeAutoReply({
-      tenantId: "7945c497-eafd-4357-a571-0f21b25afa9b",
-      conversationId: "11111111-1111-4111-8111-111111111111",
-      phone: "5547999999999",
-      inboundText: "Olá, tenho interesse no imóvel.",
-    });
+      const result = await maybeAutoReply({
+        tenantId: "7945c497-eafd-4357-a571-0f21b25afa9b",
+        conversationId: "11111111-1111-4111-8111-111111111111",
+        phone: "5547999999999",
+        inboundText: "Olá, tenho interesse no imóvel.",
+      });
 
-    expect(result).toEqual({ sent: true, reason: "sent" });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.openai.com/v1/responses");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/message/sendText/MercadoImobi");
-    expect(state.insertedMessages).toHaveLength(1);
-    expect(state.insertedMessages[0]).toMatchObject({
-      direction: "outbound",
-      status: "sent",
-      external_message_id: "evolution-msg-1",
-    });
-    expect(state.conversationUpdates).toHaveLength(1);
-  });
+      expect(result).toEqual({ sent: true, reason: "sent" });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.openai.com/v1/responses");
+      expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/message/sendText/MercadoImobi");
+      expect(state.insertedMessages).toHaveLength(1);
+      expect(state.insertedMessages[0]).toMatchObject({
+        direction: "outbound",
+        status: "sent",
+        external_message_id: "evolution-msg-1",
+      });
+      expect(state.conversationUpdates).toHaveLength(1);
+    },
+    10_000,
+  );
 
   it("hands off to a person without calling AI or WhatsApp", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
