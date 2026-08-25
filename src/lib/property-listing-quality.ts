@@ -122,10 +122,7 @@ function isCaixaPropertyUrl(sourceUrl: string | null | undefined) {
   }
 }
 
-function hasResidentialSaleType(input: {
-  title?: string | null;
-  property_type?: string | null;
-}) {
+function hasResidentialSaleType(input: { title?: string | null; property_type?: string | null }) {
   const explicitType = normalize(input.property_type);
   const context = explicitType || normalize(input.title);
   return RESIDENTIAL_SALE_TERMS.some((term) => context.includes(term));
@@ -202,15 +199,12 @@ export function isQualifiedPropertyRecord(input: {
   property_type?: string | null;
 }) {
   const hasPrice = typeof input.price === "number" && input.price > 0;
-  const hasLocation = Boolean(input.location_address?.trim()) || Boolean(input.location_city?.trim());
+  const hasLocation =
+    Boolean(input.location_address?.trim()) || Boolean(input.location_city?.trim());
   const hasSource = Boolean(input.source_url?.trim());
 
   return (
-    hasPrice &&
-    hasLocation &&
-    hasSource &&
-    hasResidentialSaleType(input) &&
-    hasSaleIntent(input)
+    hasPrice && hasLocation && hasSource && hasResidentialSaleType(input) && hasSaleIntent(input)
   );
 }
 
