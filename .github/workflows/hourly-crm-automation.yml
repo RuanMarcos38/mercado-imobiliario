@@ -1,0 +1,46 @@
+name: MercadoImobi hourly CRM and external links automation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  automate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Run hourly MercadoImobi automations
+        shell: bash
+        env:
+          BASE_URL: ${{ secrets.MERCADOIMOBI_BASE_URL }}
+          JOB_KEY: ${{ secrets.CRM_AUTOMATION_JOB_SECRET || secrets.PROPERTY_FEED_SYNC_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${BASE_URL:-https://mercadoimobi.rdmconsultoriaimobiliaria.com.br}"
+          BASE_URL="${BASE_URL%/}"
+          if [ -z "${JOB_KEY:-}" ]; then
+            echo "::notice::Configure CRM_AUTOMATION_JOB_SECRET ou mantenha PROPERTY_FEED_SYNC_SECRET disponível para ativar as rotinas horárias."
+            exit 0
+          fi
+
+          echo "Executando lembretes de agenda, confirmações e backup Google Drive..."
+          curl -fsS --connect-timeout 10 --max-time 420 \
+            -X POST \
+            -H "x-mercadoimobi-job-key: ${JOB_KEY}" \
+            "${BASE_URL}/api/public/jobs/crm-automations" \
+            -o /tmp/crm-automations.json
+          cat /tmp/crm-automations.json
+          echo
+
+          echo "Atualizando links externos de imóveis..."
+          curl -fsS --connect-timeout 10 --max-time 420 \
+            -X POST \
+            -H "x-mercadoimobi-job-key: ${JOB_KEY}" \
+            "${BASE_URL}/api/public/jobs/external-property-links" \
+            -o /tmp/property-links.json
+          cat /tmp/property-links.json
+          echo
