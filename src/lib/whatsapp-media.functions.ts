@@ -1,14 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   evolutionGatewayConfig,
   getTenantEvolutionInstance,
 } from "@/lib/evolution-instance.server";
-import { sendEvolutionMediaMessage, type EvolutionMediaType } from "@/lib/evolution-media.server";
+import {
+  sendEvolutionMediaMessage,
+  sendEvolutionWhatsAppAudioMessage,
+  type EvolutionMediaType,
+} from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
+
+const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
 
 const mediaSchema = z.object({
   conversationId: z.string().uuid(),
@@ -25,14 +32,39 @@ function mediaTypeFromMime(mimeType: string): EvolutionMediaType {
   return "document";
 }
 
+function normalizedBase64(value: string) {
+  return value
+    .replace(/^data:[^;]+;base64,/, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function base64Bytes(value: string) {
+  const clean = normalizedBase64(value);
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function safeFileName(value: string) {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(-120);
+  return normalized || "arquivo";
+}
+
 export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => mediaSchema.parse(data))
   .handler(async ({ data, context }) => {
     const parameters = whatsappParameters();
+    const bytes = base64Bytes(data.base64);
     const maxBytes = parameters.maxAttachmentMb * 1024 * 1024;
-    const estimatedBytes = Math.floor((data.base64.length * 3) / 4);
-    if (estimatedBytes > maxBytes) {
+    if (!bytes.byteLength || bytes.byteLength > maxBytes) {
       throw new Error(`O arquivo deve ter no máximo ${parameters.maxAttachmentMb} MB.`);
     }
 
@@ -53,16 +85,39 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
     const phone = normalizeWhatsAppPhone(String(conversation.phone_e164 ?? ""));
     if (!phone) throw new Error(whatsappPhoneErrorMessage(String(conversation.phone_e164 ?? "")));
 
-    const mediaType = mediaTypeFromMime(data.mimeType);
-    const payload = await sendEvolutionMediaMessage({
-      phone,
-      mediaType,
-      mimeType: data.mimeType,
-      fileName: data.fileName,
-      base64: data.base64,
-      caption: data.caption,
-      instanceName,
+    const isAudio = data.mimeType.toLowerCase().startsWith("audio/");
+    const mediaType = isAudio ? "audio" : mediaTypeFromMime(data.mimeType);
+    const storagePath = `${tenantId}/${conversation.id}/${Date.now()}-${crypto.randomUUID()}-${safeFileName(data.fileName)}`;
+    const storage = supabaseAdmin.storage.from(WHATSAPP_MEDIA_BUCKET);
+    const { error: storageError } = await storage.upload(storagePath, bytes, {
+      contentType: data.mimeType,
+      upsert: false,
     });
+    if (storageError) throw new Error(`MEDIA_STORAGE_FAILED:${storageError.message}`);
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = isAudio
+        ? await sendEvolutionWhatsAppAudioMessage({
+            phone,
+            mimeType: data.mimeType,
+            fileName: data.fileName,
+            base64: data.base64,
+            instanceName,
+          })
+        : await sendEvolutionMediaMessage({
+            phone,
+            mediaType: mediaType as EvolutionMediaType,
+            mimeType: data.mimeType,
+            fileName: data.fileName,
+            base64: data.base64,
+            caption: data.caption,
+            instanceName,
+          });
+    } catch (providerError) {
+      await storage.remove([storagePath]).catch(() => undefined);
+      throw providerError;
+    }
 
     const key = payload["key"] as Record<string, unknown> | undefined;
     const externalMessageId =
@@ -70,7 +125,8 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       (typeof payload["id"] === "string" && payload["id"]) ||
       null;
     const now = new Date().toISOString();
-    const label = data.caption?.trim() || `📎 ${data.fileName}`;
+    const label = isAudio ? "🎤 Mensagem de voz" : data.caption?.trim() || `📎 ${data.fileName}`;
+    const mediaUrl = `storage://${WHATSAPP_MEDIA_BUCKET}/${storagePath}`;
 
     const { error: insertError } = await db.from("whatsapp_messages").insert({
       tenant_id: tenantId,
@@ -79,12 +135,15 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       direction: "outbound",
       message_type: mediaType,
       body: label,
+      media_url: mediaUrl,
       status: "sent",
       sent_at: now,
       raw_payload: {
         ...payload,
         mercadoimobi_file_name: data.fileName,
         mercadoimobi_mime_type: data.mimeType,
+        mercadoimobi_storage_path: storagePath,
+        mercadoimobi_size_bytes: bytes.byteLength,
       },
     });
     if (insertError && insertError.code !== "23505") throw new Error(insertError.message);

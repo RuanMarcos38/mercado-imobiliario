@@ -15,17 +15,20 @@ import {
   Link2,
   LockKeyhole,
   MessageCircle,
+  Mic,
   Paperclip,
   RefreshCw,
   Search,
   Send,
   Smile,
   Tag,
+  Trash2,
   UserCheck,
   Users,
   Wifi,
   WifiOff,
   X,
+  Square,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { AttendanceDecisionDashboard } from "@/components/attendance/AttendanceDecisionDashboard";
 import { AttendanceDistributionPanel } from "@/components/attendance/AttendanceDistributionPanel";
+import { WhatsAppMessageMedia } from "@/components/attendance/WhatsAppMessageMedia";
 import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
 import {
   claimAttendanceConversation,
@@ -219,6 +223,8 @@ function AtendimentoPage() {
   const [qrLoading, setQrLoading] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
   const [showRealtimePanel, setShowRealtimePanel] = useState(false);
   const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("today");
@@ -235,6 +241,10 @@ function AtendimentoPage() {
   const [disconnecting, setDisconnecting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingCancelledRef = useRef(false);
 
   const connection = useQuery({
     queryKey: ["whatsapp-connection"],
@@ -327,11 +337,38 @@ function AtendimentoPage() {
 
   useEffect(() => {
     if (!selectedId) return;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      recordingCancelledRef.current = true;
+      mediaRecorderRef.current.stop();
+    }
     setPendingAttachment(null);
     setShowEmoji(false);
     setTagInput("");
     void markReadFn({ data: { conversationId: selectedId } }).then(() => conversations.refetch());
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!isRecording) {
+      setRecordingSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isRecording]);
+
+  useEffect(
+    () => () => {
+      recordingCancelledRef.current = true;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    },
+    [],
+  );
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -514,6 +551,93 @@ function AtendimentoPage() {
     }
   };
 
+  const stopRecordingTracks = () => {
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+  };
+
+  const startRecording = async () => {
+    if (sending || isRecording) return;
+    if (!selectedId) {
+      toast.info("Selecione uma conversa para gravar o áudio.");
+      return;
+    }
+    if (!connection.data?.connected) {
+      toast.info("Conecte seu WhatsApp para enviar mensagens de voz.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("Este navegador não oferece gravação de áudio para o WhatsApp.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      recordingChunksRef.current = [];
+      recordingCancelledRef.current = false;
+      const supportedMime = [
+        "audio/webm;codecs=opus",
+        "audio/ogg;codecs=opus",
+        "audio/webm",
+        "audio/ogg",
+      ].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = supportedMime
+        ? new MediaRecorder(stream, { mimeType: supportedMime })
+        : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const cancelled = recordingCancelledRef.current;
+        const mimeType = (recorder.mimeType || "audio/webm").split(";")[0] || "audio/webm";
+        const chunks = recordingChunksRef.current;
+        recordingChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        stopRecordingTracks();
+        setIsRecording(false);
+        if (cancelled || chunks.length === 0) return;
+        const extension = mimeType.includes("ogg")
+          ? "ogg"
+          : mimeType.includes("mp4")
+            ? "m4a"
+            : "webm";
+        const blob = new Blob(chunks, { type: mimeType });
+        const file = new File([blob], `audio-${Date.now()}.${extension}`, { type: mimeType });
+        void selectAttachment(file);
+      };
+      recorder.start(250);
+      setPendingAttachment(null);
+      setShowEmoji(false);
+      setIsRecording(true);
+    } catch (error) {
+      stopRecordingTracks();
+      toast.error(
+        error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Permita o acesso ao microfone para gravar mensagens de voz."
+          : "Não foi possível iniciar a gravação de áudio.",
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    recordingCancelledRef.current = false;
+    recorder.stop();
+  };
+
+  const cancelRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    recordingCancelledRef.current = true;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    else {
+      stopRecordingTracks();
+      setIsRecording(false);
+    }
+  };
+
   const send = async () => {
     if (!selectedId || sending || (!text.trim() && !pendingAttachment)) return;
     if (!connection.data?.connected) {
@@ -524,18 +648,21 @@ function AtendimentoPage() {
     setSending(true);
     try {
       if (pendingAttachment) {
+        const sendingAudio = pendingAttachment.mimeType.startsWith("audio/");
         await attachmentFn({
           data: {
             conversationId: selectedId,
             fileName: pendingAttachment.fileName,
             mimeType: pendingAttachment.mimeType,
             base64: pendingAttachment.base64,
-            caption: outgoing || undefined,
+            caption: sendingAudio ? undefined : outgoing || undefined,
           },
         });
         setPendingAttachment(null);
-        setText("");
-        toast.success("Arquivo enviado pelo WhatsApp.");
+        setText(sendingAudio ? outgoing : "");
+        toast.success(
+          sendingAudio ? "Áudio enviado pelo WhatsApp." : "Arquivo enviado pelo WhatsApp.",
+        );
       } else {
         await sendFn({ data: { conversationId: selectedId, text: outgoing } });
         setText("");
@@ -942,21 +1069,12 @@ function AtendimentoPage() {
                       <div
                         className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}
                       >
-                        {message.message_type !== "text" && (
-                          <div className="mb-1 flex items-center gap-2 text-xs font-black">
-                            <FileText className="h-4 w-4" /> Arquivo do WhatsApp
-                          </div>
-                        )}
-                        {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
-                        {!message.body && message.media_url && (
-                          <a
-                            href={message.media_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-bold underline"
-                          >
-                            Abrir mídia recebida
-                          </a>
+                        {message.message_type === "text" ? (
+                          message.body ? (
+                            <p className="whitespace-pre-wrap">{message.body}</p>
+                          ) : null
+                        ) : (
+                          <WhatsAppMessageMedia message={message} />
                         )}
                         <div
                           className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${message.direction === "outbound" ? "text-blue-100" : "text-[var(--mi-text-soft)]"}`}
@@ -993,24 +1111,49 @@ function AtendimentoPage() {
                 </div>
 
                 {pendingAttachment && (
-                  <div className="mb-2 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-slate-800">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-blue-600">
-                      <FileText className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-black">{pendingAttachment.fileName}</p>
-                      <p className="text-[10px] text-slate-500">
-                        {(pendingAttachment.size / 1024 / 1024).toFixed(2)} MB · pronto para enviar
-                      </p>
+                  <div className="mb-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-slate-800">
+                    <div className="flex items-center gap-3">
+                      {pendingAttachment.mimeType.startsWith("image/") ? (
+                        <img
+                          src={`data:${pendingAttachment.mimeType};base64,${pendingAttachment.base64}`}
+                          alt={pendingAttachment.fileName}
+                          className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                        />
+                      ) : pendingAttachment.mimeType.startsWith("audio/") ? (
+                        <div className="min-w-0 flex-1">
+                          <p className="mb-1 truncate text-xs font-black">Mensagem de voz</p>
+                          <audio controls preload="metadata" className="h-9 w-full">
+                            <source
+                              src={`data:${pendingAttachment.mimeType};base64,${pendingAttachment.base64}`}
+                              type={pendingAttachment.mimeType}
+                            />
+                          </audio>
+                        </div>
+                      ) : (
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-blue-600">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                      )}
+                      {!pendingAttachment.mimeType.startsWith("audio/") && (
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-black">
+                            {pendingAttachment.fileName}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            {(pendingAttachment.size / 1024 / 1024).toFixed(2)} MB · pronto para
+                            enviar
+                          </p>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPendingAttachment(null)}
+                        className="rounded-lg p-1 text-slate-500 hover:bg-white"
+                        aria-label="Remover anexo"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setPendingAttachment(null)}
-                      className="rounded-lg p-1 text-slate-500 hover:bg-white"
-                      aria-label="Remover anexo"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
                   </div>
                 )}
 
@@ -1046,63 +1189,106 @@ function AtendimentoPage() {
                   ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  accept="image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                  accept="audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/aac,audio/wav,image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
                   onChange={(event) => void selectAttachment(event.target.files?.[0] ?? null)}
                 />
-                <div className="flex items-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-12 w-12 rounded-xl"
-                    disabled={sending || !connection.data?.connected}
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Anexar documento, foto ou arquivo"
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-12 w-12 rounded-xl"
-                    disabled={sending}
-                    onClick={() => setShowEmoji((open) => !open)}
-                    title="Adicionar emoji"
-                  >
-                    <Smile className="h-5 w-5" />
-                  </Button>
-                  <textarea
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        void send();
+                {isRecording ? (
+                  <div className="flex min-h-12 items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-12 w-12 rounded-xl text-rose-600"
+                      onClick={cancelRecording}
+                      title="Cancelar gravação"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <div className="flex min-h-12 flex-1 items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 text-sm text-rose-700">
+                      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-500" />
+                      <span className="font-black">Gravando</span>
+                      <span className="font-mono text-xs">{formatSeconds(recordingSeconds)}</span>
+                      <span className="ml-auto text-xs text-rose-500">Mensagem de voz</span>
+                    </div>
+                    <Button
+                      size="icon"
+                      onClick={stopRecording}
+                      className="h-12 w-12 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                      title="Finalizar gravação"
+                    >
+                      <Square className="h-4 w-4 fill-current" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-12 w-12 rounded-xl"
+                      disabled={sending || !connection.data?.connected}
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Anexar foto, vídeo, áudio ou documento"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-12 w-12 rounded-xl"
+                      disabled={sending}
+                      onClick={() => setShowEmoji((open) => !open)}
+                      title="Adicionar emoji"
+                    >
+                      <Smile className="h-5 w-5" />
+                    </Button>
+                    <textarea
+                      value={text}
+                      onChange={(event) => setText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void send();
+                        }
+                      }}
+                      rows={1}
+                      placeholder={
+                        pendingAttachment?.mimeType.startsWith("audio/")
+                          ? "Áudio pronto para enviar"
+                          : pendingAttachment
+                            ? "Adicione uma legenda (opcional)"
+                            : "Digite uma mensagem"
                       }
-                    }}
-                    rows={1}
-                    placeholder={
-                      pendingAttachment ? "Adicione uma legenda (opcional)" : "Digite uma mensagem"
-                    }
-                    className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
-                  />
-                  <Button
-                    size="icon"
-                    onClick={() => void send()}
-                    disabled={
-                      sending || (!text.trim() && !pendingAttachment) || !connection.data?.connected
-                    }
-                    className="h-12 w-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    {sending ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                    {text.trim() || pendingAttachment ? (
+                      <Button
+                        size="icon"
+                        onClick={() => void send()}
+                        disabled={sending || !connection.data?.connected}
+                        className="h-12 w-12 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                        title="Enviar"
+                      >
+                        {sending ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
                     ) : (
-                      <Send className="h-4 w-4" />
+                      <Button
+                        size="icon"
+                        onClick={() => void startRecording()}
+                        disabled={sending || !connection.data?.connected}
+                        className="h-12 w-12 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                        title="Gravar mensagem de voz"
+                      >
+                        <Mic className="h-5 w-5" />
+                      </Button>
                     )}
-                  </Button>
-                </div>
+                  </div>
+                )}
                 <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
-                  Anexos: PDF, documentos Office, imagens, vídeo MP4 e arquivos de texto · até{" "}
-                  {connection.data?.maxAttachmentMb ?? 8} MB.
+                  WhatsApp: mensagens de voz, imagens, vídeo MP4, PDF, documentos Office e arquivos
+                  de texto · até {connection.data?.maxAttachmentMb ?? 8} MB.
                 </p>
               </footer>
             </>

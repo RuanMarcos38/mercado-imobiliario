@@ -29,6 +29,21 @@ function responseMessage(payload: JsonObject): string {
   return "Falha desconhecida da Evolution API";
 }
 
+function normalizedBase64(value: string) {
+  return value
+    .replace(/^data:[^;]+;base64,/, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function base64Bytes(value: string) {
+  const clean = normalizedBase64(value);
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
 export type EvolutionMediaType = "image" | "video" | "document";
 
 export async function sendEvolutionMediaMessage(input: {
@@ -44,12 +59,11 @@ export async function sendEvolutionMediaMessage(input: {
   if (!config) throw new Error("WHATSAPP_NOT_CONFIGURED");
 
   const endpoint = `${config.baseUrl}/message/sendMedia/${encodeURIComponent(input.instanceName)}`;
-  const cleanBase64 = input.base64.replace(/^data:[^;]+;base64,/, "").trim();
   const body: JsonObject = {
     number: input.phone,
     mediatype: input.mediaType,
     mimetype: input.mimeType,
-    media: cleanBase64,
+    media: normalizedBase64(input.base64),
     fileName: input.fileName,
     caption: input.caption?.trim() || "",
   };
@@ -68,4 +82,39 @@ export async function sendEvolutionMediaMessage(input: {
   if (response.ok) return payload;
 
   throw new Error(`EVOLUTION_MEDIA_FAILED:${response.status}:${responseMessage(payload)}`);
+}
+
+export async function sendEvolutionWhatsAppAudioMessage(input: {
+  phone: string;
+  mimeType: string;
+  fileName: string;
+  base64: string;
+  instanceName: string;
+}): Promise<JsonObject> {
+  const config = evolutionGatewayConfig();
+  if (!config) throw new Error("WHATSAPP_NOT_CONFIGURED");
+
+  const bytes = base64Bytes(input.base64);
+  if (!bytes.byteLength) throw new Error("AUDIO_EMPTY");
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+  const form = new FormData();
+  form.append("number", input.phone);
+  form.append("encoding", "true");
+  form.append("file", new Blob([buffer], { type: input.mimeType || "audio/webm" }), input.fileName);
+
+  const endpoint = `${config.baseUrl}/message/sendWhatsAppAudio/${encodeURIComponent(input.instanceName)}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { apikey: config.apiKey },
+    body: form,
+    signal: AbortSignal.timeout(60_000),
+  });
+  const raw = await response.text();
+  const payload = parsePayload(raw);
+  if (response.ok) return payload;
+
+  throw new Error(`EVOLUTION_AUDIO_FAILED:${response.status}:${responseMessage(payload)}`);
 }
