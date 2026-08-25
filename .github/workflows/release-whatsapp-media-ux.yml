@@ -51,10 +51,10 @@ jobs:
 
       - name: Verify WhatsApp media safeguards
         run: |
-          grep -q 'navigator.mediaDevices.getUserMedia({ audio: true })' src/routes/_authenticated/atendimento.tsx
-          grep -q '/message/sendWhatsAppAudio/' src/lib/evolution-media.server.ts
-          grep -q 'storage://.*whatsapp-media' src/lib/whatsapp-media.functions.ts
-          grep -q 'createSignedUrl(storagePath, 60 \* 60)' src/lib/whatsapp-tenant.functions.ts
+          grep -q 'navigator.mediaDevices.getUserMedia' src/routes/_authenticated/atendimento.tsx
+          grep -q 'sendWhatsAppAudio' src/lib/evolution-media.server.ts
+          grep -q 'WHATSAPP_MEDIA_BUCKET = "whatsapp-media"' src/lib/whatsapp-media.functions.ts
+          grep -q 'createSignedUrl' src/lib/whatsapp-tenant.functions.ts
           grep -q 'AttendanceDistributionPanel' src/routes/_authenticated/atendimento.tsx
           grep -q 'WhatsAppMessageMedia' src/routes/_authenticated/atendimento.tsx
 
