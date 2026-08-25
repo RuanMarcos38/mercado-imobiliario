@@ -51,9 +51,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git checkout HEAD -- src/routeTree.gen.ts 2>/dev/null || true
-          git checkout HEAD -- public/mcp/openapi.json 2>/dev/null || true
-          git checkout HEAD -- public/mcp/llms.txt 2>/dev/null || true
+          for path in \
+            src/routeTree.gen.ts \
+            public/mcp/openapi.json \
+            public/mcp/llms.txt \
+            'src/routes/[.mcp]/invoke-tool/$tool.ts' \
+            'src/routes/[.mcp]/list-tools.ts' \
+            'src/routes/[.well-known]/oauth-protected-resource.ts' \
+            src/routes/mcp.ts
+          do
+            git checkout HEAD -- "$path" 2>/dev/null || true
+          done
           changed="$(git diff --name-only)"
           test "$changed" = "src/lib/asaas-billing.server.ts" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
           git config user.name 'github-actions[bot]'
