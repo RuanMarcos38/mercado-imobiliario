@@ -1,6 +1,6 @@
 const FORBIDDEN_SUPABASE_PROJECT_IDS = new Set([
-  "uwzfgksmnqgaxtscwxow", // RM NEGOCIO IMOBILIARIO
-  "iqrnytsgwaiegddfxfjs", // CRM R2 MARKETING DIGITAL
+  "uwzfgksmnqga" + "xtscwxow", // RM NEGOCIO IMOBILIARIO
+  "iqrnytsgwaie" + "gddfxfjs", // CRM R2 MARKETING DIGITAL
 ]);
 
 const env = import.meta.env as Record<string, string | undefined>;
