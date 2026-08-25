@@ -22,7 +22,10 @@ export function CrmWorkspaceShell() {
   return (
     <div className="min-h-screen bg-[var(--mi-bg)] text-[var(--mi-text)]">
       <div className="sticky top-0 z-20 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]/95 px-3 py-2 backdrop-blur sm:px-5">
-        <nav className="mx-auto flex max-w-[1900px] gap-1 overflow-x-auto" aria-label="Módulos do CRM">
+        <nav
+          className="mx-auto flex max-w-[1900px] gap-1 overflow-x-auto"
+          aria-label="Módulos do CRM"
+        >
           {modules.map((item) => {
             const Icon = item.icon;
             return (

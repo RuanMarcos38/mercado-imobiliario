@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CrmContactProfilePanel } from "@/components/crm/CrmContactProfilePanel";
 import {
   addCrmCadenceStep,
   bulkDeleteCrmOpportunities,
@@ -620,6 +621,9 @@ export function CrmPipelineWorkspace() {
                               className="min-w-0 flex-1 text-left"
                             >
                               <p className="truncate font-black">{item.contact_name}</p>
+                              <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                                {item.protocol_code}
+                              </p>
                               <p className="mt-1 truncate text-xs text-[var(--mi-text-muted)]">
                                 {item.property_reference ||
                                   item.contact_phone ||
@@ -932,6 +936,8 @@ export function CrmPipelineWorkspace() {
               </Field>
             </div>
           </div>
+
+          {editing && <CrmContactProfilePanel opportunityId={editing.id} />}
 
           {editing && (activitiesByOpportunity.get(editing.id)?.length ?? 0) > 0 && (
             <section className="rounded-2xl border border-[var(--mi-border)] p-4">

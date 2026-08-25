@@ -109,10 +109,14 @@ export const getAttendanceDistributionWorkspace = createServerFn({ method: "GET"
         .order("position", { ascending: true }),
       admin.from("tenant_members").select("user_id,member_role").eq("tenant_id", tenantId),
     ]);
-    const failure = [listsResult, membersResult, tenantMembersResult].find((result) => result.error);
+    const failure = [listsResult, membersResult, tenantMembersResult].find(
+      (result) => result.error,
+    );
     if (failure?.error) throw new Error(failure.error.message);
 
-    const userIds = [...new Set((tenantMembersResult.data ?? []).map((item: any) => String(item.user_id)))];
+    const userIds = [
+      ...new Set((tenantMembersResult.data ?? []).map((item: any) => String(item.user_id))),
+    ];
     const profilesResult = userIds.length
       ? await admin.from("profiles").select("id,full_name,is_active").in("id", userIds)
       : { data: [], error: null };
@@ -291,7 +295,8 @@ export const deleteAttendanceDistributionList = createServerFn({ method: "POST" 
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await requireManager(tenantId, context.userId);
     const list = await assertList(tenantId, data.listId);
-    if (list.is_default) throw new Error("Defina outra lista como padrão antes de excluir esta lista.");
+    if (list.is_default)
+      throw new Error("Defina outra lista como padrão antes de excluir esta lista.");
     const result = await db()
       .from("attendance_distribution_lists")
       .delete()

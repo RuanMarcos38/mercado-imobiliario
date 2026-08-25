@@ -4,7 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { GitBranch, Plus, Save, Star, Trash2, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,7 +59,9 @@ export function AttendanceDistributionPanel() {
   useEffect(() => {
     if (!workspace.data?.lists.length) return;
     if (selectedId && workspace.data.lists.some((item) => item.id === selectedId)) return;
-    setSelectedId((workspace.data.lists.find((item) => item.is_default) ?? workspace.data.lists[0]).id);
+    setSelectedId(
+      (workspace.data.lists.find((item) => item.is_default) ?? workspace.data.lists[0]).id,
+    );
   }, [selectedId, workspace.data?.lists]);
 
   useEffect(() => {
@@ -78,7 +86,9 @@ export function AttendanceDistributionPanel() {
       await refresh();
       toast.success("Lista de distribuição atualizada.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a distribuição.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível salvar a distribuição.",
+      );
     } finally {
       setSaving(false);
     }
@@ -116,7 +126,9 @@ export function AttendanceDistributionPanel() {
       await refresh();
       toast.success("Lista definida como padrão.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível definir a lista padrão.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível definir a lista padrão.",
+      );
     }
   };
 
@@ -142,7 +154,10 @@ export function AttendanceDistributionPanel() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="h-10 w-full rounded-xl border-[var(--mi-border)] font-black">
+        <Button
+          variant="outline"
+          className="h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+        >
           <GitBranch className="mr-2 h-4 w-4" /> Distribuição automática
         </Button>
       </DialogTrigger>
@@ -152,18 +167,28 @@ export function AttendanceDistributionPanel() {
         </DialogHeader>
 
         {workspace.isLoading ? (
-          <div className="py-10 text-center text-sm text-[var(--mi-text-muted)]">Carregando distribuição...</div>
+          <div className="py-10 text-center text-sm text-[var(--mi-text-muted)]">
+            Carregando distribuição...
+          </div>
         ) : workspace.error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-            Não foi possível carregar a distribuição. {String((workspace.error as Error)?.message ?? "")}
+            Não foi possível carregar a distribuição.{" "}
+            {String((workspace.error as Error)?.message ?? "")}
           </div>
         ) : (
           <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
             <aside className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">Listas</p>
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                  Listas
+                </p>
                 {workspace.data?.canManage && (
-                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => void createList()}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8"
+                    onClick={() => void createList()}
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 )}
@@ -182,9 +207,13 @@ export function AttendanceDistributionPanel() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-black">{list.name}</span>
-                      {list.is_default && <Star className="h-4 w-4 fill-amber-400 text-amber-500" />}
+                      {list.is_default && (
+                        <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                      )}
                     </div>
-                    <p className="mt-1 text-[11px] text-[var(--mi-text-soft)]">{ALGORITHM_LABELS[list.algorithm]}</p>
+                    <p className="mt-1 text-[11px] text-[var(--mi-text-soft)]">
+                      {ALGORITHM_LABELS[list.algorithm]}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -196,13 +225,19 @@ export function AttendanceDistributionPanel() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label>Nome da lista</Label>
-                      <Input value={name} onChange={(event) => setName(event.target.value)} disabled={!workspace.data?.canManage} />
+                      <Input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        disabled={!workspace.data?.canManage}
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Algoritmo de distribuição</Label>
                       <select
                         value={algorithm}
-                        onChange={(event) => setAlgorithm(event.target.value as DistributionAlgorithm)}
+                        onChange={(event) =>
+                          setAlgorithm(event.target.value as DistributionAlgorithm)
+                        }
                         disabled={!workspace.data?.canManage}
                         className="h-10 w-full rounded-md border border-[var(--mi-border)] bg-[var(--mi-surface)] px-3 text-sm"
                       >
@@ -214,11 +249,21 @@ export function AttendanceDistributionPanel() {
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <label className="flex items-center gap-3 rounded-xl border border-[var(--mi-border)] p-3 text-sm font-bold">
-                      <input type="checkbox" checked={autoQueue} onChange={(event) => setAutoQueue(event.target.checked)} disabled={!workspace.data?.canManage} />
+                      <input
+                        type="checkbox"
+                        checked={autoQueue}
+                        onChange={(event) => setAutoQueue(event.target.checked)}
+                        disabled={!workspace.data?.canManage}
+                      />
                       Enviar novos contatos automaticamente para a fila
                     </label>
                     <label className="flex items-center gap-3 rounded-xl border border-[var(--mi-border)] p-3 text-sm font-bold">
-                      <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} disabled={!workspace.data?.canManage} />
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={(event) => setIsActive(event.target.checked)}
+                        disabled={!workspace.data?.canManage}
+                      />
                       Lista ativa
                     </label>
                   </div>
@@ -246,7 +291,9 @@ export function AttendanceDistributionPanel() {
                     <UsersRound className="h-4 w-4 text-blue-600" />
                     <div>
                       <h3 className="font-black">Usuários da distribuição</h3>
-                      <p className="text-xs text-[var(--mi-text-soft)]">Ative quem poderá receber novos contatos automaticamente.</p>
+                      <p className="text-xs text-[var(--mi-text-soft)]">
+                        Ative quem poderá receber novos contatos automaticamente.
+                      </p>
                     </div>
                   </div>
                   <div className="divide-y divide-[var(--mi-border)] rounded-xl border border-[var(--mi-border)]">
@@ -254,7 +301,10 @@ export function AttendanceDistributionPanel() {
                       const member = memberMap.get(user.userId);
                       const enabled = member?.is_active ?? false;
                       return (
-                        <div key={user.userId} className="flex items-center justify-between gap-4 px-4 py-3">
+                        <div
+                          key={user.userId}
+                          className="flex items-center justify-between gap-4 px-4 py-3"
+                        >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-black">{user.name}</p>
                             <p className="text-xs text-[var(--mi-text-soft)]">
@@ -266,7 +316,9 @@ export function AttendanceDistributionPanel() {
                               type="checkbox"
                               checked={enabled}
                               disabled={!workspace.data?.canManage || !user.active}
-                              onChange={(event) => void toggleMember(user.userId, event.target.checked)}
+                              onChange={(event) =>
+                                void toggleMember(user.userId, event.target.checked)
+                              }
                             />
                             {enabled ? "Ativo" : "Inativo"}
                           </label>

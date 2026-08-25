@@ -9,6 +9,7 @@ export type AttendantPresenceStatus = "alert" | "in_service" | "free" | "paused"
 
 export interface AttendanceConversation {
   id: string;
+  protocol_code: string;
   phone_e164: string;
   phone_masked: boolean;
   contact_name: string | null;
@@ -278,7 +279,7 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
       db
         .from("whatsapp_conversations")
         .select(
-          "id,phone_e164,contact_name,avatar_url,last_message,last_message_at,unread_count,assigned_user_id",
+          "id,protocol_code,phone_e164,contact_name,avatar_url,last_message,last_message_at,unread_count,assigned_user_id",
         )
         .eq("tenant_id", tenantId)
         .order("last_message_at", { ascending: false, nullsFirst: false })
@@ -314,6 +315,7 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
       const rawPhone = String(row.phone_e164 ?? "");
       return {
         id: String(row.id),
+        protocol_code: String(row.protocol_code ?? ""),
         phone_e164: canView ? rawPhone : maskPhone(rawPhone),
         phone_masked: !canView,
         contact_name: row.contact_name ?? null,
@@ -385,7 +387,13 @@ export const queueAttendanceConversation = createServerFn({ method: "POST" })
       },
       "Conversa enviada para fila humana",
     );
-    return { success: true, waitingSince: now };
+    const distributed = await db.rpc("attendance_distribute_conversation", {
+      p_tenant_id: tenantId,
+      p_conversation_id: data.conversationId,
+      p_force: true,
+    });
+    if (distributed.error) throw new Error(distributed.error.message);
+    return { success: true, waitingSince: now, assignedUserId: distributed.data ?? null };
   });
 
 export const claimAttendanceConversation = createServerFn({ method: "POST" })
@@ -406,6 +414,13 @@ export const claimAttendanceConversation = createServerFn({ method: "POST" })
       state.assignedUserId !== context.userId
     ) {
       throw new Error("Esta conversa já está em atendimento por outro usuário.");
+    }
+    if (
+      state.state === "waiting" &&
+      state.assignedUserId &&
+      state.assignedUserId !== context.userId
+    ) {
+      throw new Error("Esta conversa foi distribuída para outro usuário.");
     }
 
     const now = new Date().toISOString();

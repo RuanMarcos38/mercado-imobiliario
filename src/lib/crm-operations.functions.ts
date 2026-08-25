@@ -29,7 +29,11 @@ const uploadSchema = z.object({
   category: z.string().trim().min(1).max(60),
   fileName: z.string().trim().min(1).max(180),
   mimeType: z.string().trim().min(1).max(120),
-  size: z.number().int().positive().max(15 * 1024 * 1024),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(15 * 1024 * 1024),
 });
 const registerDocumentSchema = uploadSchema.extend({
   storagePath: z.string().trim().min(1).max(1000),
@@ -162,7 +166,13 @@ export interface CrmOperationsWorkspace {
   emails: CrmEmailRow[];
   documents: CrmDocumentRow[];
   signatures: CrmSignatureRow[];
-  stages: Array<{ id: string; pipeline_id: string; name: string; position: number; status_type: string }>;
+  stages: Array<{
+    id: string;
+    pipeline_id: string;
+    name: string;
+    position: number;
+    status_type: string;
+  }>;
 }
 
 function db() {
@@ -276,7 +286,9 @@ export const getCrmOperationsWorkspace = createServerFn({ method: "GET" })
     const bucket = await ensureDocumentBucket();
     const documentRows: CrmDocumentRow[] = [];
     for (const row of documents.data ?? []) {
-      const signed = await admin.storage.from(bucket).createSignedUrl(String(row.storage_path), 1800);
+      const signed = await admin.storage
+        .from(bucket)
+        .createSignedUrl(String(row.storage_path), 1800);
       documentRows.push({
         ...(row as any),
         size_bytes: Number(row.size_bytes ?? 0),
@@ -297,7 +309,10 @@ export const getCrmOperationsWorkspace = createServerFn({ method: "GET" })
       emails: (emails.data ?? []) as CrmEmailRow[],
       documents: documentRows,
       signatures: (signatures.data ?? []) as CrmSignatureRow[],
-      stages: (stages.data ?? []).map((row: any) => ({ ...row, position: Number(row.position ?? 0) })),
+      stages: (stages.data ?? []).map((row: any) => ({
+        ...row,
+        position: Number(row.position ?? 0),
+      })),
     };
   });
 
@@ -345,7 +360,8 @@ export const sendCrmOpportunityEmail = createServerFn({ method: "POST" })
     const tenantId = await tenant(context);
     await assertOpportunity(tenantId, data.opportunityId);
     const runtime = emailRuntimeStatus();
-    if (!runtime.configured) throw new Error("O provedor de e-mail ainda não está configurado no servidor.");
+    if (!runtime.configured)
+      throw new Error("O provedor de e-mail ainda não está configurado no servidor.");
     try {
       const sent = await sendEmail({ to: data.recipient, subject: data.subject, text: data.body });
       const logged = await db().from("crm_email_logs").insert({
@@ -363,16 +379,18 @@ export const sendCrmOpportunityEmail = createServerFn({ method: "POST" })
       if (logged.error) throw new Error(logged.error.message);
       return { success: true, provider: sent.provider, id: sent.id };
     } catch (error) {
-      await db().from("crm_email_logs").insert({
-        tenant_id: tenantId,
-        opportunity_id: data.opportunityId,
-        recipient: data.recipient,
-        subject: data.subject,
-        body: data.body,
-        status: "failed",
-        error_message: error instanceof Error ? error.message : "Falha no envio",
-        created_by: context.userId,
-      });
+      await db()
+        .from("crm_email_logs")
+        .insert({
+          tenant_id: tenantId,
+          opportunity_id: data.opportunityId,
+          recipient: data.recipient,
+          subject: data.subject,
+          body: data.body,
+          status: "failed",
+          error_message: error instanceof Error ? error.message : "Falha no envio",
+          created_by: context.userId,
+        });
       throw error;
     }
   });
@@ -561,13 +579,26 @@ export const saveCrmContactProfile = createServerFn({ method: "POST" })
         .eq("id", contactId);
       if (updated.error) throw new Error(updated.error.message);
     } else if (payload.phone_e164) {
-      const upserted = await admin
+      const existing = await admin
         .from("crm_contacts")
-        .upsert(payload, { onConflict: "tenant_id,phone_e164" })
         .select("id")
-        .single();
-      if (upserted.error) throw new Error(upserted.error.message);
-      contactId = upserted.data.id;
+        .eq("tenant_id", tenantId)
+        .eq("phone_e164", payload.phone_e164)
+        .maybeSingle();
+      if (existing.error) throw new Error(existing.error.message);
+      if (existing.data) {
+        contactId = existing.data.id;
+        const updated = await admin
+          .from("crm_contacts")
+          .update(payload)
+          .eq("tenant_id", tenantId)
+          .eq("id", contactId);
+        if (updated.error) throw new Error(updated.error.message);
+      } else {
+        const inserted = await admin.from("crm_contacts").insert(payload).select("id").single();
+        if (inserted.error) throw new Error(inserted.error.message);
+        contactId = inserted.data.id;
+      }
     } else {
       const inserted = await admin.from("crm_contacts").insert(payload).select("id").single();
       if (inserted.error) throw new Error(inserted.error.message);
@@ -605,13 +636,22 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
       documents,
       signatures,
     ] = await Promise.all([
-      admin.from("whatsapp_conversations").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
-      admin.from("crm_opportunities").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+      admin
+        .from("whatsapp_conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      admin
+        .from("crm_opportunities")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
       admin
         .from("whatsapp_conversations")
         .select("id,crm_opportunities!crm_opportunities_conversation_id_fkey(id)")
         .eq("tenant_id", tenantId),
-      admin.from("crm_contacts").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+      admin
+        .from("crm_contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
       admin
         .from("crm_opportunities")
         .select("id")
@@ -632,16 +672,27 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
         .select("enabled,auto_reply,agent_name")
         .eq("tenant_id", tenantId)
         .maybeSingle(),
-      admin.from("crm_proposals").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
-      admin.from("crm_documents").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
-      admin.from("crm_signature_requests").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+      admin
+        .from("crm_proposals")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      admin
+        .from("crm_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      admin
+        .from("crm_signature_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
     ]);
     const missingLinks = (missingOpportunity.data ?? []).filter(
       (row: any) => !Array.isArray(row.crm_opportunities) || row.crm_opportunities.length === 0,
     ).length;
     const email = emailRuntimeStatus();
     const aiKeyConfigured = Boolean(process.env["OPENAI_API_KEY"]);
-    const list = (distributionLists.data ?? []).find((item: any) => item.is_default) ?? distributionLists.data?.[0];
+    const list =
+      (distributionLists.data ?? []).find((item: any) => item.is_default) ??
+      distributionLists.data?.[0];
     const checks = [
       {
         key: "whatsapp_to_crm",
@@ -673,7 +724,9 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
         key: "email",
         label: "E-mail do CRM",
         status: email.configured ? "ok" : "warn",
-        detail: email.configured ? `Provedor ${email.provider} configurado.` : "Provedor de e-mail ainda não configurado.",
+        detail: email.configured
+          ? `Provedor ${email.provider} configurado.`
+          : "Provedor de e-mail ainda não configurado.",
       },
       {
         key: "operations",

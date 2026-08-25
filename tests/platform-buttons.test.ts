@@ -120,3 +120,17 @@ describe("MercadoImobi platform controls", () => {
     }
   });
 });
+
+it("keeps the CRM process enhancements visible without renaming the existing application structure", () => {
+  const shell = source("src/components/crm/CrmWorkspaceShell.tsx");
+  expect(shell).toContain('label: "Pipeline"');
+  expect(shell).toContain('label: "Propostas"');
+  expect(shell).toContain('label: "E-mails"');
+  expect(shell).toContain('label: "Documentos"');
+  expect(shell).toContain('label: "Assinaturas"');
+  expect(shell).toContain('label: "Relatórios"');
+  expect(shell).not.toContain("Kanban");
+  const attendance = source("src/routes/_authenticated/atendimento.tsx");
+  expect(attendance).toContain("AttendanceDistributionPanel");
+  expect(attendance).toContain("protocol_code");
+});

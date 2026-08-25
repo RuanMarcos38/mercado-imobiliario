@@ -29,6 +29,7 @@ export type CrmStage = {
 
 export type CrmOpportunity = {
   id: string;
+  protocol_code: string;
   pipeline_id: string;
   stage_id: string;
   owner_user_id: string | null;
@@ -187,7 +188,7 @@ export const getCrmWorkspace = createServerFn({ method: "GET" })
       db
         .from("crm_opportunities")
         .select(
-          "id,pipeline_id,stage_id,owner_user_id,conversation_id,contact_name,contact_phone,contact_email,property_reference,source,value,probability,status,loss_reason_id,notes,tags,custom_values,expected_close_date,next_action_at,last_activity_at,created_at,updated_at",
+          "id,protocol_code,pipeline_id,stage_id,owner_user_id,conversation_id,contact_name,contact_phone,contact_email,property_reference,source,value,probability,status,loss_reason_id,notes,tags,custom_values,expected_close_date,next_action_at,last_activity_at,created_at,updated_at",
         )
         .eq("tenant_id", tenantId)
         .order("updated_at", { ascending: false })

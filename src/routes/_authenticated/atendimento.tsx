@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { AttendanceDecisionDashboard } from "@/components/attendance/AttendanceDecisionDashboard";
+import { AttendanceDistributionPanel } from "@/components/attendance/AttendanceDistributionPanel";
 import { generateConversationDraft, getAiRuntimeStatus } from "@/lib/ai-assistant.functions";
 import {
   claimAttendanceConversation,
@@ -705,6 +706,9 @@ function AtendimentoPage() {
             >
               <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA e automático
             </Button>
+            <div className="mt-2">
+              <AttendanceDistributionPanel />
+            </div>
             <div className="mt-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
@@ -781,6 +785,9 @@ function AtendimentoPage() {
                       </span>
                     )}
                   </span>
+                  <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                    {conversation.protocol_code}
+                  </span>
                   <span className="mt-0.5 flex items-center gap-2">
                     <span className="truncate text-xs text-[var(--mi-text-soft)]">
                       {conversation.last_message || "Nova conversa"}
@@ -830,6 +837,9 @@ function AtendimentoPage() {
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--mi-text-soft)]">
                     {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
                     {selected.phone_e164}
+                  </p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                    Protocolo {selected.protocol_code}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

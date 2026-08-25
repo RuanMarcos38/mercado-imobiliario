@@ -16,7 +16,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, Clock3, Filter, LineChart as LineChartIcon, PieChart as PieChartIcon } from "lucide-react";
+import {
+  BarChart3,
+  Clock3,
+  Filter,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
+} from "lucide-react";
 import { getCrmOperationsWorkspace } from "@/lib/crm-operations.functions";
 
 const PIE_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#8b5cf6", "#ef4444", "#0891b2", "#64748b"];
@@ -41,14 +47,19 @@ function avgDays(values: number[]) {
 
 export function CrmReportsPanel() {
   const workspaceFn = useServerFn(getCrmOperationsWorkspace);
-  const workspace = useQuery({ queryKey: ["crm-reporting-workspace"], queryFn: () => workspaceFn() });
+  const workspace = useQuery({
+    queryKey: ["crm-reporting-workspace"],
+    queryFn: () => workspaceFn(),
+  });
 
   const report = useMemo(() => {
     const opportunities = workspace.data?.opportunities ?? [];
     const stages = [...(workspace.data?.stages ?? [])].sort((a, b) => a.position - b.position);
     const now = new Date();
     const weeks = Array.from({ length: 8 }, (_, index) => {
-      const start = startOfWeek(new Date(now.getFullYear(), now.getMonth(), now.getDate() - (7 - index) * 7));
+      const start = startOfWeek(
+        new Date(now.getFullYear(), now.getMonth(), now.getDate() - (7 - index) * 7),
+      );
       const end = new Date(start);
       end.setDate(end.getDate() + 7);
       const inside = (value: string | null | undefined) => {
@@ -61,7 +72,8 @@ export function CrmReportsPanel() {
         Novas: opportunities.filter((item) => inside(item.created_at)).length,
         Ganhas: opportunities.filter((item) => inside(item.won_at)).length,
         Perdidas: opportunities.filter((item) => inside(item.lost_at)).length,
-        Abertas: opportunities.filter((item) => item.status === "open" && inside(item.updated_at)).length,
+        Abertas: opportunities.filter((item) => item.status === "open" && inside(item.updated_at))
+          .length,
       };
     });
     const stageData = stages.map((stage) => ({
@@ -88,20 +100,22 @@ export function CrmReportsPanel() {
         return Number.isFinite(days) && days >= 0 ? days : null;
       })
       .filter((value): value is number => value != null);
-    const gantt = open
-      .slice(0, 12)
-      .map((item) => {
-        const start = new Date(item.created_at);
-        let end = item.expected_close_date
-          ? new Date(`${item.expected_close_date}T23:59:59`)
-          : item.next_action_at
-            ? new Date(item.next_action_at)
-            : new Date(start.getTime() + 30 * 86_400_000);
-        if (end <= start) end = new Date(start.getTime() + 7 * 86_400_000);
-        return { item, start, end };
-      });
-    const minGantt = gantt.length ? Math.min(...gantt.map((item) => item.start.getTime())) : now.getTime();
-    const maxGantt = gantt.length ? Math.max(...gantt.map((item) => item.end.getTime())) : now.getTime() + 1;
+    const gantt = open.slice(0, 12).map((item) => {
+      const start = new Date(item.created_at);
+      let end = item.expected_close_date
+        ? new Date(`${item.expected_close_date}T23:59:59`)
+        : item.next_action_at
+          ? new Date(item.next_action_at)
+          : new Date(start.getTime() + 30 * 86_400_000);
+      if (end <= start) end = new Date(start.getTime() + 7 * 86_400_000);
+      return { item, start, end };
+    });
+    const minGantt = gantt.length
+      ? Math.min(...gantt.map((item) => item.start.getTime()))
+      : now.getTime();
+    const maxGantt = gantt.length
+      ? Math.max(...gantt.map((item) => item.end.getTime()))
+      : now.getTime() + 1;
     return {
       opportunities,
       weeks,
@@ -118,15 +132,26 @@ export function CrmReportsPanel() {
     };
   }, [workspace.data]);
 
-  if (workspace.isLoading) return <div className="p-8 text-sm text-[var(--mi-text-soft)]">Carregando relatórios...</div>;
-  if (workspace.error || !workspace.data) return <div className="m-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">Não foi possível carregar os relatórios.</div>;
+  if (workspace.isLoading)
+    return <div className="p-8 text-sm text-[var(--mi-text-soft)]">Carregando relatórios...</div>;
+  if (workspace.error || !workspace.data)
+    return (
+      <div className="m-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+        Não foi possível carregar os relatórios.
+      </div>
+    );
 
   return (
     <div className="space-y-5 p-4 sm:p-6 lg:p-8">
       <header>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">Inteligência comercial</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+          Inteligência comercial
+        </p>
         <h1 className="mt-2 text-3xl font-black">Relatórios do Pipeline</h1>
-        <p className="mt-2 max-w-4xl text-sm text-[var(--mi-text-muted)]">Visão executiva com gráficos de linhas, barras, pizza, Gantt e funil para acompanhar volume, conversão, origem, ciclo comercial e capacidade do time.</p>
+        <p className="mt-2 max-w-4xl text-sm text-[var(--mi-text-muted)]">
+          Visão executiva com gráficos de linhas, barras, pizza, Gantt e funil para acompanhar
+          volume, conversão, origem, ciclo comercial e capacidade do time.
+        </p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -138,7 +163,11 @@ export function CrmReportsPanel() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <ChartCard icon={LineChartIcon} title="Oportunidades por período (semanal)" description="Novas, ganhas, perdidas e oportunidades atualizadas em aberto.">
+        <ChartCard
+          icon={LineChartIcon}
+          title="Oportunidades por período (semanal)"
+          description="Novas, ganhas, perdidas e oportunidades atualizadas em aberto."
+        >
           <div className="h-[330px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={report.weeks} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -156,12 +185,26 @@ export function CrmReportsPanel() {
           </div>
         </ChartCard>
 
-        <ChartCard icon={BarChart3} title="Oportunidades por etapa" description="Comparação do volume atual em cada fase do Pipeline.">
+        <ChartCard
+          icon={BarChart3}
+          title="Oportunidades por etapa"
+          description="Comparação do volume atual em cada fase do Pipeline."
+        >
           <div className="h-[330px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={report.stageData} margin={{ top: 10, right: 20, left: 0, bottom: 50 }}>
+              <BarChart
+                data={report.stageData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 50 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                <XAxis dataKey="name" angle={-25} textAnchor="end" interval={0} height={80} fontSize={10} />
+                <XAxis
+                  dataKey="name"
+                  angle={-25}
+                  textAnchor="end"
+                  interval={0}
+                  height={80}
+                  fontSize={10}
+                />
                 <YAxis allowDecimals={false} fontSize={11} />
                 <Tooltip />
                 <Bar dataKey="quantidade" fill="#2563eb" radius={[6, 6, 0, 0]} />
@@ -170,12 +213,21 @@ export function CrmReportsPanel() {
           </div>
         </ChartCard>
 
-        <ChartCard icon={PieChartIcon} title="Origem das oportunidades" description="Distribuição dos contatos por canal de entrada.">
+        <ChartCard
+          icon={PieChartIcon}
+          title="Origem das oportunidades"
+          description="Distribuição dos contatos por canal de entrada."
+        >
           <div className="h-[330px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={report.sources} dataKey="value" nameKey="name" outerRadius={110} label>
-                  {report.sources.map((entry, index) => <Cell key={`${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+                  {report.sources.map((entry, index) => (
+                    <Cell
+                      key={`${entry.name}-${index}`}
+                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+                    />
+                  ))}
                 </Pie>
                 <Tooltip />
                 <Legend />
@@ -184,25 +236,69 @@ export function CrmReportsPanel() {
           </div>
         </ChartCard>
 
-        <ChartCard icon={Filter} title="Gráfico de funil" description="Volume por etapa para identificar gargalos e perdas de conversão.">
+        <ChartCard
+          icon={Filter}
+          title="Gráfico de funil"
+          description="Volume por etapa para identificar gargalos e perdas de conversão."
+        >
           <div className="space-y-3 py-3">
             {report.stageData.map((stage, index) => {
               const max = Math.max(1, ...report.stageData.map((item) => item.quantidade));
               const width = Math.max(18, (stage.quantidade / max) * 100);
-              return <div key={`${stage.name}-${index}`} className="text-center"><div className="mx-auto flex h-10 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-black text-white" style={{ width: `${width}%` }}>{stage.name} · {stage.quantidade}</div></div>;
+              return (
+                <div key={`${stage.name}-${index}`} className="text-center">
+                  <div
+                    className="mx-auto flex h-10 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-black text-white"
+                    style={{ width: `${width}%` }}
+                  >
+                    {stage.name} · {stage.quantidade}
+                  </div>
+                </div>
+              );
             })}
           </div>
         </ChartCard>
       </div>
 
-      <ChartCard icon={Clock3} title="Diagrama de Gantt comercial" description={`Planejamento das oportunidades abertas. Lead time médio encerrado: ${report.leadTime.toFixed(1)} dias.`}>
+      <ChartCard
+        icon={Clock3}
+        title="Diagrama de Gantt comercial"
+        description={`Planejamento das oportunidades abertas. Lead time médio encerrado: ${report.leadTime.toFixed(1)} dias.`}
+      >
         <div className="space-y-3 overflow-x-auto py-2">
-          {report.gantt.length ? report.gantt.map(({ item, start, end }) => {
-            const range = Math.max(1, report.maxGantt - report.minGantt);
-            const left = ((start.getTime() - report.minGantt) / range) * 100;
-            const width = Math.max(3, ((end.getTime() - start.getTime()) / range) * 100);
-            return <div key={item.id} className="grid min-w-[760px] grid-cols-[220px_1fr_110px] items-center gap-3"><div className="min-w-0"><p className="truncate text-sm font-black">{item.contact_name}</p><p className="truncate text-[10px] text-[var(--mi-text-soft)]">{item.protocol_code}</p></div><div className="relative h-8 rounded-lg bg-[var(--mi-bg)]"><div className="absolute top-1 h-6 rounded-md bg-blue-600" style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }} /></div><div className="text-right text-[10px] text-[var(--mi-text-soft)]">{start.toLocaleDateString("pt-BR")} → {end.toLocaleDateString("pt-BR")}</div></div>;
-          }) : <div className="py-8 text-center text-sm text-[var(--mi-text-soft)]">Nenhuma oportunidade aberta para o Gantt.</div>}
+          {report.gantt.length ? (
+            report.gantt.map(({ item, start, end }) => {
+              const range = Math.max(1, report.maxGantt - report.minGantt);
+              const left = ((start.getTime() - report.minGantt) / range) * 100;
+              const width = Math.max(3, ((end.getTime() - start.getTime()) / range) * 100);
+              return (
+                <div
+                  key={item.id}
+                  className="grid min-w-[760px] grid-cols-[220px_1fr_110px] items-center gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black">{item.contact_name}</p>
+                    <p className="truncate text-[10px] text-[var(--mi-text-soft)]">
+                      {item.protocol_code}
+                    </p>
+                  </div>
+                  <div className="relative h-8 rounded-lg bg-[var(--mi-bg)]">
+                    <div
+                      className="absolute top-1 h-6 rounded-md bg-blue-600"
+                      style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
+                    />
+                  </div>
+                  <div className="text-right text-[10px] text-[var(--mi-text-soft)]">
+                    {start.toLocaleDateString("pt-BR")} → {end.toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-8 text-center text-sm text-[var(--mi-text-soft)]">
+              Nenhuma oportunidade aberta para o Gantt.
+            </div>
+          )}
         </div>
       </ChartCard>
     </div>
@@ -210,9 +306,39 @@ export function CrmReportsPanel() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-4"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>;
+  return (
+    <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-black">{value}</p>
+    </div>
+  );
 }
 
-function ChartCard({ icon: Icon, title, description, children }: { icon: typeof BarChart3; title: string; description: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5"><div className="mb-4 flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-600"><Icon className="h-4 w-4" /></span><div><h2 className="font-black">{title}</h2><p className="mt-1 text-xs text-[var(--mi-text-soft)]">{description}</p></div></div>{children}</section>;
+function ChartCard({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof BarChart3;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-600">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div>
+          <h2 className="font-black">{title}</h2>
+          <p className="mt-1 text-xs text-[var(--mi-text-soft)]">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
 }
