@@ -43,8 +43,10 @@ describe("WhatsApp media experience", () => {
   it("renders images, videos, audio and documents inside WhatsApp-style bubbles", () => {
     const mediaUi = source("src/components/attendance/WhatsAppMessageMedia.tsx");
     expect(mediaUi).toContain("<img");
-    expect(mediaUi).toContain("<video controls");
-    expect(mediaUi).toContain("<audio controls");
+    expect(mediaUi).toContain("<video");
+    expect(mediaUi).toContain("playsInline");
+    expect(mediaUi).toContain("<audio");
+    expect(mediaUi).toContain('preload="metadata"');
     expect(mediaUi).toContain("<FileText");
     expect(mediaUi).toContain('target="_blank"');
   });
