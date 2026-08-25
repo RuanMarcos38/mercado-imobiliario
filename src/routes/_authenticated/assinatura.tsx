@@ -52,17 +52,24 @@ function SubscriptionPage() {
   const subscription = overview.data?.subscription;
   const currentStatus = subscription?.status ?? "sem_assinatura";
 
-  const checkout = async (plan: BillingPlan) => {
+  const checkout = async (plan: BillingPlan, paymentMethod?: "PIX" | "BOLETO" | "CREDIT_CARD") => {
     if (!plan.selfService) {
       toast.info(
         "O plano Enterprise é contratado sob proposta. Solicite a ativação ao administrador.",
       );
       return;
     }
+    const paymentWindow = window.open("about:blank", "_blank");
+    if (!paymentWindow) {
+      toast.error("Permita a abertura de pop-ups para abrir o pagamento em uma nova aba.");
+      return;
+    }
+    paymentWindow.opener = null;
     try {
-      const result = await checkoutFn({ data: { planId: plan.id } });
-      window.location.assign(result.url);
+      const result = await checkoutFn({ data: { planId: plan.id, paymentMethod } });
+      paymentWindow.location.replace(result.url);
     } catch (error) {
+      paymentWindow.close();
       const message = String((error as Error)?.message ?? "");
       if (message.includes("ACTIVE_SUBSCRIPTION_USE_PORTAL")) {
         toast.info(
@@ -225,7 +232,8 @@ function SubscriptionPage() {
                   plan={plan}
                   current={subscription?.planId === plan.id}
                   checkoutConfigured={Boolean(overview.data?.configured)}
-                  onChoose={() => void checkout(plan)}
+                  billingProvider={overview.data?.provider ?? null}
+                  onChoose={(paymentMethod) => void checkout(plan, paymentMethod)}
                 />
               ))}
             </div>
@@ -266,12 +274,14 @@ function PlanCard({
   plan,
   current,
   checkoutConfigured,
+  billingProvider,
   onChoose,
 }: {
   plan: BillingPlan;
   current: boolean;
   checkoutConfigured: boolean;
-  onChoose: () => void;
+  billingProvider: "asaas" | "stripe" | null;
+  onChoose: (paymentMethod?: "PIX" | "BOLETO" | "CREDIT_CARD") => void;
 }) {
   return (
     <article
@@ -340,18 +350,53 @@ function PlanCard({
         ))}
       </div>
 
-      <Button
-        className="mt-5 w-full"
-        variant={plan.recommended ? "default" : "outline"}
-        disabled={current || (plan.selfService && !checkoutConfigured)}
-        onClick={onChoose}
-      >
-        {current
-          ? "Plano atual"
-          : plan.selfService
-            ? "Contratar este plano"
-            : "Solicitar Enterprise"}
-      </Button>
+      {current ? (
+        <Button className="mt-5 w-full" disabled>
+          Plano atual
+        </Button>
+      ) : plan.selfService && billingProvider === "asaas" ? (
+        <div className="mt-5 space-y-2">
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+            Escolha a forma de pagamento
+          </p>
+          <Button
+            className="w-full"
+            variant={plan.recommended ? "default" : "outline"}
+            disabled={!checkoutConfigured}
+            onClick={() => onChoose("PIX")}
+          >
+            Pix (QR Code)
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              disabled={!checkoutConfigured}
+              onClick={() => onChoose("BOLETO")}
+            >
+              Boleto
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!checkoutConfigured}
+              onClick={() => onChoose("CREDIT_CARD")}
+            >
+              Cartão
+            </Button>
+          </div>
+          <p className="text-center text-[10px] leading-4 text-[var(--mi-text-soft)]">
+            O pagamento abre em uma nova aba e o MercadoImobi permanece aberto.
+          </p>
+        </div>
+      ) : (
+        <Button
+          className="mt-5 w-full"
+          variant={plan.recommended ? "default" : "outline"}
+          disabled={plan.selfService && !checkoutConfigured}
+          onClick={() => onChoose()}
+        >
+          {plan.selfService ? "Contratar este plano" : "Solicitar Enterprise"}
+        </Button>
+      )}
     </article>
   );
 }

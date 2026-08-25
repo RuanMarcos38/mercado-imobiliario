@@ -1,5 +1,7 @@
 type JsonObject = Record<string, unknown>;
 
+export type AsaasBillingType = "UNDEFINED" | "PIX" | "BOLETO" | "CREDIT_CARD";
+
 export type AsaasPlanInput = {
   id: string;
   slug: string;
@@ -111,6 +113,21 @@ export function asaasFirstCycleValue(plan: AsaasPlanInput) {
   return Math.round((monthly + Math.max(0, onboarding)) * 100) / 100;
 }
 
+export function normalizeAsaasBillingType(value: unknown): AsaasBillingType {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if (
+    normalized === "PIX" ||
+    normalized === "BOLETO" ||
+    normalized === "CREDIT_CARD" ||
+    normalized === "UNDEFINED"
+  ) {
+    return normalized;
+  }
+  return "UNDEFINED";
+}
+
 function asaasSafeName(prefix: string, planName: string) {
   return `${prefix} ${planName}`.replace(/\s+/g, " ").trim().slice(0, 30);
 }
@@ -172,6 +189,7 @@ async function createAsaasRecurringPaymentLink(
     origin: string;
     userId: string;
     plan: AsaasPlanInput;
+    paymentMethod?: AsaasBillingType;
   },
   externalReference: string,
   monthly: number,
@@ -182,16 +200,17 @@ async function createAsaasRecurringPaymentLink(
     onboarding > 0
       ? `Assinatura ${input.plan.name}. A primeira cobrança inclui a implantação. As próximas cobranças são somente da mensalidade do plano.`
       : `Assinatura mensal MercadoImobi — ${input.plan.name}.`;
+  const billingType = normalizeAsaasBillingType(input.paymentMethod);
   const payload = await asaasRequest(config, "/paymentLinks", {
     method: "POST",
     body: JSON.stringify({
       name: asaasSafeName("Plano", input.plan.name),
       description: description.slice(0, 500),
       value: firstCycle,
-      billingType: "UNDEFINED",
+      billingType,
       chargeType: "RECURRENT",
       subscriptionCycle: "MONTHLY",
-      dueDateLimitDays: 5,
+      ...(billingType === "BOLETO" || billingType === "UNDEFINED" ? { dueDateLimitDays: 5 } : {}),
       externalReference,
       notificationEnabled: true,
       isAddressRequired: false,
@@ -212,6 +231,7 @@ export async function createAsaasSubscriptionCheckout(input: {
   origin: string;
   userId: string;
   plan: AsaasPlanInput;
+  paymentMethod?: AsaasBillingType;
   customerEmail?: string | null;
 }) {
   const config = await getAsaasConfig();
@@ -287,4 +307,5 @@ export const __asaasBillingTestUtils = {
   buildAsaasExternalReference,
   parseAsaasExternalReference,
   asaasFirstCycleValue,
+  normalizeAsaasBillingType,
 };

@@ -2,7 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { asaasConfigured, createAsaasSubscriptionCheckout } from "@/lib/asaas-billing.server";
+import {
+  asaasConfigured,
+  createAsaasSubscriptionCheckout,
+  type AsaasBillingType,
+} from "@/lib/asaas-billing.server";
 import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 
 export interface BillingPlan {
@@ -44,7 +48,10 @@ export interface BillingOverview {
   plans: BillingPlan[];
 }
 
-const checkoutSchema = z.object({ planId: z.string().uuid() });
+const checkoutSchema = z.object({
+  planId: z.string().uuid(),
+  paymentMethod: z.enum(["PIX", "BOLETO", "CREDIT_CARD"]).optional(),
+});
 
 function requestOrigin() {
   const request = getRequest();
@@ -221,6 +228,7 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
       const checkout = await createAsaasSubscriptionCheckout({
         origin,
         userId: context.userId,
+        paymentMethod: data.paymentMethod as AsaasBillingType | undefined,
         plan: {
           id: String(plan.id),
           slug: String(plan.slug),

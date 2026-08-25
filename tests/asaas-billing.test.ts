@@ -18,6 +18,13 @@ describe("Asaas billing helpers", () => {
     expect(__asaasBillingTestUtils.parseAsaasExternalReference(null)).toBeNull();
   });
 
+  it("supports explicit Pix, boleto and credit-card checkout billing types", () => {
+    expect(__asaasBillingTestUtils.normalizeAsaasBillingType("PIX")).toBe("PIX");
+    expect(__asaasBillingTestUtils.normalizeAsaasBillingType("BOLETO")).toBe("BOLETO");
+    expect(__asaasBillingTestUtils.normalizeAsaasBillingType("CREDIT_CARD")).toBe("CREDIT_CARD");
+    expect(__asaasBillingTestUtils.normalizeAsaasBillingType("invalid")).toBe("UNDEFINED");
+  });
+
   it("adds onboarding only to the first cycle amount", () => {
     expect(
       __asaasBillingTestUtils.asaasFirstCycleValue({
