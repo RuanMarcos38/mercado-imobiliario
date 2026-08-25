@@ -1,0 +1,73 @@
+name: Release safe user deletion
+
+on:
+  push:
+    branches: [release/user-delete-safe-20260825]
+    paths:
+      - .github/workflows/release-user-delete.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/user-delete-safe-20260825
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply targeted UI change
+        run: python scripts/apply-user-delete-ui.py
+
+      - name: Format only changed source files
+        run: npx prettier --write src/lib/platform-user-delete.functions.ts src/routes/_authenticated/admin/usuarios.tsx
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test -- --passWithNoTests
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify delete safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CANNOT_DELETE_SELF' src/lib/platform-user-delete.functions.ts
+          grep -q 'CANNOT_DELETE_ADMIN' src/lib/platform-user-delete.functions.ts
+          grep -q 'OWNER_HAS_MEMBERS' src/lib/platform-user-delete.functions.ts
+          grep -q 'Excluir definitivamente' src/routes/_authenticated/admin/usuarios.tsx
+          grep -q 'deletePlatformUser' src/routes/_authenticated/admin/usuarios.tsx
+
+      - name: Commit release without helper files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/apply-user-delete-ui.py .github/workflows/release-user-delete.yml
+          git add src/lib/platform-user-delete.functions.ts src/routes/_authenticated/admin/usuarios.tsx
+          git commit -m "feat: add protected user deletion to admin"
+
+      - name: Promote only this release to production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          git merge-base --is-ancestor origin/production HEAD
+          git push origin HEAD:refs/heads/production
