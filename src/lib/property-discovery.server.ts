@@ -37,7 +37,7 @@ export async function discoverPublicPropertySources(input: {
   if (!apiKey) return { configured: false, candidates: [], summary: "" };
   const model = process.env["OPENAI_MODEL"] || "gpt-5.6";
   const location = [input.city, input.state].filter(Boolean).join(" - ") || "Brasil";
-  const focus = input.query?.trim() || "imóveis à venda e para locação";
+  const focus = input.query?.trim() || "imóveis residenciais à venda";
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -53,7 +53,9 @@ export async function discoverPublicPropertySources(input: {
           role: "user",
           content:
             `Pesquise na web fontes públicas e atuais de ${focus} em ${location}. ` +
-            "Priorize sites oficiais de imobiliárias, construtoras e portais imobiliários. " +
+            "Considere somente imóveis residenciais efetivamente anunciados para venda, como casas, apartamentos, sobrados, studios, kitnets, lofts e coberturas. " +
+            "Não inclua aluguel ou locação, terrenos, lotes, imóveis rurais, salas, lojas, galpões, prédios comerciais, páginas institucionais, campanhas de marketing, páginas genéricas de empreendimentos ou portfólios sem anúncio individual de venda. " +
+            "Priorize páginas de anúncio que apresentem preço e localização e sites oficiais de imobiliárias, construtoras e portais imobiliários. " +
             "Não tente contornar login, CAPTCHA, bloqueio, paywall ou área privada. " +
             "Liste somente fontes públicas relevantes que poderiam ser conectadas por API, XML, JSON, webhook ou parceria autorizada.",
         },
