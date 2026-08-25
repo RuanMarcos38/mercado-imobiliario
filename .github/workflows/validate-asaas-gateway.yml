@@ -4,6 +4,9 @@ on:
   push:
     branches: [feat/asaas-gateway-20260825]
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -21,8 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Format check
-        run: npx prettier --check src/lib/asaas-billing.server.ts src/lib/billing.functions.ts src/routes/api/public/hooks/asaas.tsx tests/asaas-billing.test.ts
+      - name: Format isolated Asaas files
+        run: npx prettier --write src/lib/asaas-billing.server.ts src/lib/billing.functions.ts src/routes/api/public/hooks/asaas.tsx tests/asaas-billing.test.ts
       - name: Lint
         run: npm run lint
       - name: Critical regression tests
@@ -31,3 +34,13 @@ jobs:
         run: npx vitest run tests/asaas-billing.test.ts
       - name: Production build
         run: npm run build
+      - name: Commit formatting only when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/asaas-billing.server.ts src/lib/billing.functions.ts src/routes/api/public/hooks/asaas.tsx tests/asaas-billing.test.ts
+          git commit -m "style: formatar integração Asaas"
+          git push origin HEAD:${GITHUB_REF_NAME}
