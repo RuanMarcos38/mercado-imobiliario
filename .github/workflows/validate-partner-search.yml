@@ -51,3 +51,5 @@ jobs:
           fi
           git commit -m "feat: add Brazil real estate partner finder"
           git push origin HEAD:${GITHUB_REF_NAME}
+
+# Validation revision 2: Brazilian phone normalization covered by regression tests.
