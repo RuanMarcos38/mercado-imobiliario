@@ -93,7 +93,11 @@ async function recentMessages(tenantId: string, conversationId: string, limit = 
 
 function currentInboundIsLatest(
   messages: any[],
-  input: { inboundText: string | null; inboundExternalMessageId?: string | null; inboundSentAt?: string },
+  input: {
+    inboundText: string | null;
+    inboundExternalMessageId?: string | null;
+    inboundSentAt?: string;
+  },
 ) {
   const latest = messages[0];
   if (!latest) return { current: true, reason: "current" };
