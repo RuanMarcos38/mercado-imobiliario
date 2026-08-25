@@ -108,7 +108,7 @@ async function requirePlatformAdmin(context: AdminContext) {
 }
 
 function firstRow(value: unknown): any {
-  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 }
 
 async function loadAllAffiliateRows(db: any) {

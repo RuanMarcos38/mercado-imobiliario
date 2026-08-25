@@ -142,7 +142,8 @@ function AffiliateWalletPage() {
                 Indicações
               </p>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-emerald-700">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Wallet ao vivo
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Wallet ao
+                vivo
               </span>
             </div>
             <h1 className="mt-2 text-3xl font-black">Afiliados / Wallet</h1>
@@ -164,7 +165,11 @@ function AffiliateWalletPage() {
             <Button variant="outline" onClick={exportReport}>
               <Download className="h-4 w-4" /> Relatório
             </Button>
-            <Button variant="outline" onClick={() => void refreshAll()} disabled={overview.isFetching}>
+            <Button
+              variant="outline"
+              onClick={() => void refreshAll()}
+              disabled={overview.isFetching}
+            >
               <RefreshCw className={`h-4 w-4 ${overview.isFetching ? "animate-spin" : ""}`} />
               Atualizar
             </Button>
@@ -199,15 +204,9 @@ function AffiliateWalletPage() {
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <LiveMetric
-              label="Última comissão"
-              value={dateTime(liveMeta.data?.lastCommissionAt)}
-            />
+            <LiveMetric label="Última comissão" value={dateTime(liveMeta.data?.lastCommissionAt)} />
             <LiveMetric label="Último saque" value={dateTime(liveMeta.data?.lastPayoutAt)} />
-            <LiveMetric
-              label="Próxima liberação"
-              value={dateTime(liveMeta.data?.nextReleaseAt)}
-            />
+            <LiveMetric label="Próxima liberação" value={dateTime(liveMeta.data?.nextReleaseAt)} />
             <LiveMetric
               label="Próximo fechamento 24h"
               value={dateTime(liveMeta.data?.nextDailyCloseAt)}
@@ -219,9 +218,9 @@ function AffiliateWalletPage() {
             <div>
               <p className="text-xs font-black">Controle e acompanhamento a cada 12 horas</p>
               <p className="mt-1 text-xs text-[var(--mi-text-muted)]">
-                Próximo ciclo de controle: {dateTime(liveMeta.data?.nextControlAt)}. Sua Wallet exibe
-                somente os seus próprios valores; dados gerais da plataforma ficam restritos ao
-                administrador.
+                Próximo ciclo de controle: {dateTime(liveMeta.data?.nextControlAt)}. Sua Wallet
+                exibe somente os seus próprios valores; dados gerais da plataforma ficam restritos
+                ao administrador.
               </p>
             </div>
           </div>

@@ -64,7 +64,8 @@ function AffiliateExecutiveDashboard() {
   if (overview.error || !overview.data) {
     return (
       <div className="m-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-        Não foi possível carregar o painel executivo. {String((overview.error as Error)?.message ?? "")}
+        Não foi possível carregar o painel executivo.{" "}
+        {String((overview.error as Error)?.message ?? "")}
       </div>
     );
   }
@@ -128,9 +129,9 @@ function AffiliateExecutiveDashboard() {
                   Painel Executivo de Afiliados & Receita
                 </h1>
                 <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-                  Visão exclusiva do administrador com faturamento rastreado, comissões, rede,
-                  datas de liberação e saques. Os dados ao vivo são relidos automaticamente a cada
-                  30 segundos; o controle executivo é consolidado a cada 12 horas.
+                  Visão exclusiva do administrador com faturamento rastreado, comissões, rede, datas
+                  de liberação e saques. Os dados ao vivo são relidos automaticamente a cada 30
+                  segundos; o controle executivo é consolidado a cada 12 horas.
                 </p>
               </div>
             </div>
@@ -145,9 +146,7 @@ function AffiliateExecutiveDashboard() {
                 <Download className="h-4 w-4" /> Relatório CSV
               </Button>
               <Button onClick={() => void overview.refetch()} disabled={overview.isFetching}>
-                <RefreshCw
-                  className={`h-4 w-4 ${overview.isFetching ? "animate-spin" : ""}`}
-                />
+                <RefreshCw className={`h-4 w-4 ${overview.isFetching ? "animate-spin" : ""}`} />
                 Atualizar agora
               </Button>
             </div>
@@ -270,10 +269,7 @@ function AffiliateExecutiveDashboard() {
                 <SnapshotRow label="Receita 24h" value={money(data.snapshot.revenue24h)} />
                 <SnapshotRow label="Receita 30d" value={money(data.snapshot.revenue30d)} />
                 <SnapshotRow label="Comissões" value={money(data.snapshot.commissionTotal)} />
-                <SnapshotRow
-                  label="Disponível"
-                  value={money(data.snapshot.commissionAvailable)}
-                />
+                <SnapshotRow label="Disponível" value={money(data.snapshot.commissionAvailable)} />
                 <SnapshotRow label="Afiliados" value={String(data.snapshot.affiliateCount)} />
                 <SnapshotRow
                   label="Assinantes ativos"
