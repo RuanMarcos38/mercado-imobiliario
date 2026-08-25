@@ -1,0 +1,32 @@
+name: Subscription plans validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/billing.functions.ts"
+      - "src/routes/_authenticated/assinatura.tsx"
+      - "src/routes/_authenticated.tsx"
+      - "src/routes/api/public/hooks/stripe.tsx"
+      - "supabase/migrations/20260825032000_subscription_plans_and_entitlements.sql"
+      - ".github/workflows/plan-pricing-validate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --check src/lib/billing.functions.ts src/routes/_authenticated/assinatura.tsx src/routes/_authenticated.tsx src/routes/api/public/hooks/stripe.tsx
+      - run: npm run lint
+      - run: npm run test -- --passWithNoTests
+      - run: npm run build
