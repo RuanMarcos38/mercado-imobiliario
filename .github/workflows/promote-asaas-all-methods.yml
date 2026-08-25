@@ -1,0 +1,34 @@
+name: Promote validated Asaas all methods
+
+on:
+  push:
+    branches: [ops/promote-asaas-all-methods-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_SHA: f8bab6d381e965df277b3315cfe81c29c79ccf19
+      EXPECTED_PRODUCTION_SHA: c66220c2dde7e6efa0f60bb0fe82678a02f32770
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact isolated change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          test "$(git rev-parse origin/production)" = "$EXPECTED_PRODUCTION_SHA"
+          git cat-file -e "$TARGET_SHA^{commit}"
+          files="$(git diff --name-only "$EXPECTED_PRODUCTION_SHA" "$TARGET_SHA")"
+          test "$files" = "src/lib/asaas-billing.server.ts" || { echo "Unexpected files:"; echo "$files"; exit 1; }
+      - name: Promote exact validated commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "$TARGET_SHA:refs/heads/production"
