@@ -1,0 +1,46 @@
+name: Probe live after Asaas fix
+
+on:
+  push:
+    branches: [fix/asaas-paymentlink-no-domain-20260825]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify MercadoImobi live backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host'
+          ready=0
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 8 --max-time 15 "$BASE/api/public/status" || true)"
+            if [ "$code" = '200' ]; then
+              if node - <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/status.json','utf8'));
+          if (p.status!=='operational') process.exit(1);
+          if (p.search!=='available') process.exit(1);
+          if (String(p.supabaseProjectId)!=='uwzfgksmnqgaxtscwxow') process.exit(1);
+          if (p.runtime?.supabaseAdmin!=='configured') process.exit(1);
+          console.log(JSON.stringify({status:p.status,project:p.supabaseProjectId,properties:p.indexedProperties,states:p.coveredStates,ai:p.runtime?.ai},null,2));
+          NODE
+              then ready=1; break; fi
+            fi
+            sleep 5
+          done
+          test "$ready" = '1'
+          hook="$(curl -sS -o /tmp/hook.json -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{}' "$BASE/api/public/hooks/asaas")"
+          test "$hook" = '200'
+          node - <<'NODE'
+          const fs=require('fs'); const p=JSON.parse(fs.readFileSync('/tmp/hook.json','utf8'));
+          if(p.ok!==true || p.ignored!==true) throw new Error(JSON.stringify(p));
+          NODE
+          partners="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/parcerias")"
+          case "$partners" in 200|302|303|307|308) ;; *) exit 1;; esac
+          echo "LIVE_OK asaas_hook=$hook parcerias=$partners"
