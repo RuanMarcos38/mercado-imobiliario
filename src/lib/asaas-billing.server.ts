@@ -105,10 +105,6 @@ export function parseAsaasExternalReference(value: unknown) {
   return { userId: match[1], planId: match[2] };
 }
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function asaasFirstCycleValue(plan: AsaasPlanInput) {
   const monthly = Number(plan.price_monthly ?? 0);
   const onboarding = Number(plan.onboarding_fee ?? 0);
@@ -117,14 +113,6 @@ export function asaasFirstCycleValue(plan: AsaasPlanInput) {
 
 function asaasSafeName(prefix: string, planName: string) {
   return `${prefix} ${planName}`.replace(/\s+/g, " ").trim().slice(0, 30);
-}
-
-function checkoutCreationDisabled(error: unknown) {
-  const message = String((error as Error)?.message ?? error ?? "").toLowerCase();
-  return (
-    message.includes("criação do checkout está desabilitada") ||
-    message.includes("criacao do checkout esta desabilitada")
-  );
 }
 
 function resourceId(value: unknown) {
@@ -200,9 +188,10 @@ async function createAsaasRecurringPaymentLink(
       name: asaasSafeName("Plano", input.plan.name),
       description: description.slice(0, 500),
       value: firstCycle,
-      billingType: "CREDIT_CARD",
+      billingType: "UNDEFINED",
       chargeType: "RECURRENT",
       subscriptionCycle: "MONTHLY",
+      dueDateLimitDays: 5,
       externalReference,
       notificationEnabled: true,
       isAddressRequired: false,
@@ -234,55 +223,8 @@ export async function createAsaasSubscriptionCheckout(input: {
   const onboarding = Math.max(0, Number(input.plan.onboarding_fee ?? 0));
   if (!Number.isFinite(monthly) || monthly <= 0) throw new Error("PLAN_PRICE_INVALID");
 
-  const items: JsonObject[] = [
-    {
-      name: asaasSafeName("Plano", input.plan.name),
-      description: String(input.plan.description ?? "Assinatura mensal MercadoImobi").slice(0, 500),
-      quantity: 1,
-      value: monthly,
-    },
-  ];
-  if (onboarding > 0) {
-    items.push({
-      name: asaasSafeName("Implantação", input.plan.name),
-      description: "Implantação, ativação e onboarding inicial do plano contratado.",
-      quantity: 1,
-      value: onboarding,
-    });
-  }
-
   const externalReference = buildAsaasExternalReference(input.userId, String(input.plan.id));
-  let payload: JsonObject;
-  try {
-    payload = await asaasRequest(config, "/checkouts", {
-      method: "POST",
-      body: JSON.stringify({
-        billingTypes: ["CREDIT_CARD"],
-        chargeTypes: ["RECURRENT"],
-        minutesToExpire: 60,
-        externalReference,
-        callback: {
-          successUrl: `${input.origin}/assinatura?checkout=success&gateway=asaas&plan=${encodeURIComponent(input.plan.slug)}`,
-          cancelUrl: `${input.origin}/assinatura?checkout=cancel&gateway=asaas`,
-          expiredUrl: `${input.origin}/assinatura?checkout=expired&gateway=asaas`,
-        },
-        items,
-        subscription: { cycle: "MONTHLY", nextDueDate: todayIsoDate() },
-      }),
-    });
-  } catch (error) {
-    if (checkoutCreationDisabled(error)) {
-      return createAsaasRecurringPaymentLink(config, input, externalReference, monthly, onboarding);
-    }
-    throw error;
-  }
-
-  const checkoutId = resourceId(payload);
-  const directLink = typeof payload["link"] === "string" ? payload["link"] : null;
-  const link =
-    directLink || (checkoutId ? `https://asaas.com/checkoutSession/show?id=${checkoutId}` : null);
-  if (!checkoutId || !link) throw new Error("ASAAS_CHECKOUT_INVALID_RESPONSE");
-  return { url: link, checkoutId, provider: "asaas" as const };
+  return createAsaasRecurringPaymentLink(config, input, externalReference, monthly, onboarding);
 }
 
 export async function resolveAsaasExternalReference(payment: Record<string, unknown>) {
