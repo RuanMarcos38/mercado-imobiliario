@@ -1,0 +1,29 @@
+name: Probe EasyPanel MercadoImobi host
+
+on:
+  push:
+    branches: [feat/activate-parcerias-safe-20260825-v3]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe candidate hosts
+        shell: bash
+        run: |
+          set +e
+          for base in \
+            "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host" \
+            "http://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host" \
+            "https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host"; do
+            echo "===== $base ====="
+            curl -k -sS -D /tmp/h -o /tmp/b -w 'HTTP=%{http_code} IP=%{remote_ip} REDIRECT=%{redirect_url}\n' --connect-timeout 8 --max-time 15 "$base/api/public/status"
+            head -n 20 /tmp/h || true
+            echo "BODY:"
+            head -c 1200 /tmp/b || true
+            echo
+          done
