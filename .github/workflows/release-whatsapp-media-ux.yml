@@ -1,0 +1,88 @@
+name: Release WhatsApp media UX
+
+on:
+  push:
+    branches:
+      - release/whatsapp-media-ux-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply targeted WhatsApp media patch
+        run: python3 scripts/apply-whatsapp-media-ux.py
+
+      - name: Format targeted files
+        run: |
+          npx prettier --write \
+            src/lib/evolution-media.server.ts \
+            src/lib/whatsapp-media.functions.ts \
+            src/lib/whatsapp-tenant.functions.ts \
+            src/routes/_authenticated/atendimento.tsx \
+            src/components/attendance/WhatsAppMessageMedia.tsx \
+            tests/whatsapp-media-ux.test.ts
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test -- --passWithNoTests
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify WhatsApp media safeguards
+        run: |
+          grep -q 'navigator.mediaDevices.getUserMedia({ audio: true })' src/routes/_authenticated/atendimento.tsx
+          grep -q '/message/sendWhatsAppAudio/' src/lib/evolution-media.server.ts
+          grep -q 'storage://.*whatsapp-media' src/lib/whatsapp-media.functions.ts
+          grep -q 'createSignedUrl(storagePath, 60 \* 60)' src/lib/whatsapp-tenant.functions.ts
+          grep -q 'AttendanceDistributionPanel' src/routes/_authenticated/atendimento.tsx
+          grep -q 'WhatsAppMessageMedia' src/routes/_authenticated/atendimento.tsx
+
+      - name: Prepare targeted release files
+        run: |
+          tar -cf /tmp/whatsapp-media-release.tar \
+            src/lib/evolution-media.server.ts \
+            src/lib/whatsapp-media.functions.ts \
+            src/lib/whatsapp-tenant.functions.ts \
+            src/routes/_authenticated/atendimento.tsx \
+            src/components/attendance/WhatsAppMessageMedia.tsx \
+            supabase/migrations/20260825163500_whatsapp_media_storage.sql \
+            tests/whatsapp-media-ux.test.ts
+
+      - name: Promote only validated files to production
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin production
+          git checkout -B whatsapp-media-promote origin/production
+          tar -xf /tmp/whatsapp-media-release.tar
+          git add \
+            src/lib/evolution-media.server.ts \
+            src/lib/whatsapp-media.functions.ts \
+            src/lib/whatsapp-tenant.functions.ts \
+            src/routes/_authenticated/atendimento.tsx \
+            src/components/attendance/WhatsAppMessageMedia.tsx \
+            supabase/migrations/20260825163500_whatsapp_media_storage.sql \
+            tests/whatsapp-media-ux.test.ts
+          git commit -m 'feat: add WhatsApp voice and media experience'
+          git push origin HEAD:production
