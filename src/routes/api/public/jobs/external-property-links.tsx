@@ -10,7 +10,8 @@ function authorized(request: Request) {
 }
 
 async function handle(request: Request) {
-  if (!authorized(request)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!authorized(request))
+    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   const { syncDueExternalPropertyLinks } = await import("@/lib/property-links.functions");
   const result = await syncDueExternalPropertyLinks(150);
   return Response.json({ ok: true, ...result, ranAt: new Date().toISOString() });

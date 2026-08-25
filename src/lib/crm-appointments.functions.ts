@@ -217,10 +217,13 @@ export async function maybeApplyAppointmentConfirmation(input: {
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
-  const confirms = /^(sim|s|confirmo|confirmado|confirmar|ok|pode confirmar|estarei presente)[.! ]*$/.test(
+  const confirms =
+    /^(sim|s|confirmo|confirmado|confirmar|ok|pode confirmar|estarei presente)[.! ]*$/.test(
+      normalized,
+    );
+  const reschedule = /\b(remarcar|reagendar|outro horario|mudar horario|nao posso)\b/.test(
     normalized,
   );
-  const reschedule = /\b(remarcar|reagendar|outro horario|mudar horario|nao posso)\b/.test(normalized);
   if (!confirms && !reschedule) return null;
 
   const db = supabaseAdmin as any;
@@ -245,7 +248,11 @@ export async function maybeApplyAppointmentConfirmation(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", appointment.id);
-  return { appointmentId: String(appointment.id), confirmed: confirms, rescheduleRequested: reschedule };
+  return {
+    appointmentId: String(appointment.id),
+    confirmed: confirms,
+    rescheduleRequested: reschedule,
+  };
 }
 
 function reminderMessage(appointment: any, kind: "24h" | "5h") {
@@ -255,7 +262,10 @@ function reminderMessage(appointment: any, kind: "24h" | "5h") {
     dateStyle: "short",
     timeStyle: "short",
   });
-  const lead = kind === "24h" ? "Lembrete: seu atendimento é amanhã" : "Seu atendimento começa em aproximadamente 5 horas";
+  const lead =
+    kind === "24h"
+      ? "Lembrete: seu atendimento é amanhã"
+      : "Seu atendimento começa em aproximadamente 5 horas";
   const meet = appointment.meet_url ? `\nLink do Google Meet: ${appointment.meet_url}` : "";
   return `${lead}, em ${dateLabel}. ${appointment.title}.${meet}\n\nResponda SIM para confirmar ou REMARCAR caso precise alterar o horário.`;
 }
@@ -344,7 +354,11 @@ export async function runCrmAutomationMaintenance() {
       await backupCrmSnapshotToDrive(String(account.tenant_id), String(account.user_id));
       await db
         .from("integration_accounts")
-        .update({ last_sync_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() })
+        .update({
+          last_sync_at: new Date().toISOString(),
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("provider_key", "google_workspace")
         .eq("user_id", account.user_id);
       driveBackups += 1;
@@ -352,7 +366,10 @@ export async function runCrmAutomationMaintenance() {
       await db
         .from("integration_accounts")
         .update({
-          last_error: backupError instanceof Error ? backupError.message.slice(0, 300) : "DRIVE_BACKUP_FAILED",
+          last_error:
+            backupError instanceof Error
+              ? backupError.message.slice(0, 300)
+              : "DRIVE_BACKUP_FAILED",
           updated_at: new Date().toISOString(),
         })
         .eq("provider_key", "google_workspace")
@@ -360,5 +377,10 @@ export async function runCrmAutomationMaintenance() {
     }
   }
 
-  return { reminders24h, reminders5h, driveBackups, checkedAppointments: appointments?.length ?? 0 };
+  return {
+    reminders24h,
+    reminders5h,
+    driveBackups,
+    checkedAppointments: appointments?.length ?? 0,
+  };
 }

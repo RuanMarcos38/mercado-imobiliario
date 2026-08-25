@@ -105,7 +105,9 @@ async function tokenRequest(params: URLSearchParams) {
   });
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok || !payload["access_token"]) {
-    throw new Error(String(payload["error_description"] || payload["error"] || "GOOGLE_TOKEN_FAILED"));
+    throw new Error(
+      String(payload["error_description"] || payload["error"] || "GOOGLE_TOKEN_FAILED"),
+    );
   }
   return payload;
 }
@@ -143,7 +145,8 @@ export async function completeGoogleOAuth(input: { code: string; state: string }
     expiresAt: Date.now() + Math.max(60, expiresIn) * 1000,
     scope: String(payload["scope"] || GOOGLE_SCOPES.join(" ")),
     tokenType: String(payload["token_type"] || "Bearer"),
-    email: typeof userInfo["email"] === "string" ? String(userInfo["email"]) : previous?.email || null,
+    email:
+      typeof userInfo["email"] === "string" ? String(userInfo["email"]) : previous?.email || null,
     connectedAt: new Date().toISOString(),
   };
   await writeIntegrationSecret(owner.tenantId, owner.userId, SECRET_NAME, secret);
@@ -206,21 +209,19 @@ export async function getGoogleWorkspaceSummary(tenantId: string, userId: string
 
 export async function disconnectGoogleWorkspace(tenantId: string, userId: string) {
   await deleteIntegrationSecret(tenantId, userId, SECRET_NAME).catch(() => undefined);
-  await (supabaseAdmin as any)
-    .from("integration_accounts")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        user_id: userId,
-        provider_key: "google_workspace",
-        status: "disconnected",
-        account_label: null,
-        public_config: {},
-        connected_at: null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,provider_key" },
-    );
+  await (supabaseAdmin as any).from("integration_accounts").upsert(
+    {
+      tenant_id: tenantId,
+      user_id: userId,
+      provider_key: "google_workspace",
+      status: "disconnected",
+      account_label: null,
+      public_config: {},
+      connected_at: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,provider_key" },
+  );
 }
 
 export async function createGoogleCalendarMeeting(input: {
@@ -264,7 +265,8 @@ export async function createGoogleCalendarMeeting(input: {
   }
   const meetUrl =
     (typeof event.hangoutLink === "string" && event.hangoutLink) ||
-    event?.conferenceData?.entryPoints?.find((entry: any) => entry?.entryPointType === "video")?.uri ||
+    event?.conferenceData?.entryPoints?.find((entry: any) => entry?.entryPointType === "video")
+      ?.uri ||
     null;
   return {
     eventId: String(event.id),
@@ -318,7 +320,9 @@ export async function uploadGoogleDriveFile(input: {
   );
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok || !payload["id"]) {
-    throw new Error(String((payload["error"] as any)?.message || `GOOGLE_DRIVE_HTTP_${response.status}`));
+    throw new Error(
+      String((payload["error"] as any)?.message || `GOOGLE_DRIVE_HTTP_${response.status}`),
+    );
   }
   return payload;
 }

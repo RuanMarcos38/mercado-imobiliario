@@ -63,9 +63,7 @@ export function CrmAutomationLayer() {
   const [opportunityId, setOpportunityId] = useState("");
   const [title, setTitle] = useState("Atendimento imobiliário");
   const [notes, setNotes] = useState("");
-  const [meetingType, setMeetingType] = useState<"meet" | "phone" | "in_person" | "other">(
-    "meet",
-  );
+  const [meetingType, setMeetingType] = useState<"meet" | "phone" | "in_person" | "other">("meet");
   const [startsAt, setStartsAt] = useState(() => {
     const next = new Date(Date.now() + 24 * 60 * 60 * 1000);
     next.setMinutes(0, 0, 0);
@@ -88,7 +86,9 @@ export function CrmAutomationLayer() {
   );
   const selected = openOpportunities.find((item) => item.id === opportunityId) ?? null;
   const upcoming = (appointments.data ?? [])
-    .filter((item) => item.status !== "cancelled" && new Date(item.startsAt).getTime() >= Date.now())
+    .filter(
+      (item) => item.status !== "cancelled" && new Date(item.startsAt).getTime() >= Date.now(),
+    )
     .slice(0, 8);
 
   const saveAppointment = async () => {
@@ -174,7 +174,8 @@ export function CrmAutomationLayer() {
                   <option value="">Selecione o cliente...</option>
                   {openOpportunities.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.contact_name} · {item.property_reference || item.contact_phone || "Oportunidade"}
+                      {item.contact_name} ·{" "}
+                      {item.property_reference || item.contact_phone || "Oportunidade"}
                     </option>
                   ))}
                 </select>
@@ -216,13 +217,18 @@ export function CrmAutomationLayer() {
                 </select>
               </Field>
               <Field label="Observações">
-                <Textarea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+                <Textarea
+                  rows={3}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
               </Field>
               {selected && (
                 <div className="rounded-xl bg-blue-500/[0.06] p-3 text-xs text-[var(--mi-text-muted)]">
                   <strong className="text-[var(--mi-text)]">{selected.contact_name}</strong>
                   <br />
-                  {selected.contact_phone || "Sem telefone"} · {selected.contact_email || "Sem e-mail"}
+                  {selected.contact_phone || "Sem telefone"} ·{" "}
+                  {selected.contact_email || "Sem e-mail"}
                 </div>
               )}
               <Button
@@ -234,8 +240,8 @@ export function CrmAutomationLayer() {
               </Button>
               <p className="text-[11px] leading-5 text-[var(--mi-text-soft)]">
                 O sistema envia confirmação automática pelo WhatsApp aproximadamente 24 horas e 5
-                horas antes do atendimento. Respostas como “SIM” confirmam o compromisso; pedidos
-                de “REMARCAR” ficam sinalizados no CRM.
+                horas antes do atendimento. Respostas como “SIM” confirmam o compromisso; pedidos de
+                “REMARCAR” ficam sinalizados no CRM.
               </p>
             </section>
 
@@ -307,7 +313,9 @@ function WatchBadge({
     red: "border-red-300/40 bg-red-500/[0.06] text-red-700",
   }[tone];
   return (
-    <span className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] font-black ${classes}`}>
+    <span
+      className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] font-black ${classes}`}
+    >
       {label}
       <strong className="grid h-5 min-w-5 place-items-center rounded-full bg-current/10 px-1">
         {value}

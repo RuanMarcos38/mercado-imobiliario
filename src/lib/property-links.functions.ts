@@ -39,7 +39,12 @@ type ExtractedProperty = {
 
 function cleanText(value: unknown) {
   if (value == null) return null;
-  return String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || null;
+  return (
+    String(value)
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || null
+  );
 }
 
 function numeric(value: unknown) {
@@ -59,12 +64,22 @@ function numeric(value: unknown) {
 function meta(html: string, key: string) {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const expressions = [
-    new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i"),
-    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i"),
+    new RegExp(
+      `<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`,
+      "i",
+    ),
+    new RegExp(
+      `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`,
+      "i",
+    ),
   ];
   for (const expression of expressions) {
     const match = html.match(expression);
-    if (match?.[1]) return match[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"').trim();
+    if (match?.[1])
+      return match[1]
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .trim();
   }
   return null;
 }
@@ -117,18 +132,26 @@ function extractFromHtml(html: string, url: URL): ExtractedProperty {
   });
   const titleTag = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? null;
   const title =
-    cleanText(meta(html, "og:title")) || cleanText(candidate?.name) || cleanText(titleTag) || url.hostname;
+    cleanText(meta(html, "og:title")) ||
+    cleanText(candidate?.name) ||
+    cleanText(titleTag) ||
+    url.hostname;
   const description =
     cleanText(meta(html, "og:description")) ||
     cleanText(meta(html, "description")) ||
     cleanText(candidate?.description);
   const offer = candidate?.offers && typeof candidate.offers === "object" ? candidate.offers : null;
   const price =
-    numeric(meta(html, "product:price:amount")) ?? numeric(offer?.price) ?? numeric(candidate?.price) ?? null;
+    numeric(meta(html, "product:price:amount")) ??
+    numeric(offer?.price) ??
+    numeric(candidate?.price) ??
+    null;
   const addressObject =
     candidate?.address && typeof candidate.address === "object" ? candidate.address : null;
   const address =
-    cleanText(addressObject?.streetAddress) || cleanText(candidate?.address) || cleanText(meta(html, "place:location:address"));
+    cleanText(addressObject?.streetAddress) ||
+    cleanText(candidate?.address) ||
+    cleanText(meta(html, "place:location:address"));
   const city = cleanText(addressObject?.addressLocality);
   const state = cleanText(addressObject?.addressRegion);
   const typeRaw = Array.isArray(candidate?.["@type"])
@@ -136,10 +159,14 @@ function extractFromHtml(html: string, url: URL): ExtractedProperty {
     : candidate?.["@type"];
   const propertyType = cleanText(typeRaw);
   const bedrooms =
-    numeric(candidate?.numberOfBedrooms) ?? numeric(candidate?.numberOfRooms) ?? numeric(candidate?.bedrooms);
+    numeric(candidate?.numberOfBedrooms) ??
+    numeric(candidate?.numberOfRooms) ??
+    numeric(candidate?.bedrooms);
   const bathrooms = numeric(candidate?.numberOfBathroomsTotal) ?? numeric(candidate?.bathrooms);
   const areaSqm =
-    numeric(candidate?.floorSize?.value) ?? numeric(candidate?.floorSize) ?? numeric(candidate?.area);
+    numeric(candidate?.floorSize?.value) ??
+    numeric(candidate?.floorSize) ??
+    numeric(candidate?.area);
   const images = new Set<string>();
   const ogImage = meta(html, "og:image");
   if (ogImage) images.add(new URL(ogImage, url).toString());
@@ -207,9 +234,12 @@ async function aiEnhanceProperty(html: string, url: string, current: ExtractedPr
       state: cleanText(parsed.state) || current.state,
       address: cleanText(parsed.address) || current.address,
       propertyType: cleanText(parsed.propertyType) || current.propertyType,
-      bedrooms: numeric(parsed.bedrooms) == null ? current.bedrooms : Math.trunc(Number(parsed.bedrooms)),
+      bedrooms:
+        numeric(parsed.bedrooms) == null ? current.bedrooms : Math.trunc(Number(parsed.bedrooms)),
       bathrooms:
-        numeric(parsed.bathrooms) == null ? current.bathrooms : Math.trunc(Number(parsed.bathrooms)),
+        numeric(parsed.bathrooms) == null
+          ? current.bathrooms
+          : Math.trunc(Number(parsed.bathrooms)),
       areaSqm: numeric(parsed.areaSqm) ?? current.areaSqm,
       isRealEstate: parsed.isRealEstate === true || current.isRealEstate,
     } satisfies ExtractedProperty;
@@ -236,7 +266,8 @@ async function fetchPublicPage(urlValue: string) {
       continue;
     }
     const length = Number(response.headers.get("content-length") || "0");
-    if (length > 5 * 1024 * 1024) throw new Error("A página do anúncio excede o limite seguro de leitura.");
+    if (length > 5 * 1024 * 1024)
+      throw new Error("A página do anúncio excede o limite seguro de leitura.");
     const html = response.ok ? (await response.text()).slice(0, 5 * 1024 * 1024) : "";
     return { response, url: current, html };
   }
@@ -370,7 +401,8 @@ async function syncLink(row: any) {
         status: "error",
         last_checked_at: now,
         next_sync_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-        last_error: error instanceof Error ? error.message.slice(0, 500) : "Falha ao consultar anúncio.",
+        last_error:
+          error instanceof Error ? error.message.slice(0, 500) : "Falha ao consultar anúncio.",
         updated_at: now,
       })
       .eq("id", row.id);

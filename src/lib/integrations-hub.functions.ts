@@ -112,7 +112,10 @@ export const getGoogleConnectUrl = createServerFn({ method: "POST" })
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const { getGoogleOAuthUrl } = await import("@/lib/google-workspace.server");
     const url = getGoogleOAuthUrl({ tenantId, userId: context.userId });
-    if (!url) throw new Error("Google OAuth ainda não possui GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET no servidor.");
+    if (!url)
+      throw new Error(
+        "Google OAuth ainda não possui GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET no servidor.",
+      );
     return { url };
   });
 

@@ -27,11 +27,19 @@ async function handlePost(request: Request) {
   } catch {
     return apiJson({ error: "invalid_json" }, 400);
   }
-  const title = String(payload?.title || "Atendimento imobiliário").trim().slice(0, 200);
-  const contactName = String(payload?.contactName || "").trim().slice(0, 160);
+  const title = String(payload?.title || "Atendimento imobiliário")
+    .trim()
+    .slice(0, 200);
+  const contactName = String(payload?.contactName || "")
+    .trim()
+    .slice(0, 160);
   const startsAt = new Date(String(payload?.startsAt || ""));
   const endsAt = new Date(String(payload?.endsAt || ""));
-  if (contactName.length < 2 || !Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime())) {
+  if (
+    contactName.length < 2 ||
+    !Number.isFinite(startsAt.getTime()) ||
+    !Number.isFinite(endsAt.getTime())
+  ) {
     return apiJson({ error: "contact_name_starts_at_ends_at_required" }, 422);
   }
   if (endsAt.getTime() <= startsAt.getTime()) return apiJson({ error: "invalid_time_range" }, 422);

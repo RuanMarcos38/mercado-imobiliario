@@ -31,7 +31,9 @@ async function handlePost(request: Request) {
   } catch {
     return apiJson({ error: "invalid_json" }, 400);
   }
-  const contactName = String(payload?.contactName || payload?.name || "").trim().slice(0, 160);
+  const contactName = String(payload?.contactName || payload?.name || "")
+    .trim()
+    .slice(0, 160);
   if (contactName.length < 2) return apiJson({ error: "contact_name_required" }, 422);
   const db = supabaseAdmin as any;
   const { data: pipeline } = await db
@@ -74,7 +76,10 @@ async function handlePost(request: Request) {
       status: "open",
       notes: payload?.notes ? String(payload.notes).slice(0, 5000) : null,
       next_action_at: payload?.nextActionAt ? String(payload.nextActionAt) : null,
-      custom_values: payload?.customValues && typeof payload.customValues === "object" ? payload.customValues : {},
+      custom_values:
+        payload?.customValues && typeof payload.customValues === "object"
+          ? payload.customValues
+          : {},
     })
     .select("*")
     .single();

@@ -39,7 +39,8 @@ export const getFeatureAccessAdmin = createServerFn({ method: "GET" })
       ]);
     if (profilesError) throw new Error(profilesError.message);
     const map = new Map<string, boolean>();
-    for (const row of overrides ?? []) map.set(`${row.user_id}:${row.feature_key}`, Boolean(row.allowed));
+    for (const row of overrides ?? [])
+      map.set(`${row.user_id}:${row.feature_key}`, Boolean(row.allowed));
     return {
       features: (features ?? []).map((feature: any) => ({
         key: String(feature.feature_key),

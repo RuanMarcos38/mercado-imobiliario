@@ -10,7 +10,8 @@ function authorized(request: Request) {
 }
 
 async function handle(request: Request) {
-  if (!authorized(request)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!authorized(request))
+    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   const { runCrmAutomationMaintenance } = await import("@/lib/crm-appointments.functions");
   const result = await runCrmAutomationMaintenance();
   return Response.json({ ok: true, ...result, ranAt: new Date().toISOString() });

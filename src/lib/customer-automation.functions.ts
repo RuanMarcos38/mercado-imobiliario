@@ -160,7 +160,8 @@ export const getPipelineAgeAlerts = createServerFn({ method: "GET" })
     const stageNames = new Map<string, string>();
     if (stageIds.length) {
       const { data: stages } = await db.from("crm_stages").select("id,name").in("id", stageIds);
-      for (const stage of stages ?? []) stageNames.set(String(stage.id), String(stage.name || "Etapa"));
+      for (const stage of stages ?? [])
+        stageNames.set(String(stage.id), String(stage.name || "Etapa"));
     }
 
     const now = Date.now();

@@ -25,7 +25,9 @@ function FeatureAccessAdminPage() {
     if (!query) return access.data?.users ?? [];
     return (access.data?.users ?? []).filter((user) =>
       [user.name, user.company, user.userType].some((value) =>
-        String(value || "").toLowerCase().includes(query),
+        String(value || "")
+          .toLowerCase()
+          .includes(query),
       ),
     );
   }, [access.data?.users, search]);
@@ -43,11 +45,13 @@ function FeatureAccessAdminPage() {
     <div className="min-h-screen bg-[var(--mi-bg)] p-4 text-[var(--mi-text)] sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1700px] space-y-5">
         <header>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">Administração</p>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+            Administração
+          </p>
           <h1 className="mt-2 text-3xl font-black">Acessos por usuário</h1>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-            Libere ou bloqueie módulos sem alterar os dados existentes. O padrão permanece liberado para
-            todos; somente as exceções configuradas aqui restringem o acesso.
+            Libere ou bloqueie módulos sem alterar os dados existentes. O padrão permanece liberado
+            para todos; somente as exceções configuradas aqui restringem o acesso.
           </p>
         </header>
 
@@ -66,7 +70,9 @@ function FeatureAccessAdminPage() {
             <table className="w-full min-w-[1250px] text-left text-sm">
               <thead className="bg-[var(--mi-bg)] text-[10px] font-black uppercase tracking-[0.08em] text-[var(--mi-text-soft)]">
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-64 bg-[var(--mi-bg)] px-4 py-3">Usuário</th>
+                  <th className="sticky left-0 z-10 min-w-64 bg-[var(--mi-bg)] px-4 py-3">
+                    Usuário
+                  </th>
                   {access.data.features.map((feature) => (
                     <th key={feature.key} className="min-w-36 px-3 py-3 text-center">
                       {feature.label}
@@ -105,10 +111,14 @@ function FeatureAccessAdminPage() {
                                   data: { userId: user.id, featureKey: feature.key, allowed: next },
                                 });
                                 await access.refetch();
-                                toast.success(`${feature.label}: ${next ? "liberado" : "bloqueado"}.`);
+                                toast.success(
+                                  `${feature.label}: ${next ? "liberado" : "bloqueado"}.`,
+                                );
                               } catch (error) {
                                 toast.error(
-                                  error instanceof Error ? error.message : "Não foi possível alterar o acesso.",
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Não foi possível alterar o acesso.",
                                 );
                               } finally {
                                 setUpdating("");

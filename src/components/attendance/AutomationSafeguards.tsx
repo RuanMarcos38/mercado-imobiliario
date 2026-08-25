@@ -36,7 +36,9 @@ export function ConversationAiControl({
           : "Agente de IA reativado nesta conversa.",
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível alterar o modo da IA.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível alterar o modo da IA.",
+      );
     }
   };
 
@@ -54,9 +56,7 @@ export function ConversationAiControl({
     >
       {enabled ? <Bot className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
       {compact ? (enabled ? "IA" : "Manual") : enabled ? "IA ativa" : "Atendimento manual"}
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${enabled ? "bg-emerald-500" : "bg-amber-500"}`}
-      />
+      <span className={`h-1.5 w-1.5 rounded-full ${enabled ? "bg-emerald-500" : "bg-amber-500"}`} />
     </button>
   );
 }
