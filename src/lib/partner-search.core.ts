@@ -68,10 +68,9 @@ export function safeHttpUrl(value: unknown): string | null {
 }
 
 export function sanitizePartnerCandidate(candidate: PartnerCandidate): PartnerCandidate {
-  const sourceUrls = [...new Set(candidate.sourceUrls.map(safeHttpUrl).filter(Boolean) as string[])].slice(
-    0,
-    8,
-  );
+  const sourceUrls = [
+    ...new Set(candidate.sourceUrls.map(safeHttpUrl).filter(Boolean) as string[]),
+  ].slice(0, 8);
   const hasOfficialCreci = sourceUrls.some(isOfficialCreciSource);
   const creciStatus: PartnerCreciStatus = candidate.creciNumber
     ? hasOfficialCreci
@@ -92,8 +91,12 @@ export function sanitizePartnerCandidate(candidate: PartnerCandidate): PartnerCa
     creciUf: candidate.creciUf?.trim().toUpperCase() || null,
     creciStatus,
     sourceUrls,
-    specialties: [...new Set(candidate.specialties.map((item) => item.trim()).filter(Boolean))].slice(0, 8),
-    sourceProviders: [...new Set(candidate.sourceProviders.map((item) => item.trim()).filter(Boolean))],
+    specialties: [
+      ...new Set(candidate.specialties.map((item) => item.trim()).filter(Boolean)),
+    ].slice(0, 8),
+    sourceProviders: [
+      ...new Set(candidate.sourceProviders.map((item) => item.trim()).filter(Boolean)),
+    ],
   };
 }
 
@@ -103,7 +106,8 @@ function mergeTwoPartners(a: PartnerCandidate, b: PartnerCandidate): PartnerCand
   return sanitizePartnerCandidate({
     ...a,
     name: a.name.length >= b.name.length ? a.name : b.name,
-    entityType: a.entityType === "imobiliaria" || b.entityType === "imobiliaria" ? "imobiliaria" : "corretor",
+    entityType:
+      a.entityType === "imobiliaria" || b.entityType === "imobiliaria" ? "imobiliaria" : "corretor",
     creciNumber: betterCreci.creciNumber || a.creciNumber || b.creciNumber,
     creciUf: betterCreci.creciUf || a.creciUf || b.creciUf,
     creciType: betterCreci.creciType || a.creciType || b.creciType,
@@ -156,6 +160,9 @@ export function dedupeAndRankPartners(candidates: PartnerCandidate[], limit = 24
   }
 
   return [...merged.values()]
-    .sort((a, b) => partnerCompletenessScore(b) - partnerCompletenessScore(a) || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) =>
+        partnerCompletenessScore(b) - partnerCompletenessScore(a) || a.name.localeCompare(b.name),
+    )
     .slice(0, Math.max(1, Math.min(40, limit)));
 }

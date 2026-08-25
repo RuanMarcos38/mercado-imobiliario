@@ -152,10 +152,10 @@ function ParceriasPage() {
                 Encontre corretores e imobiliárias em todo o Brasil
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--mi-text-muted)]">
-                Pesquise parceiros por cidade, bairro, região ou estado quando seu cliente procura um
-                imóvel fora da sua área de atuação. A busca combina fontes públicas da web e, quando
-                configurado, Google Places, priorizando nome, CRECI, telefone, e-mail, site e fontes de
-                confirmação.
+                Pesquise parceiros por cidade, bairro, região ou estado quando seu cliente procura
+                um imóvel fora da sua área de atuação. A busca combina fontes públicas da web e,
+                quando configurado, Google Places, priorizando nome, CRECI, telefone, e-mail, site e
+                fontes de confirmação.
               </p>
             </div>
 
@@ -242,11 +242,11 @@ function ParceriasPage() {
         </header>
 
         <div className="mt-4 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-xs leading-5 text-[var(--mi-text-muted)]">
-          <strong className="text-[var(--mi-text)]">Critério de segurança:</strong> o sistema não inventa
-          contatos. Dados ausentes aparecem como não localizados. O selo de CRECI verificado só deve ser
-          considerado confirmado quando houver fonte pública oficial do CRECI/COFECI; antes de formalizar
-          parceria, confirme inscrição, identidade profissional, regras de comissão e disponibilidade do
-          imóvel diretamente com o parceiro.
+          <strong className="text-[var(--mi-text)]">Critério de segurança:</strong> o sistema não
+          inventa contatos. Dados ausentes aparecem como não localizados. O selo de CRECI verificado
+          só deve ser considerado confirmado quando houver fonte pública oficial do CRECI/COFECI;
+          antes de formalizar parceria, confirme inscrição, identidade profissional, regras de
+          comissão e disponibilidade do imóvel diretamente com o parceiro.
         </div>
 
         {result && (
@@ -257,7 +257,8 @@ function ParceriasPage() {
                   Resultado da pesquisa
                 </p>
                 <h2 className="mt-1 text-xl font-black">
-                  {result.partners.length} parceiro{result.partners.length === 1 ? "" : "s"} localizado
+                  {result.partners.length} parceiro{result.partners.length === 1 ? "" : "s"}{" "}
+                  localizado
                   {result.partners.length === 1 ? "" : "s"}
                 </h2>
                 <p className="mt-1 text-xs text-[var(--mi-text-soft)]">
@@ -385,7 +386,9 @@ function PartnerCard({ partner }: { partner: PartnerCandidate }) {
             </button>
           </div>
 
-          <div className={`mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-black ${badge.className}`}>
+          <div
+            className={`mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-black ${badge.className}`}
+          >
             <BadgeIcon className="h-3.5 w-3.5" />
             {badge.label}
             {partner.creciType && <span>· {partner.creciType}</span>}
@@ -400,7 +403,13 @@ function PartnerCard({ partner }: { partner: PartnerCandidate }) {
       <div className="mt-4 space-y-2.5 text-xs">
         <ContactRow icon={Phone} label="Telefone" value={partner.phone} />
         <ContactRow icon={Mail} label="E-mail" value={partner.email} />
-        <ContactRow icon={MapPin} label="Localização" value={partner.address || [partner.city, partner.state].filter(Boolean).join(" · ") || null} />
+        <ContactRow
+          icon={MapPin}
+          label="Localização"
+          value={
+            partner.address || [partner.city, partner.state].filter(Boolean).join(" · ") || null
+          }
+        />
       </div>
 
       {partner.specialties.length > 0 && (
@@ -509,7 +518,9 @@ function ContactRow({
     <div className="grid grid-cols-[18px_74px_1fr] items-start gap-2">
       <Icon className="mt-0.5 h-3.5 w-3.5 text-[var(--mi-text-soft)]" />
       <span className="font-bold text-[var(--mi-text-soft)]">{label}</span>
-      <span className="break-words font-semibold text-[var(--mi-text)]">{value || "Não localizado"}</span>
+      <span className="break-words font-semibold text-[var(--mi-text)]">
+        {value || "Não localizado"}
+      </span>
     </div>
   );
 }

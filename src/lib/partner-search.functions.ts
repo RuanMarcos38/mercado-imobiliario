@@ -48,9 +48,7 @@ type ProviderResult = {
 
 function googlePlacesApiKey() {
   return (
-    process.env["GOOGLE_PLACES_API_KEY"]?.trim() ||
-    process.env["GOOGLE_MAPS_API_KEY"]?.trim() ||
-    ""
+    process.env["GOOGLE_PLACES_API_KEY"]?.trim() || process.env["GOOGLE_MAPS_API_KEY"]?.trim() || ""
   );
 }
 
@@ -59,7 +57,9 @@ function openAiConfig() {
   if (!apiKey) return null;
   const parameters = aiParameters();
   const searchModel = process.env["OPENAI_SEARCH_MODEL"]?.trim();
-  const models = [...new Set([searchModel, parameters.model, "gpt-5.4"].filter(Boolean) as string[])];
+  const models = [
+    ...new Set([searchModel, parameters.model, "gpt-5.4"].filter(Boolean) as string[]),
+  ];
   return { apiKey, models, timeoutMs: Math.max(parameters.requestTimeoutMs, 45_000) };
 }
 
@@ -111,7 +111,9 @@ async function searchGooglePlaces(input: z.infer<typeof searchSchema>): Promise<
       });
       if (!response.ok) continue;
       const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      const places = Array.isArray(payload["places"]) ? (payload["places"] as Record<string, unknown>[]) : [];
+      const places = Array.isArray(payload["places"])
+        ? (payload["places"] as Record<string, unknown>[])
+        : [];
 
       places.forEach((place, index) => {
         const displayName =
@@ -225,9 +227,13 @@ function webSearchJsonSchema() {
 }
 
 function extractOutputText(payload: Record<string, unknown>) {
-  const output = Array.isArray(payload["output"]) ? (payload["output"] as Record<string, unknown>[]) : [];
+  const output = Array.isArray(payload["output"])
+    ? (payload["output"] as Record<string, unknown>[])
+    : [];
   return output
-    .flatMap((item) => (Array.isArray(item["content"]) ? (item["content"] as Record<string, unknown>[]) : []))
+    .flatMap((item) =>
+      Array.isArray(item["content"]) ? (item["content"] as Record<string, unknown>[]) : [],
+    )
     .filter((item) => item["type"] === "output_text" && typeof item["text"] === "string")
     .map((item) => String(item["text"] ?? "").trim())
     .filter(Boolean)
@@ -415,7 +421,10 @@ export const searchRealEstatePartners = createServerFn({ method: "POST" })
     await requireTenantId(context.supabase, context.userId);
 
     const [google, openai] = await Promise.all([searchGooglePlaces(data), searchOpenAiWeb(data)]);
-    const partners = dedupeAndRankPartners([...openai.candidates, ...google.candidates], data.limit);
+    const partners = dedupeAndRankPartners(
+      [...openai.candidates, ...google.candidates],
+      data.limit,
+    );
     const warnings = [google.warning, openai.warning].filter(Boolean) as string[];
 
     if (!partners.length && !googlePlacesApiKey() && !openAiConfig()) {
