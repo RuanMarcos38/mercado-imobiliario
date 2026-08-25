@@ -13,6 +13,10 @@ jobs:
   apply-and-validate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: https://rjlqylmwenhzkzmqwris.supabase.co
+      VITE_SUPABASE_PROJECT_ID: rjlqylmwenhzkzmqwris
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,8 +34,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Lint
         run: npm run lint
-      - name: Tests
-        run: npm run test -- --passWithNoTests
+      - name: WhatsApp regression tests
+        run: npx vitest run tests/whatsapp-media.test.ts tests/whatsapp-inbox-sync.test.ts
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Production build
