@@ -194,16 +194,36 @@ async function handleStripeWebhook(request: Request) {
         })
         .eq("id", subscription.id);
 
-      if (eventType === "invoice.paid" && subscription.user_id) {
+      if (eventType === "invoice.paid") {
         const paymentId = typeof eventObject["id"] === "string" ? eventObject["id"] : "";
         const amountPaidCents = Number(eventObject["amount_paid"] ?? 0);
         if (paymentId && Number.isFinite(amountPaidCents) && amountPaidCents > 0) {
-          const { error: affiliateError } = await db.rpc("accrue_affiliate_commissions", {
-            p_source_user_id: String(subscription.user_id),
-            p_payment_id: paymentId,
-            p_gross_amount: amountPaidCents / 100,
-          });
-          if (affiliateError) throw new Error(affiliateError.message);
+          const statusTransitions = object(eventObject["status_transitions"]);
+          const paidAt =
+            unixDate(statusTransitions["paid_at"]) ??
+            unixDate(eventObject["created"]) ??
+            new Date().toISOString();
+          const grossAmount = amountPaidCents / 100;
+          const { error: paymentError } = await db.from("platform_payment_events").upsert(
+            {
+              user_id: subscription.user_id ? String(subscription.user_id) : null,
+              provider: "stripe",
+              payment_id: paymentId,
+              gross_amount: grossAmount,
+              paid_at: paidAt,
+            },
+            { onConflict: "provider,payment_id" },
+          );
+          if (paymentError) throw new Error(paymentError.message);
+
+          if (subscription.user_id) {
+            const { error: affiliateError } = await db.rpc("accrue_affiliate_commissions", {
+              p_source_user_id: String(subscription.user_id),
+              p_payment_id: paymentId,
+              p_gross_amount: grossAmount,
+            });
+            if (affiliateError) throw new Error(affiliateError.message);
+          }
         }
       }
     }
