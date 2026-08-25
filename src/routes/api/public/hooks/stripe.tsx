@@ -25,9 +25,7 @@ function verifyStripeSignature(rawBody: string, signatureHeader: string, secret:
   return signatures.some((signature) => {
     try {
       const candidate = Buffer.from(signature, "hex");
-      return (
-        candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer)
-      );
+      return candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer);
     } catch {
       return false;
     }
@@ -75,6 +73,44 @@ async function findUserId(db: any, objectData: JsonObject): Promise<string | nul
       .limit(1)
       .maybeSingle();
     if (data?.user_id) return String(data.user_id);
+  }
+  return null;
+}
+
+async function findPlanId(db: any, objectData: JsonObject): Promise<string | null> {
+  const metadata = object(objectData["metadata"]);
+  const directPlanId = metadata["plan_id"];
+  if (typeof directPlanId === "string" && directPlanId) {
+    const { data } = await db
+      .from("subscription_plans")
+      .select("id")
+      .eq("id", directPlanId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (data?.id) return String(data.id);
+  }
+
+  const planSlug = metadata["plan_slug"];
+  if (typeof planSlug === "string" && planSlug) {
+    const { data } = await db
+      .from("subscription_plans")
+      .select("id")
+      .eq("slug", planSlug)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (data?.id) return String(data.id);
+  }
+
+  const customerId = objectData["customer"];
+  if (typeof customerId === "string") {
+    const { data } = await db
+      .from("subscriptions")
+      .select("plan_id")
+      .eq("stripe_customer_id", customerId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.plan_id) return String(data.plan_id);
   }
   return null;
 }
@@ -137,8 +173,10 @@ async function handleStripeWebhook(request: Request) {
   if (eventType === "checkout.session.completed") {
     const userId = await findUserId(db, eventObject);
     if (!userId) return Response.json({ ok: true, ignored: true, reason: "user_not_found" });
+    const planId = await findPlanId(db, eventObject);
     await persistSubscription(db, userId, {
       status: "active",
+      ...(planId ? { plan_id: planId } : {}),
       stripe_customer_id:
         typeof eventObject["customer"] === "string" ? eventObject["customer"] : null,
       stripe_subscription_id:
@@ -149,7 +187,7 @@ async function handleStripeWebhook(request: Request) {
       .from("profiles")
       .update({ is_active: true, updated_at: new Date().toISOString() })
       .eq("id", userId);
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, planId });
   }
 
   if (
@@ -159,12 +197,14 @@ async function handleStripeWebhook(request: Request) {
   ) {
     const userId = await findUserId(db, eventObject);
     if (!userId) return Response.json({ ok: true, ignored: true, reason: "user_not_found" });
+    const planId = await findPlanId(db, eventObject);
     const status =
       eventType === "customer.subscription.deleted"
         ? "canceled"
         : mapSubscriptionStatus(eventObject["status"]);
     await persistSubscription(db, userId, {
       status,
+      ...(planId ? { plan_id: planId } : {}),
       stripe_customer_id:
         typeof eventObject["customer"] === "string" ? eventObject["customer"] : null,
       stripe_subscription_id: typeof eventObject["id"] === "string" ? eventObject["id"] : null,
@@ -172,7 +212,7 @@ async function handleStripeWebhook(request: Request) {
       current_period_end: unixDate(eventObject["current_period_end"]),
       trial_end: unixDate(eventObject["trial_end"]),
     });
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, planId });
   }
 
   if (eventType === "invoice.payment_failed" || eventType === "invoice.paid") {
@@ -180,7 +220,7 @@ async function handleStripeWebhook(request: Request) {
     if (typeof customer !== "string") return Response.json({ ok: true, ignored: true });
     const { data: subscription } = await db
       .from("subscriptions")
-      .select("id,user_id")
+      .select("id,user_id,plan_id")
       .eq("stripe_customer_id", customer)
       .order("created_at", { ascending: false })
       .limit(1)
