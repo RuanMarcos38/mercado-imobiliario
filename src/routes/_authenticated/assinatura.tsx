@@ -299,7 +299,6 @@ function PlanCard({
       <p className="mt-1 min-h-10 text-xs leading-5 text-[var(--mi-text-muted)]">{plan.tagline}</p>
       <div className="mt-4">
         <p className="text-3xl font-black tracking-tight text-blue-600">
-          {plan.slug === "enterprise" ? "A partir de " : ""}
           {money(plan.priceMonthly)}
         </p>
         <p className="text-xs font-bold text-[var(--mi-text-soft)]">por mês</p>
