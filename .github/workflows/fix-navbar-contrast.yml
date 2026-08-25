@@ -53,6 +53,10 @@ jobs:
           git checkout HEAD -- src/routeTree.gen.ts 2>/dev/null || true
           git checkout HEAD -- public/mcp/openapi.json 2>/dev/null || true
           git checkout HEAD -- public/mcp/llms.txt 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/invoke-tool/$tool.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/list-tools.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.well-known]/oauth-protected-resource.ts' 2>/dev/null || true
+          git checkout HEAD -- src/routes/mcp.ts 2>/dev/null || true
           changed="$(git diff --name-only)"
           test "$changed" = "src/styles.css" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
           git config user.name 'github-actions[bot]'
