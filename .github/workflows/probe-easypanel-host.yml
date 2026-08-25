@@ -1,4 +1,4 @@
-name: Probe EasyPanel MercadoImobi host
+name: Probe EasyPanel MercadoImobi live routes
 
 on:
   push:
@@ -12,18 +12,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Probe candidate hosts
+      - name: Verify live routes
         shell: bash
         run: |
-          set +e
-          for base in \
-            "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host" \
-            "http://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host" \
-            "https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host"; do
-            echo "===== $base ====="
-            curl -k -sS -D /tmp/h -o /tmp/b -w 'HTTP=%{http_code} IP=%{remote_ip} REDIRECT=%{redirect_url}\n' --connect-timeout 8 --max-time 15 "$base/api/public/status"
-            head -n 20 /tmp/h || true
-            echo "BODY:"
-            head -c 1200 /tmp/b || true
-            echo
-          done
+          set -euo pipefail
+          BASE="https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host"
+
+          status_code="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 8 --max-time 15 "$BASE/api/public/status")"
+          test "$status_code" = "200"
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/status.json','utf8'));
+          if (p.status!=='operational') throw new Error(`status=${p.status}`);
+          if (p.search!=='available') throw new Error(`search=${p.search}`);
+          if (String(p.supabaseProjectId)!=='uwzfgksmnqgaxtscwxow') throw new Error(`project=${p.supabaseProjectId}`);
+          if (p.runtime?.ai!=='configured') throw new Error(`ai=${p.runtime?.ai}`);
+          console.log(`STATUS_OK properties=${p.indexedProperties} states=${p.coveredStates}`);
+          NODE
+
+          webhook_code="$(curl -sS -o /tmp/asaas.json -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{}' --connect-timeout 8 --max-time 15 "$BASE/api/public/hooks/asaas")"
+          test "$webhook_code" = "200"
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/asaas.json','utf8'));
+          if (p.ok!==true || p.ignored!==true) throw new Error(JSON.stringify(p));
+          console.log('ASAAS_WEBHOOK_ROUTE_OK');
+          NODE
+
+          parcerias_code="$(curl -sS -o /tmp/parcerias.html -w '%{http_code}' --connect-timeout 8 --max-time 15 "$BASE/parcerias")"
+          case "$parcerias_code" in 200|302|303|307|308) ;; *) echo "Unexpected /parcerias HTTP=$parcerias_code"; exit 1;; esac
+          echo "PARCERIAS_ROUTE_OK HTTP=$parcerias_code"
