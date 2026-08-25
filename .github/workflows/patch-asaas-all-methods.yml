@@ -1,0 +1,63 @@
+name: Patch Asaas all payment methods safely
+
+on:
+  push:
+    branches: [fix/asaas-all-methods-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Patch only Asaas billing file
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('src/lib/asaas-billing.server.ts')
+          s=p.read_text()
+          s=s.replace('function todayIsoDate() {\n  return new Date().toISOString().slice(0, 10);\n}\n\n','')
+          s=re.sub(r'function checkoutCreationDisabled\(error: unknown\) \{.*?\n\}\n\n', '', s, flags=re.S)
+          s=s.replace('      billingType: "CREDIT_CARD",\n      chargeType: "RECURRENT",\n      subscriptionCycle: "MONTHLY",', '      billingType: "UNDEFINED",\n      chargeType: "RECURRENT",\n      subscriptionCycle: "MONTHLY",\n      dueDateLimitDays: 5,')
+          start=s.index('  const items: JsonObject[] = [', s.index('export async function createAsaasSubscriptionCheckout'))
+          end=s.index('\n}\n\nexport async function resolveAsaasExternalReference', start)
+          replacement='''  const externalReference = buildAsaasExternalReference(input.userId, String(input.plan.id));\n  return createAsaasRecurringPaymentLink(\n    config,\n    input,\n    externalReference,\n    monthly,\n    onboarding,\n  );'''
+          s=s[:start]+replacement+s[end:]
+          p.write_text(s)
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write src/lib/asaas-billing.server.ts
+      - name: Lint
+        run: npm run lint
+      - name: Critical tests
+        run: npx vitest run tests/critical-flows.spec.ts tests/platform-buttons.test.ts tests/asaas-billing.test.ts
+      - name: Build
+        run: npm run build
+      - name: Restore generated files and commit only Asaas file
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout HEAD -- src/routeTree.gen.ts 2>/dev/null || true
+          git checkout HEAD -- public/mcp/openapi.json 2>/dev/null || true
+          git checkout HEAD -- public/mcp/llms.txt 2>/dev/null || true
+          changed="$(git diff --name-only)"
+          test "$changed" = "src/lib/asaas-billing.server.ts" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/asaas-billing.server.ts
+          git commit -m 'fix: liberar pix boleto e cartão nos planos Asaas'
+          git push origin HEAD:${{ github.ref_name }}
