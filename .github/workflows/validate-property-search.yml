@@ -59,13 +59,13 @@ jobs:
             echo "::error::Repository variable MERCADOIMOBI_SUPABASE_PROJECT_ID is required."
             exit 1
           }
-          case "$EXPECTED_SUPABASE_PROJECT_ID" in
-            uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs)
-              echo "::error::MercadoImobi must use its exclusive Supabase project, never RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
-              exit 1
-              ;;
-          esac
-          if git grep -nE 'uwzfgksmnqgaxtscwxow|iqrnytsgwaiegddfxfjs' -- \
+          FORBIDDEN_RM="uwzfgksmnqga""xtscwxow"
+          FORBIDDEN_CRM="iqrnytsgwaie""gddfxfjs"
+          if [ "$EXPECTED_SUPABASE_PROJECT_ID" = "$FORBIDDEN_RM" ] || [ "$EXPECTED_SUPABASE_PROJECT_ID" = "$FORBIDDEN_CRM" ]; then
+            echo "::error::MercadoImobi must use its exclusive Supabase project, never RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL."
+            exit 1
+          fi
+          if git grep -nE "${FORBIDDEN_RM}|${FORBIDDEN_CRM}" -- \
             '.env.example' 'supabase/config.toml' '.github/workflows/*.yml' 'src/integrations/supabase/*.ts'; then
             echo "::error::Forbidden Supabase project reference found in deployment/runtime configuration."
             exit 1
