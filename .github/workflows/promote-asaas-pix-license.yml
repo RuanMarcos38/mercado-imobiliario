@@ -1,0 +1,37 @@
+name: Promote validated Asaas Pix and licensing fix
+
+on:
+  push:
+    branches:
+      - ops/promote-asaas-pix-license-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact validated product diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production fix/asaas-pix-license-20260825
+          changed="$(git diff --name-only origin/production..origin/fix/asaas-pix-license-20260825 | sort)"
+          expected="$(printf '%s\n' 'src/lib/asaas-billing.server.ts' 'src/routes/_authenticated/assinatura.tsx' 'src/routes/_authenticated.tsx' 'supabase/migrations/20260825233500_harden_plan_feature_entitlements.sql' | sort)"
+          test "$changed" = "$expected" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
+          git show origin/fix/asaas-pix-license-20260825:src/lib/asaas-billing.server.ts | grep -F 'ASAAS_PIX_ACCOUNT_NOT_APPROVED' >/dev/null
+          git show origin/fix/asaas-pix-license-20260825:src/lib/asaas-billing.server.ts | grep -F '"/pix/addressKeys"' >/dev/null
+          git show origin/fix/asaas-pix-license-20260825:src/routes/_authenticated.tsx | grep -F 'const hasPlanEntitlement' >/dev/null
+          git show origin/fix/asaas-pix-license-20260825:supabase/migrations/20260825233500_harden_plan_feature_entitlements.sql | grep -F "s.status in ('active','trialing')" >/dev/null
+          git merge-base --is-ancestor origin/production origin/fix/asaas-pix-license-20260825
+      - name: Promote as GitHub Actions bot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin origin/fix/asaas-pix-license-20260825:refs/heads/production
