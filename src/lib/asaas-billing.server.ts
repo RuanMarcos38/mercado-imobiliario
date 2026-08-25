@@ -206,10 +206,6 @@ async function createAsaasRecurringPaymentLink(
       externalReference,
       notificationEnabled: true,
       isAddressRequired: false,
-      callback: {
-        successUrl: `${input.origin}/assinatura?checkout=success&gateway=asaas&plan=${encodeURIComponent(input.plan.slug)}`,
-        autoRedirect: true,
-      },
     }),
   });
 
