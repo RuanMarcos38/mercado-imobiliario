@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   evolutionGatewayConfig,
   evolutionRequest,
@@ -206,7 +207,7 @@ export const listWhatsAppMessages = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }): Promise<WhatsAppMessage[]> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
-    const db = context.supabase as any;
+    const db = supabaseAdmin as any;
     const { data: conversation, error: conversationError } = await db
       .from("whatsapp_conversations")
       .select("id")

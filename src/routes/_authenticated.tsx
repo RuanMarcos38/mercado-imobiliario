@@ -91,6 +91,16 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/assinatura" });
     }
 
+    const adminOnlyPaths = ["/admin", "/diagnostico", "/integracoes", "/fluxos"];
+    if (
+      !isPlatformAdmin &&
+      adminOnlyPaths.some(
+        (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
+      )
+    ) {
+      throw redirect({ to: "/atendimento" });
+    }
+
     return {
       session,
       user: session.user,
@@ -115,10 +125,10 @@ const toolItems = [
   { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards },
   { to: "/analise-localizacao", label: "Análise de localização", icon: MapPin },
   { to: "/simulador-financiamento", label: "Simulador financiamento", icon: Calculator },
-  { to: "/fluxos", label: "Fluxos", icon: Workflow },
+  { to: "/fluxos", label: "Fluxos", icon: Workflow, adminOnly: true },
   { to: "/assistente", label: "Assistente IA", icon: Bot },
-  { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck },
-  { to: "/integracoes", label: "Fontes de imóveis", icon: Plug },
+  { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, adminOnly: true },
+  { to: "/integracoes", label: "Fontes de imóveis", icon: Plug, adminOnly: true },
 ] as const;
 
 function AuthenticatedLayout() {
@@ -126,6 +136,9 @@ function AuthenticatedLayout() {
   const navigate = useNavigate();
   const { roles, tenant, user } = Route.useRouteContext();
   const isAdmin = roles.includes("admin");
+  const visibleToolItems = toolItems.filter(
+    (item) => !("adminOnly" in item) || item.adminOnly !== true || isAdmin,
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -271,7 +284,7 @@ function AuthenticatedLayout() {
               </button>
               {toolsOpen && (
                 <div className="mi-nav-popover absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border p-1.5 shadow-xl">
-                  {toolItems.map((item) => (
+                  {visibleToolItems.map((item) => (
                     <PopoverLink
                       key={item.to}
                       item={item}
@@ -338,13 +351,15 @@ function AuthenticatedLayout() {
                       />
                     </>
                   )}
-                  <Link
-                    to="/settings/security"
-                    onClick={() => setAccountOpen(false)}
-                    className="mi-popover-link"
-                  >
-                    <Settings className="h-4 w-4" /> Configurações
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/settings/security"
+                      onClick={() => setAccountOpen(false)}
+                      className="mi-popover-link"
+                    >
+                      <Settings className="h-4 w-4" /> Configurações
+                    </Link>
+                  )}
                   <div className="my-1 h-px bg-[var(--mi-border)]" />
                   <button
                     onClick={() => void signOut()}
@@ -416,7 +431,7 @@ function AuthenticatedLayout() {
               <p className="px-2 pb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--mi-text-soft)]">
                 Navegação
               </p>
-              {[...primaryItems, ...toolItems].map((item) => (
+              {[...primaryItems, ...visibleToolItems].map((item) => (
                 <MobileNavLink
                   key={item.to}
                   item={item}
@@ -447,13 +462,20 @@ function AuthenticatedLayout() {
                   />
                 </>
               )}
-              <Link
-                to="/settings/security"
+              <MobileNavLink
+                item={{ to: "/settings/security", label: "Minha conta", icon: UserRound }}
+                pathname={location.pathname}
                 onClick={() => setMobileOpen(false)}
-                className="mi-mobile-link"
-              >
-                <Settings className="h-4 w-4" /> Configurações
-              </Link>
+              />
+              {isAdmin && (
+                <Link
+                  to="/settings/security"
+                  onClick={() => setMobileOpen(false)}
+                  className="mi-mobile-link"
+                >
+                  <Settings className="h-4 w-4" /> Configurações
+                </Link>
+              )}
             </div>
 
             <div className="border-t border-[var(--mi-border)] pt-4">

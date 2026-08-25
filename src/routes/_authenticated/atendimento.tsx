@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -183,6 +183,7 @@ function statusDot(status: AttendantPresenceStatus) {
 }
 
 function AtendimentoPage() {
+  const navigate = useNavigate();
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
   const qrFn = useServerFn(getWhatsAppQrCode);
   const prepareFn = useServerFn(prepareWhatsAppConnection);
@@ -263,6 +264,14 @@ function AtendimentoPage() {
     enabled: showRealtimePanel,
     refetchInterval: showRealtimePanel ? 15_000 : false,
   });
+
+  useEffect(() => {
+    if (selectedId || conversations.isLoading) return;
+    const latestConversation = conversations.data?.[0];
+    if (!latestConversation) return;
+    setQueueTab(latestConversation.attendance_state || "automatic");
+    setSelectedId(latestConversation.id);
+  }, [conversations.data, conversations.isLoading, selectedId]);
 
   useEffect(() => {
     // Opening the attendance center also reconciles the Evolution webhook for the
@@ -681,34 +690,43 @@ function AtendimentoPage() {
                 {connection.data?.connected ? "Conectado" : "Desconectado"}
               </span>
             </div>
-            {connection.data?.connected ? (
-              <Button
-                variant="outline"
-                disabled={disconnecting}
-                onClick={() => void disconnect()}
-                className="mt-3 h-11 w-full rounded-xl border-rose-300/50 font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-              >
-                <WifiOff className="mr-2 h-4 w-4" />
-                {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
-              </Button>
-            ) : (
-              <Button
-                onClick={() => void connect()}
-                className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
-              >
-                <Link2 className="mr-2 h-4 w-4" /> Conectar meu WhatsApp por QR Code
-              </Button>
+            {viewer.data?.isPlatformAdmin && (
+              <details className="mt-3 overflow-hidden rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)]">
+                <summary className="cursor-pointer px-3 py-2.5 text-xs font-black text-[var(--mi-text-muted)]">
+                  Configurações do atendimento
+                </summary>
+                <div className="border-t border-[var(--mi-border)] p-3">
+                  {connection.data?.connected ? (
+                    <Button
+                      variant="outline"
+                      disabled={disconnecting}
+                      onClick={() => void disconnect()}
+                      className="h-10 w-full rounded-xl border-rose-300/50 font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                    >
+                      <WifiOff className="mr-2 h-4 w-4" />
+                      {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => void connect()}
+                      className="h-10 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
+                    >
+                      <Link2 className="mr-2 h-4 w-4" /> Conectar WhatsApp por QR Code
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() => void navigate({ to: "/assistente" })}
+                    className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                  >
+                    <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA
+                  </Button>
+                  <div className="mt-2">
+                    <AttendanceDistributionPanel />
+                  </div>
+                </div>
+              </details>
             )}
-            <Button
-              variant="outline"
-              onClick={() => window.location.assign("/fluxos")}
-              className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
-            >
-              <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA e automático
-            </Button>
-            <div className="mt-2">
-              <AttendanceDistributionPanel />
-            </div>
             <div className="mt-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
@@ -1096,7 +1114,7 @@ function AtendimentoPage() {
                 <p className="mt-1 text-sm text-[var(--mi-text-soft)]">
                   As mensagens recebidas pelo WhatsApp aparecerão aqui em tempo real.
                 </p>
-                {!connection.data?.connected && (
+                {viewer.data?.isPlatformAdmin && !connection.data?.connected && (
                   <Button
                     onClick={() => void connect()}
                     className="mt-5 rounded-xl bg-emerald-600 text-white"

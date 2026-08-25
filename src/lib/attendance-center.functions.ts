@@ -340,18 +340,26 @@ export const getAttendanceViewer = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const member = await membership(tenantId, context.userId);
-    const [canView, presenceEvent] = await Promise.all([
+    const [canView, presenceEvent, platformAdminResult] = await Promise.all([
       canViewSensitiveData(tenantId, context.userId, member.role),
       latestEvent(
         tenantId,
         EVENT.presence,
         (eventMetadata) => stringValue(eventMetadata["userId"]) === context.userId,
       ),
+      adminDb()
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", context.userId)
+        .eq("role", "admin")
+        .maybeSingle(),
     ]);
+    if (platformAdminResult.error) throw new Error(platformAdminResult.error.message);
     const presenceMetadata = metadata(presenceEvent);
     return {
       canViewSensitiveData: canView,
       canManageSensitiveVisibility: member.canManageSensitiveVisibility,
+      isPlatformAdmin: Boolean(platformAdminResult.data),
       presence: isPresenceStatus(presenceMetadata["status"])
         ? presenceMetadata["status"]
         : ("free" as AttendantPresenceStatus),
