@@ -1,0 +1,63 @@
+name: Deploy nationwide prospect radar once
+
+on:
+  push:
+    branches:
+      - ops/promote-national-prospect-20260825
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+      EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
+      DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+      EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify production contains nationwide radar
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          git show origin/production:src/lib/prospect-leads.functions.ts | grep -F 'A abrangência é NACIONAL' >/dev/null
+          git show origin/production:src/routes/_authenticated/prospectos.tsx | grep -F 'Brasil — todo território nacional' >/dev/null
+      - name: Trigger EasyPanel deployment when hook exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
+          if [ -z "$URL" ]; then
+            echo "::notice::No explicit EasyPanel hook configured; relying on the GitHub-linked production branch."
+            exit 0
+          fi
+          if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy-response.txt; then
+            echo "EasyPanel deploy requested with GET."
+          else
+            curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy-response.txt
+            echo "EasyPanel deploy requested with POST."
+          fi
+      - name: Verify live backend and prospect route
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          BASE="${BASE%/}"
+          ready=0
+          for attempt in $(seq 1 36); do
+            status_code="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 6 --max-time 12 "$BASE/api/public/status" || true)"
+            route_code="$(curl -sS -o /tmp/prospectos.html -w '%{http_code}' --connect-timeout 6 --max-time 15 "$BASE/prospectos" || true)"
+            if [ "$status_code" = "200" ]; then
+              case "$route_code" in 200|302|303|307|308) ready=1; break;; esac
+            fi
+            sleep 5
+          done
+          test "$ready" = "1" || { echo "::error::Live MercadoImobi did not become ready."; exit 1; }
+          echo "LIVE_OK backend=$status_code prospectos=$route_code"
