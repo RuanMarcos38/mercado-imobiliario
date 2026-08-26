@@ -50,7 +50,22 @@ describe("prospect lead privacy and quality", () => {
     );
     expect(phrase).toContain("site:instagram.com");
     expect(phrase).toContain("no Brasil");
+    expect(phrase).toContain("Norte, Nordeste, Centro-Oeste, Sudeste e Sul");
     expect(phrase).not.toContain("Joinville");
+
+    const regionalPass = buildProspectSearchPhrase(
+      {
+        query: "procura apartamento com financiamento",
+        location: "Brasil — todo território nacional",
+        intent: "comprar",
+        propertyType: "apartamento",
+        networks: ["instagram"],
+        limit: 20,
+      },
+      "instagram",
+      "Região Norte",
+    );
+    expect(regionalPass).toContain("Região Norte, Brasil");
   });
   it("accepts only the matching social network domain", () => {
     expect(isNetworkUrl("https://instagram.com/teste", "instagram")).toBe(true);

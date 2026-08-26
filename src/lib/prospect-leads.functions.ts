@@ -171,6 +171,13 @@ function firstNetworkSource(sources: string[], network: SocialNetwork) {
 
 const BRAZIL_NATIONAL_SCOPE = "Brasil — todo território nacional";
 const BRAZIL_REGIONS = "Norte, Nordeste, Centro-Oeste, Sudeste e Sul";
+const BRAZIL_SEARCH_REGIONS = [
+  "Região Norte",
+  "Região Nordeste",
+  "Região Centro-Oeste",
+  "Região Sudeste",
+  "Região Sul",
+] as const;
 const BRAZIL_UFS =
   "AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE e TO";
 
@@ -196,6 +203,7 @@ export function isBrazilNationalScope(location?: string | null) {
 export function buildProspectSearchPhrase(
   data: z.infer<typeof searchSchema>,
   network: SocialNetwork,
+  regionalFocus?: string,
 ) {
   const intent =
     data.intent === "comprar"
@@ -206,7 +214,13 @@ export function buildProspectSearchPhrase(
           ? "quer investir em imóveis"
           : "demonstra interesse real em comprar, alugar ou investir em imóveis";
   const national = isBrazilNationalScope(data.location);
-  const location = national ? " no Brasil" : data.location ? ` em ${data.location}` : " no Brasil";
+  const location = national
+    ? regionalFocus
+      ? ` em ${regionalFocus}, Brasil`
+      : ` no Brasil, com cobertura nas regiões ${BRAZIL_REGIONS}`
+    : data.location
+      ? ` em ${data.location}`
+      : " no Brasil";
   const property = data.propertyType ? ` ${data.propertyType}` : "";
   return `site:${networkDomainHint(network)} ${data.query} ${intent}${property}${location}`.trim();
 }
@@ -216,13 +230,16 @@ async function callNetworkSearch(
   data: z.infer<typeof searchSchema>,
   network: SocialNetwork,
   maxItems: number,
+  regionalFocus?: string,
 ) {
-  const query = buildProspectSearchPhrase(data, network);
+  const query = buildProspectSearchPhrase(data, network, regionalFocus);
   const instructions = [
     "Você está executando prospecção imobiliária responsável usando apenas conteúdo público e indexável da web.",
     `Pesquise exclusivamente sinais públicos na rede social ${network}.`,
     isBrazilNationalScope(data.location)
-      ? `A abrangência é NACIONAL: pesquise em todo o Brasil, cobrindo as cinco regiões (${BRAZIL_REGIONS}) e os 26 estados + Distrito Federal (${BRAZIL_UFS}). Não concentre os resultados apenas em grandes capitais ou em SP/RJ; quando houver sinais confiáveis, diversifique geograficamente.`
+      ? regionalFocus
+        ? `Este é um passe complementar da cobertura NACIONAL com foco em ${regionalFocus}. Procure também cidades do interior e não apenas capitais, sempre mantendo sinais públicos confiáveis.`
+        : `A abrangência é NACIONAL: pesquise em todo o Brasil, cobrindo as cinco regiões (${BRAZIL_REGIONS}) e os 26 estados + Distrito Federal (${BRAZIL_UFS}). Não concentre os resultados apenas em grandes capitais ou em SP/RJ; quando houver sinais confiáveis, diversifique geograficamente.`
       : `A busca está filtrada para ${data.location}. Mantenha os resultados compatíveis com essa localização.`,
     "Encontre perfis ou publicações que demonstrem intenção imobiliária explícita e recente, como procurar imóvel, perguntar preço, financiamento, entrada, visita, localização, compra, aluguel ou investimento.",
     "Priorize sinais dos últimos 90 dias quando a data estiver publicamente disponível.",
@@ -285,9 +302,10 @@ async function searchNetwork(
   data: z.infer<typeof searchSchema>,
   network: SocialNetwork,
   maxItems: number,
+  regionalFocus?: string,
 ): Promise<NetworkResult> {
   try {
-    const payload = await callNetworkSearch(config, data, network, maxItems);
+    const payload = await callNetworkSearch(config, data, network, maxItems, regionalFocus);
     const outputText = extractOutputText(payload);
     if (!outputText) {
       return {
@@ -316,7 +334,7 @@ async function searchNetwork(
           .filter(Boolean)
           .filter((url) => samePublicSource(url as string, webSources)) as string[];
         const clean = sanitizeProspectLead({
-          id: `${network}:${index}:${profileUrl}`,
+          id: `${network}:${regionalFocus ?? "nacional"}:${index}:${profileUrl}`,
           displayName: lead.displayName,
           profileHandle: lead.profileHandle,
           network,
@@ -383,12 +401,26 @@ export const searchHotRealEstateProspects = createServerFn({ method: "POST" })
     const config = openAiConfig();
     if (!config) throw new Error("PROSPECT_AI_NOT_CONFIGURED");
 
-    const perNetwork = Math.max(2, Math.min(5, Math.ceil(data.limit / data.networks.length)));
+    const national = isBrazilNationalScope(data.location);
+    const searchTasks: Array<{ network: SocialNetwork; regionalFocus?: string }> =
+      data.networks.map((network) => ({ network }));
+    if (national) {
+      BRAZIL_SEARCH_REGIONS.forEach((regionalFocus, index) => {
+        searchTasks.push({
+          network: data.networks[index % data.networks.length]!,
+          regionalFocus,
+        });
+      });
+    }
+
+    const perNetwork = Math.max(2, Math.min(5, Math.ceil(data.limit / searchTasks.length)));
     const results: NetworkResult[] = [];
-    for (let index = 0; index < data.networks.length; index += 4) {
-      const batch = data.networks.slice(index, index + 4);
+    for (let index = 0; index < searchTasks.length; index += 4) {
+      const batch = searchTasks.slice(index, index + 4);
       const batchResults = await Promise.all(
-        batch.map((network) => searchNetwork(config, data, network, perNetwork)),
+        batch.map((task) =>
+          searchNetwork(config, data, task.network, perNetwork, task.regionalFocus),
+        ),
       );
       results.push(...batchResults);
     }
@@ -398,20 +430,25 @@ export const searchHotRealEstateProspects = createServerFn({ method: "POST" })
       data.limit,
     );
     const hot = leads.filter((lead) => lead.intentStage === "quente").length;
-    const operationalNetworks = results.filter((result) => result.operational).length;
-    const national = isBrazilNationalScope(data.location);
-    const coverage = national ? "em todo o território nacional" : `em ${data.location}`;
+    const networkSummary = data.networks.map((network) => {
+      const matching = results.filter((result) => result.network === network);
+      return {
+        network,
+        operational: matching.some((result) => result.operational),
+        found: matching.reduce((total, result) => total + result.leads.length, 0),
+      };
+    });
+    const operationalNetworks = networkSummary.filter((result) => result.operational).length;
+    const coverage = national
+      ? "em todo o território nacional, com passes complementares nas 5 regiões do Brasil"
+      : `em ${data.location}`;
     const assistantMessage = leads.length
       ? `Encontrei ${leads.length} sinais públicos compatíveis com a busca ${coverage}, sendo ${hot} classificados como quentes. ${operationalNetworks} de ${results.length} redes selecionadas responderam à varredura pública. Revise a evidência e a fonte antes de qualquer abordagem.`
       : `Não encontrei sinais públicos suficientemente confiáveis nesta tentativa ${coverage}. ${operationalNetworks} de ${results.length} redes selecionadas responderam; tente ampliar o tipo de imóvel ou os termos de intenção.`;
 
     return {
       leads,
-      networks: results.map((result) => ({
-        network: result.network,
-        operational: result.operational,
-        found: result.leads.length,
-      })),
+      networks: networkSummary,
       warnings: results.map((result) => result.warning).filter(Boolean) as string[],
       searchedAt: new Date().toISOString(),
       assistantMessage,
