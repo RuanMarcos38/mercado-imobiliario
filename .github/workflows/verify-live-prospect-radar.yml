@@ -1,0 +1,89 @@
+name: Verify live prospect radar
+
+on:
+  push:
+    branches: [ops/verify-live-prospect-radar-20260825]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+      EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
+      DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+      BASE_URL: ${{ secrets.MERCADOIMOBI_BASE_URL }}
+      JOB_KEY: ${{ secrets.CRM_AUTOMATION_JOB_SECRET || secrets.PROPERTY_FEED_SYNC_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify production contains radar connectors
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          git show origin/production:src/lib/prospect-radar.server.ts | grep -F 'commentThreads' >/dev/null
+          git show origin/production:src/lib/prospect-radar.server.ts | grep -F 'places.googleapis.com/v1/places:searchText' >/dev/null
+          git show origin/production:.github/workflows/hourly-prospect-radar.yml | grep -F 'cron: "17 * * * *"' >/dev/null
+      - name: Trigger EasyPanel deploy when hook exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
+          if [ -z "$URL" ]; then
+            echo "No explicit EasyPanel hook; waiting for GitHub-linked production auto-deploy."
+            exit 0
+          fi
+          if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy.txt; then
+            echo "EasyPanel deploy requested with GET."
+          else
+            curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/deploy.txt
+            echo "EasyPanel deploy requested with POST."
+          fi
+      - name: Wait for live backend and new job route
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${BASE_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          BASE="${BASE%/}"
+          ready=0
+          for attempt in $(seq 1 72); do
+            status="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 6 --max-time 12 "$BASE/api/public/status" || true)"
+            job="$(curl -sS -o /tmp/jobprobe.json -w '%{http_code}' -X POST --connect-timeout 6 --max-time 12 "$BASE/api/public/jobs/prospect-radar" || true)"
+            if [ "$status" = "200" ] && [ "$job" = "401" ]; then
+              ready=1
+              echo "Backend and protected prospect job route are live."
+              break
+            fi
+            echo "Waiting deployment attempt=$attempt status=$status job=$job"
+            sleep 5
+          done
+          test "$ready" = "1" || { echo "::error::New prospect job route did not become live."; exit 1; }
+      - name: Run real national prospect sweep
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${BASE_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          BASE="${BASE%/}"
+          if [ -z "${JOB_KEY:-}" ]; then
+            echo "::error::Existing hourly job secret is not available to GitHub Actions."
+            exit 1
+          fi
+          code="$(curl -sS -o /tmp/radar.json -w '%{http_code}' \
+            -X POST -H "x-mercadoimobi-job-key: ${JOB_KEY}" \
+            --connect-timeout 10 --max-time 600 \
+            "$BASE/api/public/jobs/prospect-radar" || true)"
+          echo "HTTP=$code"
+          cat /tmp/radar.json
+          echo
+          test "$code" = "200"
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/radar.json','utf8'));
+          if (data.ok !== true || !Array.isArray(data.providers)) process.exit(1);
+          console.log('LIVE_PROSPECT_SUMMARY', JSON.stringify({leads:data.leads,hot:data.hot,providers:data.providers}, null, 2));
+          NODE
