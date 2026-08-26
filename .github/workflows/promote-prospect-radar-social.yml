@@ -1,0 +1,42 @@
+name: Promote validated social prospect radar
+
+on:
+  push:
+    branches:
+      - ops/promote-prospect-radar-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact validated product diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production feat/prospect-radar-social-20260825
+          changed="$(git diff --name-only origin/production..origin/feat/prospect-radar-social-20260825 | sort)"
+          expected='src/lib/prospect-leads.core.ts
+          src/lib/prospect-leads.functions.ts
+          src/routes/_authenticated.tsx
+          src/routes/_authenticated/prospectos.tsx
+          tests/prospect-leads.test.ts'
+          test "$changed" = "$(echo "$expected" | sed 's/^ *//')" || {
+            echo "Unexpected diff:"; echo "$changed"; exit 1;
+          }
+          git show origin/feat/prospect-radar-social-20260825:src/lib/prospect-leads.functions.ts | grep -F 'Para perfis de consumidores, retorne somente nome/identificador público' >/dev/null
+          git show origin/feat/prospect-radar-social-20260825:src/routes/_authenticated/prospectos.tsx | grep -F 'Sem contornar login, privacidade ou anti-bot' >/dev/null
+          git show origin/feat/prospect-radar-social-20260825:src/routes/_authenticated.tsx | grep -F 'label: "Prospecção IA"' >/dev/null
+          git merge-base --is-ancestor origin/production origin/feat/prospect-radar-social-20260825
+      - name: Promote as GitHub Actions bot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin origin/feat/prospect-radar-social-20260825:refs/heads/production
