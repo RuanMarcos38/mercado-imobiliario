@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildProspectSearchPhrase, isBrazilNationalScope } from "@/lib/prospect-leads.functions";
 import {
   dedupeAndRankProspectLeads,
   isNetworkUrl,
@@ -29,6 +30,28 @@ function baseLead(overrides: Partial<ProspectLead> = {}): ProspectLead {
 }
 
 describe("prospect lead privacy and quality", () => {
+  it("treats the default scope as nationwide Brazil", () => {
+    expect(isBrazilNationalScope(undefined)).toBe(true);
+    expect(isBrazilNationalScope("Brasil — todo território nacional")).toBe(true);
+    expect(isBrazilNationalScope("Joinville, SC")).toBe(false);
+  });
+
+  it("builds a nationwide social search when Brazil scope is selected", () => {
+    const phrase = buildProspectSearchPhrase(
+      {
+        query: "procura apartamento com financiamento",
+        location: "Brasil — todo território nacional",
+        intent: "comprar",
+        propertyType: "apartamento",
+        networks: ["instagram"],
+        limit: 20,
+      },
+      "instagram",
+    );
+    expect(phrase).toContain("site:instagram.com");
+    expect(phrase).toContain("no Brasil");
+    expect(phrase).not.toContain("Joinville");
+  });
   it("accepts only the matching social network domain", () => {
     expect(isNetworkUrl("https://instagram.com/teste", "instagram")).toBe(true);
     expect(isNetworkUrl("https://facebook.com/teste", "instagram")).toBe(false);

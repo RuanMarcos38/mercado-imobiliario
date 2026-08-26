@@ -52,7 +52,7 @@ function ProspectRadarPage() {
   const [prompt, setPrompt] = useState(
     "Encontre pessoas demonstrando interesse real em comprar apartamento, perguntando preço, financiamento ou visita.",
   );
-  const [location, setLocation] = useState("Joinville, SC");
+  const [location, setLocation] = useState("Brasil — todo território nacional");
   const [intent, setIntent] = useState<"qualquer" | "comprar" | "alugar" | "investir">("comprar");
   const [propertyType, setPropertyType] = useState("apartamento");
   const [selectedNetworks, setSelectedNetworks] = useState<SocialNetwork[]>([...SOCIAL_NETWORKS]);
@@ -135,9 +135,10 @@ function ProspectRadarPage() {
             </p>
             <h1 className="mt-2 text-3xl font-black">Prospecção IA em redes sociais públicas</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-              Localize sinais públicos de intenção de compra, aluguel ou investimento em imóveis. O
-              sistema prioriza pedidos explícitos, perguntas de preço, financiamento, entrada,
-              localização e visita, sempre mantendo a fonte para conferência.
+              Localize sinais públicos de intenção de compra, aluguel ou investimento em imóveis em
+              todo o Brasil. O radar nasce com cobertura nacional — Norte, Nordeste, Centro-Oeste,
+              Sudeste e Sul — e permite refinar por cidade ou região quando necessário, sempre
+              mantendo a fonte para conferência.
             </p>
           </div>
           <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.05] px-4 py-3">
@@ -158,8 +159,9 @@ function ProspectRadarPage() {
               <h2 className="text-lg font-black">Chatbot de prospecção</h2>
             </div>
             <p className="mt-2 text-sm leading-6 text-[var(--mi-text-muted)]">
-              Descreva em linguagem natural quem você quer encontrar e refine por região, intenção e
-              tipo de imóvel.
+              Descreva em linguagem natural quem você quer encontrar. Por padrão, a varredura cobre
+              todo o território nacional; use o campo de localização somente quando quiser
+              restringir a busca.
             </p>
 
             <div className="mt-5 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4">
@@ -192,11 +194,11 @@ function ProspectRadarPage() {
               </Field>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Cidade / região">
+                <Field label="Cobertura nacional / filtro de região">
                   <input
                     value={location}
                     onChange={(event) => setLocation(event.target.value)}
-                    placeholder="Ex.: Joinville, SC"
+                    placeholder="Brasil — todo território nacional"
                   />
                 </Field>
                 <Field label="Tipo de imóvel">
@@ -309,7 +311,8 @@ function ProspectRadarPage() {
                 {!result.leads.length && (
                   <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-8 text-center text-sm text-[var(--mi-text-muted)]">
                     Nenhum sinal público suficientemente confiável foi localizado nesta tentativa.
-                    Amplie os termos ou a região e pesquise novamente.
+                    Amplie os termos e pesquise novamente; a cobertura padrão já considera todo o
+                    Brasil.
                   </div>
                 )}
               </>
