@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
+  getProspectRadarSnapshot,
   getProspectRadarStatus,
   searchHotRealEstateProspects,
   type ProspectSearchResponse,
@@ -46,8 +47,14 @@ type ChatMessage = { role: "user" | "assistant"; text: string };
 
 function ProspectRadarPage() {
   const statusFn = useServerFn(getProspectRadarStatus);
+  const snapshotFn = useServerFn(getProspectRadarSnapshot);
   const searchFn = useServerFn(searchHotRealEstateProspects);
   const status = useQuery({ queryKey: ["prospect-radar-status"], queryFn: () => statusFn() });
+  const snapshot = useQuery({
+    queryKey: ["prospect-radar-hourly-snapshot"],
+    queryFn: () => snapshotFn(),
+    refetchInterval: 60_000,
+  });
 
   const [prompt, setPrompt] = useState(
     "Encontre pessoas demonstrando interesse real em comprar apartamento, perguntando preço, financiamento ou visita.",
@@ -65,9 +72,10 @@ function ProspectRadarPage() {
     },
   ]);
 
+  const displayResult = result ?? snapshot.data?.result ?? null;
   const hotCount = useMemo(
-    () => result?.leads.filter((lead) => lead.intentStage === "quente").length ?? 0,
-    [result],
+    () => displayResult?.leads.filter((lead) => lead.intentStage === "quente").length ?? 0,
+    [displayResult],
   );
 
   const toggleNetwork = (network: SocialNetwork) => {
@@ -267,17 +275,45 @@ function ProspectRadarPage() {
               <MetricCard
                 icon={UserRoundSearch}
                 label="Leads encontrados"
-                value={result?.leads.length ?? 0}
+                value={displayResult?.leads.length ?? 0}
               />
               <MetricCard icon={Flame} label="Leads quentes" value={hotCount} emphasis />
               <MetricCard
                 icon={Target}
                 label="Redes respondendo"
-                value={result?.networks.filter((network) => network.operational).length ?? 0}
+                value={displayResult?.networks.filter((network) => network.operational).length ?? 0}
               />
             </div>
 
-            {!result && (
+            {snapshot.data && (
+              <div className="rounded-2xl border border-blue-300/25 bg-blue-300/[0.06] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-black text-blue-700 dark:text-blue-200">
+                    Varredura automática nacional a cada 1 hora
+                  </p>
+                  <p className="text-[11px] text-[var(--mi-text-soft)]">
+                    Última: {new Date(snapshot.data.searchedAt).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {snapshot.data.providers.map((provider) => (
+                    <span
+                      key={provider.provider}
+                      title={provider.detail}
+                      className={`rounded-full border px-3 py-1 text-[10px] font-black ${
+                        provider.operational
+                          ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-700 dark:text-emerald-200"
+                          : "border-amber-400/30 bg-amber-400/[0.08] text-amber-800 dark:text-amber-100"
+                      }`}
+                    >
+                      {provider.label}: {provider.operational ? "ativo" : "limitado"}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!displayResult && (
               <div className="rounded-[26px] border border-dashed border-[var(--mi-border)] bg-[var(--mi-surface)] p-10 text-center">
                 <Sparkles className="mx-auto h-8 w-8 text-blue-600" />
                 <h2 className="mt-4 text-xl font-black">
@@ -290,25 +326,25 @@ function ProspectRadarPage() {
               </div>
             )}
 
-            {result && (
+            {displayResult && (
               <>
-                <NetworkStatus networks={result.networks} />
+                <NetworkStatus networks={displayResult.networks} />
 
-                {result.warnings.length > 0 && (
+                {displayResult.warnings.length > 0 && (
                   <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-xs leading-5 text-amber-800 dark:text-amber-100">
-                    {result.warnings.slice(0, 8).map((warning) => (
+                    {displayResult.warnings.slice(0, 8).map((warning) => (
                       <p key={warning}>• {warning}</p>
                     ))}
                   </div>
                 )}
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {result.leads.map((lead) => (
+                  {displayResult.leads.map((lead) => (
                     <LeadCard key={lead.id} lead={lead} />
                   ))}
                 </div>
 
-                {!result.leads.length && (
+                {!displayResult.leads.length && (
                   <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-8 text-center text-sm text-[var(--mi-text-muted)]">
                     Nenhum sinal público suficientemente confiável foi localizado nesta tentativa.
                     Amplie os termos e pesquise novamente; a cobertura padrão já considera todo o

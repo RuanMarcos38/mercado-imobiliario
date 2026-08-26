@@ -24,6 +24,8 @@ const searchSchema = z.object({
   limit: z.number().int().min(5).max(30).default(20),
 });
 
+export type ProspectSearchInput = z.infer<typeof searchSchema>;
+
 type RawProspectLead = {
   displayName: string;
   profileHandle: string | null;
@@ -393,64 +395,79 @@ export const getProspectRadarStatus = createServerFn({ method: "GET" })
     };
   });
 
+export async function runPublicProspectSearch(
+  data: ProspectSearchInput,
+): Promise<ProspectSearchResponse> {
+  const config = openAiConfig();
+  if (!config) throw new Error("PROSPECT_AI_NOT_CONFIGURED");
+
+  const national = isBrazilNationalScope(data.location);
+  const searchTasks: Array<{ network: SocialNetwork; regionalFocus?: string }> = data.networks.map(
+    (network) => ({ network }),
+  );
+  if (national) {
+    BRAZIL_SEARCH_REGIONS.forEach((regionalFocus, index) => {
+      searchTasks.push({
+        network: data.networks[index % data.networks.length]!,
+        regionalFocus,
+      });
+    });
+  }
+
+  const perNetwork = Math.max(2, Math.min(5, Math.ceil(data.limit / searchTasks.length)));
+  const results: NetworkResult[] = [];
+  for (let index = 0; index < searchTasks.length; index += 4) {
+    const batch = searchTasks.slice(index, index + 4);
+    const batchResults = await Promise.all(
+      batch.map((task) =>
+        searchNetwork(config, data, task.network, perNetwork, task.regionalFocus),
+      ),
+    );
+    results.push(...batchResults);
+  }
+
+  const leads = dedupeAndRankProspectLeads(
+    results.flatMap((result) => result.leads),
+    data.limit,
+  );
+  const hot = leads.filter((lead) => lead.intentStage === "quente").length;
+  const networkSummary = data.networks.map((network) => {
+    const matching = results.filter((result) => result.network === network);
+    return {
+      network,
+      operational: matching.some((result) => result.operational),
+      found: matching.reduce((total, result) => total + result.leads.length, 0),
+    };
+  });
+  const operationalNetworks = networkSummary.filter((result) => result.operational).length;
+  const coverage = national
+    ? "em todo o território nacional, com passes complementares nas 5 regiões do Brasil"
+    : `em ${data.location}`;
+  const assistantMessage = leads.length
+    ? `Encontrei ${leads.length} sinais públicos compatíveis com a busca ${coverage}, sendo ${hot} classificados como quentes. ${operationalNetworks} de ${networkSummary.length} redes selecionadas responderam à varredura pública. Revise a evidência e a fonte antes de qualquer abordagem.`
+    : `Não encontrei sinais públicos suficientemente confiáveis nesta tentativa ${coverage}. ${operationalNetworks} de ${networkSummary.length} redes selecionadas responderam; tente ampliar o tipo de imóvel ou os termos de intenção.`;
+
+  return {
+    leads,
+    networks: networkSummary,
+    warnings: results.map((result) => result.warning).filter(Boolean) as string[],
+    searchedAt: new Date().toISOString(),
+    assistantMessage,
+  };
+}
+
+export const getProspectRadarSnapshot = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireTenantId(context.supabase, context.userId);
+    const { getScheduledProspectRadarSnapshot } = await import("@/lib/prospect-radar.server");
+    return getScheduledProspectRadarSnapshot();
+  });
+
 export const searchHotRealEstateProspects = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => searchSchema.parse(input))
   .handler(async ({ data, context }): Promise<ProspectSearchResponse> => {
     await requireTenantId(context.supabase, context.userId);
-    const config = openAiConfig();
-    if (!config) throw new Error("PROSPECT_AI_NOT_CONFIGURED");
-
-    const national = isBrazilNationalScope(data.location);
-    const searchTasks: Array<{ network: SocialNetwork; regionalFocus?: string }> =
-      data.networks.map((network) => ({ network }));
-    if (national) {
-      BRAZIL_SEARCH_REGIONS.forEach((regionalFocus, index) => {
-        searchTasks.push({
-          network: data.networks[index % data.networks.length]!,
-          regionalFocus,
-        });
-      });
-    }
-
-    const perNetwork = Math.max(2, Math.min(5, Math.ceil(data.limit / searchTasks.length)));
-    const results: NetworkResult[] = [];
-    for (let index = 0; index < searchTasks.length; index += 4) {
-      const batch = searchTasks.slice(index, index + 4);
-      const batchResults = await Promise.all(
-        batch.map((task) =>
-          searchNetwork(config, data, task.network, perNetwork, task.regionalFocus),
-        ),
-      );
-      results.push(...batchResults);
-    }
-
-    const leads = dedupeAndRankProspectLeads(
-      results.flatMap((result) => result.leads),
-      data.limit,
-    );
-    const hot = leads.filter((lead) => lead.intentStage === "quente").length;
-    const networkSummary = data.networks.map((network) => {
-      const matching = results.filter((result) => result.network === network);
-      return {
-        network,
-        operational: matching.some((result) => result.operational),
-        found: matching.reduce((total, result) => total + result.leads.length, 0),
-      };
-    });
-    const operationalNetworks = networkSummary.filter((result) => result.operational).length;
-    const coverage = national
-      ? "em todo o território nacional, com passes complementares nas 5 regiões do Brasil"
-      : `em ${data.location}`;
-    const assistantMessage = leads.length
-      ? `Encontrei ${leads.length} sinais públicos compatíveis com a busca ${coverage}, sendo ${hot} classificados como quentes. ${operationalNetworks} de ${results.length} redes selecionadas responderam à varredura pública. Revise a evidência e a fonte antes de qualquer abordagem.`
-      : `Não encontrei sinais públicos suficientemente confiáveis nesta tentativa ${coverage}. ${operationalNetworks} de ${results.length} redes selecionadas responderam; tente ampliar o tipo de imóvel ou os termos de intenção.`;
-
-    return {
-      leads,
-      networks: networkSummary,
-      warnings: results.map((result) => result.warning).filter(Boolean) as string[],
-      searchedAt: new Date().toISOString(),
-      assistantMessage,
-    };
+    return runPublicProspectSearch(data);
   });

@@ -293,7 +293,7 @@ async function searchYouTubeComments(apiKey: string) {
         ...baseStatus,
         operational: true,
         found: ranked.length,
-        detail: `${videos.length} vídeos imobiliários recentes consultados; ${ranked.length} comentários públicos com sinal de intenção.` ,
+        detail: `${videos.length} vídeos imobiliários recentes consultados; ${ranked.length} comentários públicos com sinal de intenção.`,
       },
     };
   } catch {
@@ -361,7 +361,8 @@ export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot
           configured: true,
           operational: web.networks.some((item) => item.operational),
           found: web.leads.length,
-          detail: "Posts, páginas, perfis e trechos publicamente indexáveis nas redes selecionadas.",
+          detail:
+            "Posts, páginas, perfis e trechos publicamente indexáveis nas redes selecionadas.",
         },
         places.status,
         youtube.status,
