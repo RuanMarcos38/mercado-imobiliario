@@ -1,0 +1,69 @@
+name: Validate Google Places partner search
+
+on:
+  push:
+    branches:
+      - fix/google-places-partner-search-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply isolated Google Places fix
+        run: python .github/scripts/apply-google-places-partner-fix.py
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Format touched source
+        run: npx prettier --write src/lib/partner-search.functions.ts
+      - name: Verify isolated scope and behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'function googlePlacesQueries' src/lib/partner-search.functions.ts >/dev/null
+          grep -F 'Google Places recusou a consulta (403)' src/lib/partner-search.functions.ts >/dev/null
+          grep -F 'googlePlaces: Boolean(googleKey) && google.operational === true' src/lib/partner-search.functions.ts >/dev/null
+          if grep -F 'const textQuery = providerQuery(input.location, entityType' src/lib/partner-search.functions.ts; then exit 1; fi
+          changed="$(git diff --name-only | sort)"
+          expected="src/lib/partner-search.functions.ts"
+          test "$changed" = "$expected" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
+      - name: Lint
+        run: npm run lint
+      - name: Full test suite
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Commit validated product change only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout HEAD -- src/routeTree.gen.ts 2>/dev/null || true
+          git checkout HEAD -- public/mcp/openapi.json 2>/dev/null || true
+          git checkout HEAD -- public/mcp/llms.txt 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/invoke-tool/$tool.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/list-tools.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.well-known]/oauth-protected-resource.ts' 2>/dev/null || true
+          git checkout HEAD -- src/routes/mcp.ts 2>/dev/null || true
+          changed="$(git diff --name-only | sort)"
+          test "$changed" = "src/lib/partner-search.functions.ts" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/partner-search.functions.ts
+          git commit -m 'fix: tornar Google Places operacional na busca de parceiros'
+          git push origin HEAD:${{ github.ref_name }}
