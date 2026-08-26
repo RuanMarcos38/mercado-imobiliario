@@ -62,6 +62,7 @@ jobs:
           git checkout HEAD -- src/routes/mcp.ts 2>/dev/null || true
           changed="$(git diff --name-only | sort)"
           allowed='src/lib/prospect-leads.functions.ts
+          src/lib/prospect-radar.server.ts
           src/routes/_authenticated/prospectos.tsx'
           while IFS= read -r file; do
             [ -z "$file" ] && continue
@@ -69,7 +70,7 @@ jobs:
           done <<< "$changed"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/lib/prospect-leads.functions.ts src/routes/_authenticated/prospectos.tsx
+          git add src/lib/prospect-leads.functions.ts src/lib/prospect-radar.server.ts src/routes/_authenticated/prospectos.tsx
           if ! git diff --cached --quiet; then
             git commit -m 'feat: conectar radar público e ativar snapshot horário'
             git push origin HEAD:${{ github.ref_name }}
