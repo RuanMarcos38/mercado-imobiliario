@@ -55,7 +55,9 @@ function openAiConfig() {
   if (!apiKey) return null;
   const parameters = aiParameters();
   const searchModel = process.env["OPENAI_SEARCH_MODEL"]?.trim();
-  const models = [...new Set([searchModel, parameters.model, "gpt-5.4"].filter(Boolean) as string[])];
+  const models = [
+    ...new Set([searchModel, parameters.model, "gpt-5.4"].filter(Boolean) as string[]),
+  ];
   return {
     apiKey,
     models,
@@ -257,7 +259,12 @@ async function searchNetwork(
     const payload = await callNetworkSearch(config, data, network, maxItems);
     const outputText = extractOutputText(payload);
     if (!outputText) {
-      return { network, leads: [], operational: true, warning: `${network}: sem conteúdo público útil nesta busca.` };
+      return {
+        network,
+        leads: [],
+        operational: true,
+        warning: `${network}: sem conteúdo público útil nesta busca.`,
+      };
     }
     const parsed = JSON.parse(outputText) as RawPayload;
     const webSources = extractWebSourceUrls(payload);
@@ -267,7 +274,9 @@ async function searchNetwork(
         const requestedProfile = safePublicUrl(lead.profileUrl);
         const networkSource = firstNetworkSource(webSources, network);
         const profileUrl =
-          requestedProfile && isNetworkUrl(requestedProfile, network) && samePublicSource(requestedProfile, webSources)
+          requestedProfile &&
+          isNetworkUrl(requestedProfile, network) &&
+          samePublicSource(requestedProfile, webSources)
             ? requestedProfile
             : networkSource;
         if (!profileUrl) return null;
@@ -302,7 +311,9 @@ async function searchNetwork(
       network,
       leads,
       operational: true,
-      warning: leads.length ? undefined : `${network}: nenhum sinal público de intenção imobiliária confiável localizado.`,
+      warning: leads.length
+        ? undefined
+        : `${network}: nenhum sinal público de intenção imobiliária confiável localizado.`,
     };
   } catch {
     return {

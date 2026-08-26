@@ -69,7 +69,12 @@ describe("prospect lead privacy and quality", () => {
   it("deduplicates the same public profile and prioritizes the stronger intent", () => {
     const leads = dedupeAndRankProspectLeads([
       baseLead({ id: "a", intentScore: 60, intentStage: "morno" }),
-      baseLead({ id: "b", intentScore: 94, intentStage: "quente", evidence: "Pedido direto de visita." }),
+      baseLead({
+        id: "b",
+        intentScore: 94,
+        intentStage: "quente",
+        evidence: "Pedido direto de visita.",
+      }),
     ]);
     expect(leads).toHaveLength(1);
     expect(leads[0]?.intentScore).toBe(94);

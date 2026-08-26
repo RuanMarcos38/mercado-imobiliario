@@ -73,7 +73,9 @@ export function networkDomainHint(network: SocialNetwork) {
 }
 
 function sanitizeEmail(value: string | null | undefined) {
-  const email = String(value ?? "").trim().toLowerCase();
+  const email = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!email || email.length > 180) return null;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
@@ -86,7 +88,10 @@ function sanitizePhone(value: string | null | undefined) {
 }
 
 function dedupeStrings(values: Array<string | null | undefined>, max = 8) {
-  return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))].slice(0, max);
+  return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))].slice(
+    0,
+    max,
+  );
 }
 
 function clampScore(value: unknown) {
@@ -110,7 +115,9 @@ export function sanitizeProspectLead(
 
   return {
     id: String(lead.id || `${lead.network}:${profileUrl}`),
-    displayName: String(lead.displayName || lead.profileHandle || "Perfil público").trim().slice(0, 180),
+    displayName: String(lead.displayName || lead.profileHandle || "Perfil público")
+      .trim()
+      .slice(0, 180),
     profileHandle: lead.profileHandle?.trim().slice(0, 120) || null,
     network: lead.network,
     profileUrl,

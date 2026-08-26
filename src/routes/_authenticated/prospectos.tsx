@@ -24,11 +24,7 @@ import {
   searchHotRealEstateProspects,
   type ProspectSearchResponse,
 } from "@/lib/prospect-leads.functions";
-import {
-  SOCIAL_NETWORKS,
-  type ProspectLead,
-  type SocialNetwork,
-} from "@/lib/prospect-leads.core";
+import { SOCIAL_NETWORKS, type ProspectLead, type SocialNetwork } from "@/lib/prospect-leads.core";
 
 export const Route = createFileRoute("/_authenticated/prospectos")({
   component: ProspectRadarPage,
@@ -111,7 +107,10 @@ function ProspectRadarPage() {
         },
       });
       setResult(response);
-      setMessages((current) => [...current, { role: "assistant", text: response.assistantMessage }]);
+      setMessages((current) => [
+        ...current,
+        { role: "assistant", text: response.assistantMessage },
+      ]);
     } catch {
       toast.error("Não foi possível concluir a varredura pública agora. Tente novamente.");
       setMessages((current) => [
@@ -159,8 +158,8 @@ function ProspectRadarPage() {
               <h2 className="text-lg font-black">Chatbot de prospecção</h2>
             </div>
             <p className="mt-2 text-sm leading-6 text-[var(--mi-text-muted)]">
-              Descreva em linguagem natural quem você quer encontrar e refine por região, intenção
-              e tipo de imóvel.
+              Descreva em linguagem natural quem você quer encontrar e refine por região, intenção e
+              tipo de imóvel.
             </p>
 
             <div className="mt-5 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4">
@@ -210,7 +209,10 @@ function ProspectRadarPage() {
               </div>
 
               <Field label="Intenção principal">
-                <select value={intent} onChange={(event) => setIntent(event.target.value as typeof intent)}>
+                <select
+                  value={intent}
+                  onChange={(event) => setIntent(event.target.value as typeof intent)}
+                >
                   <option value="qualquer">Qualquer intenção imobiliária</option>
                   <option value="comprar">Comprar</option>
                   <option value="alugar">Alugar</option>
@@ -260,7 +262,11 @@ function ProspectRadarPage() {
 
           <section className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-3">
-              <MetricCard icon={UserRoundSearch} label="Leads encontrados" value={result?.leads.length ?? 0} />
+              <MetricCard
+                icon={UserRoundSearch}
+                label="Leads encontrados"
+                value={result?.leads.length ?? 0}
+              />
               <MetricCard icon={Flame} label="Leads quentes" value={hotCount} emphasis />
               <MetricCard
                 icon={Target}
@@ -272,7 +278,9 @@ function ProspectRadarPage() {
             {!result && (
               <div className="rounded-[26px] border border-dashed border-[var(--mi-border)] bg-[var(--mi-surface)] p-10 text-center">
                 <Sparkles className="mx-auto h-8 w-8 text-blue-600" />
-                <h2 className="mt-4 text-xl font-black">Pronto para buscar sinais reais de intenção</h2>
+                <h2 className="mt-4 text-xl font-black">
+                  Pronto para buscar sinais reais de intenção
+                </h2>
                 <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-[var(--mi-text-muted)]">
                   A busca não dispara mensagens automaticamente. Você revisa o perfil, a evidência e
                   a fonte antes de qualquer abordagem comercial.
@@ -417,11 +425,7 @@ function LeadCard({ lead }: { lead: ProspectLead }) {
   );
 }
 
-function NetworkStatus({
-  networks,
-}: {
-  networks: ProspectSearchResponse["networks"];
-}) {
+function NetworkStatus({ networks }: { networks: ProspectSearchResponse["networks"] }) {
   return (
     <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-4">
       <div className="flex flex-wrap gap-2">
@@ -434,7 +438,8 @@ function NetworkStatus({
                 : "border-slate-400/20 bg-slate-400/[0.05] text-[var(--mi-text-soft)]"
             }`}
           >
-            {NETWORK_LABELS[item.network]} · {item.operational ? `${item.found} sinais` : "indisponível"}
+            {NETWORK_LABELS[item.network]} ·{" "}
+            {item.operational ? `${item.found} sinais` : "indisponível"}
           </span>
         ))}
       </div>

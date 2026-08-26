@@ -25,6 +25,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
   UserRound,
   Users,
@@ -42,6 +43,7 @@ const routeFeatureMap = [
   ["/dashboard", "dashboard"],
   ["/buscar", "buscar"],
   ["/parcerias", "buscar"],
+  ["/prospectos", "buscar"],
   ["/leiloes", "leiloes"],
   ["/alertas", "alertas"],
   ["/atendimento", "atendimento"],
@@ -215,6 +217,7 @@ const toolItems = [
   },
   { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
   { to: "/parcerias", label: "Parcerias imobiliárias", icon: Handshake, feature: "buscar" },
+  { to: "/prospectos", label: "Prospecção IA", icon: Target, feature: "buscar" },
   { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
   {
     to: "/analise-localizacao",
