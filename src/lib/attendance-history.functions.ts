@@ -142,7 +142,9 @@ export const getAttendanceHistoryReport = createServerFn({ method: "POST" })
       };
       current.conversationId = text(eventMetadata["conversationId"]) ?? current.conversationId;
       current.attendantUserId =
-        text(eventMetadata["userId"]) ?? text(eventMetadata["assignedUserId"]) ?? current.attendantUserId;
+        text(eventMetadata["userId"]) ??
+        text(eventMetadata["assignedUserId"]) ??
+        current.attendantUserId;
       if (event.event_type === "attendance_session_started") {
         current.queuedAt = text(eventMetadata["queuedAt"]);
         current.acceptedAt = text(eventMetadata["acceptedAt"]) ?? event.created_at;
@@ -216,31 +218,35 @@ export const getAttendanceHistoryReport = createServerFn({ method: "POST" })
     );
     const surveyBySession = new Map(surveys.map((row) => [String(row.session_id), row]));
 
-    const closedConversations: AttendanceHistoryItem[] = closedSessions.slice(0, 300).map((session) => {
-      const conversation = conversations.get(session.conversationId!) ?? {
-        protocolCode: "",
-        contactName: "Contato",
-      };
-      const survey = surveyBySession.get(session.sessionId);
-      const rating = Number(survey?.rating);
-      return {
-        conversationId: session.conversationId!,
-        sessionId: session.sessionId,
-        protocolCode: conversation.protocolCode,
-        contactName: conversation.contactName,
-        attendantUserId: session.attendantUserId,
-        attendantName: session.attendantUserId
-          ? names.get(session.attendantUserId) || "Atendente"
-          : "Atendente",
-        closedAt: session.closedAt!,
-        firstResponseSeconds: secondsBetween(session.firstResponseAt, session.acceptedAt),
-        attendanceSeconds: secondsBetween(session.closedAt, session.acceptedAt),
-        rating: Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : null,
-        surveyStatus: survey?.status ? String(survey.status) : null,
-      };
-    });
+    const closedConversations: AttendanceHistoryItem[] = closedSessions
+      .slice(0, 300)
+      .map((session) => {
+        const conversation = conversations.get(session.conversationId!) ?? {
+          protocolCode: "",
+          contactName: "Contato",
+        };
+        const survey = surveyBySession.get(session.sessionId);
+        const rating = Number(survey?.rating);
+        return {
+          conversationId: session.conversationId!,
+          sessionId: session.sessionId,
+          protocolCode: conversation.protocolCode,
+          contactName: conversation.contactName,
+          attendantUserId: session.attendantUserId,
+          attendantName: session.attendantUserId
+            ? names.get(session.attendantUserId) || "Atendente"
+            : "Atendente",
+          closedAt: session.closedAt!,
+          firstResponseSeconds: secondsBetween(session.firstResponseAt, session.acceptedAt),
+          attendanceSeconds: secondsBetween(session.closedAt, session.acceptedAt),
+          rating: Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : null,
+          surveyStatus: survey?.status ? String(survey.status) : null,
+        };
+      });
 
-    const sentSurveys = surveys.filter((row) => Boolean(row.requested_at) || row.status === "sent" || row.status === "answered");
+    const sentSurveys = surveys.filter(
+      (row) => Boolean(row.requested_at) || row.status === "sent" || row.status === "answered",
+    );
     const answeredSurveys = surveys.filter((row) => {
       const rating = Number(row.rating);
       return Number.isInteger(rating) && rating >= 1 && rating <= 5;

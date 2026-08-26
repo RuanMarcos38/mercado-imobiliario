@@ -55,7 +55,9 @@ function RatingDistribution({ report }: { report: AttendanceHistoryReport }) {
           return (
             <div key={rating}>
               <div className="mb-1 flex items-center justify-between gap-3 text-[10px] font-bold">
-                <span>{rating} estrela{rating === 1 ? "" : "s"}</span>
+                <span>
+                  {rating} estrela{rating === 1 ? "" : "s"}
+                </span>
                 <span className="text-[var(--mi-text-soft)]">{count}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-[var(--mi-border)]/60">
