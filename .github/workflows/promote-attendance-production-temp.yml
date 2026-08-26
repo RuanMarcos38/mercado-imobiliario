@@ -1,0 +1,109 @@
+name: Promote attendance enhancements TEMP
+
+on:
+  push:
+    branches: [fix/attendance-history-satisfaction-20260826]
+
+permissions:
+  contents: write
+
+env:
+  EASYPANEL_DEPLOY_URL: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+  EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
+  DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
+  EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
+
+jobs:
+  validate-promote-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate isolated scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production
+          allowed='^(src/components/attendance/AttendanceDecisionDashboard\.tsx|src/components/attendance/AttendanceHistoryReports\.tsx|src/lib/attendance-history\.functions\.ts|src/lib/attendance-satisfaction\.server\.ts|src/routes/api/public/hooks/whatsapp\.tsx|src/routes/api/public/jobs/attendance-surveys\.tsx|supabase/migrations/20260826103000_attendance_history_satisfaction_reports\.sql|\.github/workflows/promote-attendance-production-temp\.yml)$'
+          unexpected="$(git diff --name-only origin/production...HEAD | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::Unexpected files in promotion scope:"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "Promotion scope is isolated to attendance enhancements."
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Promote approved tree to production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/promote-attendance-production-temp.yml
+          git commit -m "chore: concluir promocao das melhorias de atendimento"
+          git push origin HEAD:production
+          echo "Approved attendance tree promoted to production."
+
+      - name: Trigger EasyPanel deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${EASYPANEL_DEPLOY_URL:-${EASYPANEL_DEPLOY_TRIGGER_URL:-${DEPLOY_TRIGGER_URL:-}}}"
+          if [ -n "$URL" ]; then
+            if curl -fsS --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy.txt; then
+              echo "EasyPanel deploy requested with GET."
+            else
+              curl -fsS -X POST --connect-timeout 10 --max-time 60 "$URL" -o /tmp/easypanel-deploy.txt
+              echo "EasyPanel deploy requested with POST."
+            fi
+          else
+            echo "No explicit deploy hook configured; relying on the GitHub-linked production branch."
+          fi
+
+      - name: Verify new attendance route live
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUBLIC_URL="${EASYPANEL_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          PUBLIC_URL="${PUBLIC_URL%/}"
+          ready=0
+          for attempt in $(seq 1 48); do
+            status_code="$(curl -sS --connect-timeout 6 --max-time 10 -o /tmp/survey-probe.txt -w '%{http_code}' -X POST "$PUBLIC_URL/api/public/jobs/attendance-surveys" -H 'Content-Type: application/json' --data '{}' || true)"
+            public_code="$(curl -sS --connect-timeout 6 --max-time 10 -o /tmp/public-status.json -w '%{http_code}' "$PUBLIC_URL/api/public/status" || true)"
+            if { [ "$status_code" = "401" ] || [ "$status_code" = "403" ]; } && [ "$public_code" = "200" ]; then
+              node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/public-status.json', 'utf8'));
+          if (status.status !== 'operational' || status.search !== 'available' || status.supabaseProjectId !== 'uwzfgksmnqgaxtscwxow') process.exit(1);
+          NODE
+              ready=1
+              echo "New attendance survey route is live and protected; backend operational."
+              break
+            fi
+            echo "Waiting for EasyPanel publication ($attempt/48): survey=$status_code status=$public_code"
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::New attendance route did not become live in the expected window."
+            exit 1
+          fi
