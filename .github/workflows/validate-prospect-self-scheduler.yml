@@ -1,0 +1,77 @@
+name: Validate prospect self scheduler
+
+on:
+  push:
+    branches: [fix/prospect-self-scheduler-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply isolated scheduler patch
+        run: python .github/scripts/apply-prospect-self-scheduler.py
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Format product files
+        run: npx prettier --write src/lib/prospect-radar.server.ts src/lib/prospect-leads.functions.ts src/routes/api/public/jobs/prospect-radar.tsx
+      - name: Verify scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'schedule(60 * 60 * 1000)' src/lib/prospect-radar.server.ts >/dev/null
+          grep -F 'schedule(5_000)' src/lib/prospect-radar.server.ts >/dev/null
+          grep -F 'GET: () => handleGet()' src/routes/api/public/jobs/prospect-radar.tsx >/dev/null
+          test ! -e .github/workflows/hourly-prospect-radar.yml
+          test ! -e supabase/migrations/20260826_prospect_radar.sql
+      - name: Lint
+        run: npm run lint
+      - name: Targeted tests
+        run: npx vitest run tests/prospect-leads.test.ts tests/tenant-isolation.test.ts tests/critical-flows.spec.ts
+      - name: Full regression
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Commit validated product changes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout HEAD -- src/routeTree.gen.ts 2>/dev/null || true
+          git checkout HEAD -- public/mcp/openapi.json 2>/dev/null || true
+          git checkout HEAD -- public/mcp/llms.txt 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/invoke-tool/$tool.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/list-tools.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.well-known]/oauth-protected-resource.ts' 2>/dev/null || true
+          git checkout HEAD -- src/routes/mcp.ts 2>/dev/null || true
+          changed="$(git diff --name-only | sort)"
+          allowed='.github/workflows/hourly-prospect-radar.yml
+          src/lib/prospect-leads.functions.ts
+          src/lib/prospect-radar.server.ts
+          src/routes/api/public/jobs/prospect-radar.tsx'
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "$allowed" | sed 's/^ *//' | grep -Fx "$file" >/dev/null || { echo "Unexpected diff: $file"; exit 1; }
+          done <<< "$changed"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A .github/workflows/hourly-prospect-radar.yml src/lib/prospect-leads.functions.ts src/lib/prospect-radar.server.ts src/routes/api/public/jobs/prospect-radar.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: executar prospecção horária no próprio servidor'
+            git push origin HEAD:${{ github.ref_name }}
+          fi
