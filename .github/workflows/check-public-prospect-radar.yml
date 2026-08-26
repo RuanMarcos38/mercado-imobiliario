@@ -1,0 +1,43 @@
+name: Check public prospect radar
+
+on:
+  push:
+    branches: [ops/check-public-prospect-radar-20260825]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for self-scheduled radar snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host"
+          for attempt in $(seq 1 80); do
+            code="$(curl -sS -o /tmp/radar.json -w '%{http_code}' --connect-timeout 8 --max-time 15 "$BASE/api/public/jobs/prospect-radar" || true)"
+            echo "attempt=$attempt HTTP=$code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/radar.json
+              echo
+              if node - <<'NODE'
+          const fs=require('fs');
+          try {
+            const d=JSON.parse(fs.readFileSync('/tmp/radar.json','utf8'));
+            if (d.ok === true && d.schedulerActive === true && d.searchedAt) {
+              console.log('RADAR_READY', JSON.stringify({searchedAt:d.searchedAt,nextRunAt:d.nextRunAt,leads:d.leads,hot:d.hot,providers:d.providers}, null, 2));
+              process.exit(0);
+            }
+          } catch {}
+          process.exit(1);
+          NODE
+              then exit 0; fi
+            fi
+            sleep 10
+          done
+          echo "::error::Automatic prospect radar did not produce a snapshot in time."
+          cat /tmp/radar.json 2>/dev/null || true
+          exit 1
