@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { resolvePlatformSecret } from "@/lib/platform-secret.server";
 
 async function handler(request: Request) {
-  const secret = process.env["PROPERTY_FEED_SYNC_SECRET"];
+  const secret = await resolvePlatformSecret(
+    "PROPERTY_FEED_SYNC_SECRET",
+    "mercadoimobi_property_feed_sync_secret",
+  );
   if (!secret) {
     return Response.json(
       { ok: false, message: "Atualização automática ainda não ativada." },
