@@ -1,0 +1,81 @@
+name: Corrected live platform audit TEMP
+
+on:
+  push:
+    branches: [ops/live-audit-corrected-20260826]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      EASY: https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host
+      CUSTOM: https://mercadoimobi.rdmconsultoriaimobiliaria.com.br
+    steps:
+      - name: Corrected live smoke audit
+        shell: bash
+        run: |
+          set +e
+          FAIL=0; WARN=0; PASS=0
+          report(){ printf '%-48s %-6s %s\n' "$1" "$2" "$3"; }
+          pass(){ PASS=$((PASS+1)); report "$1" PASS "$2"; }
+          warn(){ WARN=$((WARN+1)); report "$1" WARN "$2"; }
+          fail(){ FAIL=$((FAIL+1)); report "$1" FAIL "$2"; }
+          probe(){ curl -ksS -o /tmp/body -D /tmp/head --connect-timeout 8 --max-time 30 -w '%{http_code}' "$1"; }
+
+          echo '===== BASE ENDPOINTS ====='
+          for BASE_NAME in EASY CUSTOM; do
+            BASE="${!BASE_NAME}"
+            for P in / /auth /api/public/status; do
+              C=$(probe "$BASE$P")
+              CT=$(grep -i '^content-type:' /tmp/head | tail -1 | tr -d '\r')
+              if [ "$P" = '/api/public/status' ]; then
+                if [ "$C" = 200 ] && node -e 'const fs=require("fs");try{const p=JSON.parse(fs.readFileSync("/tmp/body","utf8"));process.exit(p&&p.runtime?0:1)}catch{process.exit(1)}'; then
+                  pass "$BASE_NAME $P" "HTTP $C JSON"
+                  echo "STATUS_$BASE_NAME=$(cat /tmp/body)"
+                elif [ "$C" = 200 ]; then fail "$BASE_NAME $P" "HTTP 200 mas não é JSON ($CT)"; else fail "$BASE_NAME $P" "HTTP $C"; fi
+              else
+                if [[ "$C" =~ ^2|^3 ]]; then pass "$BASE_NAME $P" "HTTP $C"; else fail "$BASE_NAME $P" "HTTP $C"; fi
+              fi
+            done
+          done
+
+          echo '===== AUTH ROUTES ====='
+          for P in dashboard buscar leiloes alertas atendimento prospectos crm integracoes central-integracoes assinatura assistente analise-localizacao simulador-financiamento speed-to-lead midias-sociais parcerias fluxos diagnostico discador email-cca admin/usuarios admin/parametros; do
+            C=$(probe "$EASY/$P")
+            if [[ "$C" =~ ^5 ]]; then fail "route /$P" "HTTP $C"; elif [[ "$C" =~ ^2|^3|^401|^403 ]]; then pass "route /$P" "HTTP $C"; else warn "route /$P" "HTTP $C"; fi
+          done
+
+          echo '===== APIs / JOBS / WEBHOOKS ====='
+          C=$(probe "$EASY/api/public/jobs/prospect-radar")
+          if [ "$C" = 200 ]; then pass 'prospect radar' "$(cat /tmp/body)"; else fail 'prospect radar' "HTTP $C"; fi
+
+          for P in api/v1/properties api/v1/leads api/v1/appointments; do
+            C=$(probe "$EASY/$P")
+            if [[ "$C" =~ ^401|^403 ]]; then pass "protected /$P" "HTTP $C"; elif [[ "$C" =~ ^5 ]]; then fail "protected /$P" "HTTP $C"; else warn "protected /$P" "HTTP $C"; fi
+          done
+
+          for P in api/public/jobs/crm-automations api/public/jobs/external-property-links api/public/jobs/property-discovery api/public/jobs/property-feeds; do
+            C=$(curl -ksS -X POST -o /tmp/body -D /tmp/head --connect-timeout 8 --max-time 30 -w '%{http_code}' "$EASY/$P")
+            if [[ "$C" =~ ^401|^403 ]]; then pass "job /$P" "HTTP $C protegido"; elif [[ "$C" =~ ^5 ]]; then fail "job /$P" "HTTP $C"; else warn "job /$P" "HTTP $C sem segredo"; fi
+          done
+
+          for P in api/public/hooks/asaas api/public/hooks/leads api/public/hooks/n8n-webhook api/public/hooks/properties api/public/hooks/stripe api/public/hooks/whatsapp; do
+            C=$(curl -ksS -X POST -H 'content-type: application/json' --data '{}' -o /tmp/body -D /tmp/head --connect-timeout 8 --max-time 30 -w '%{http_code}' "$EASY/$P")
+            if [[ "$C" =~ ^5 ]]; then fail "webhook /$P" "HTTP $C"; elif [[ "$C" =~ ^400|^401|^403|^405|^422 ]]; then pass "webhook /$P" "HTTP $C rejeição segura"; else warn "webhook /$P" "HTTP $C payload vazio"; fi
+          done
+
+          for O in google meta; do
+            C=$(probe "$EASY/api/public/oauth/$O")
+            LOC=$(grep -i '^location:' /tmp/head | tail -1 | tr -d '\r' | cut -c1-180)
+            if [[ "$C" =~ ^3 ]]; then pass "OAuth $O" "HTTP $C $LOC"; elif [[ "$C" =~ ^5 ]]; then fail "OAuth $O" "HTTP $C"; else warn "OAuth $O" "HTTP $C $(head -c 160 /tmp/body)"; fi
+          done
+
+          C=$(probe "$EASY/robots.txt"); if [ "$C" = 200 ]; then pass robots.txt 'HTTP 200'; else warn robots.txt "HTTP $C"; fi
+          C=$(probe "$EASY/.mcp/list-tools"); if [[ "$C" =~ ^2|^401|^403 ]]; then pass 'MCP route' "HTTP $C"; elif [[ "$C" =~ ^5 ]]; then fail 'MCP route' "HTTP $C"; else warn 'MCP route' "HTTP $C"; fi
+
+          echo '===== SUMMARY ====='
+          echo "LIVE_SUMMARY pass=$PASS warn=$WARN fail=$FAIL"
