@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { resolvePlatformSecret } from "@/lib/platform-secret.server";
 
 async function handler(request: Request) {
-  const secret = process.env["PROPERTY_DISCOVERY_SECRET"];
+  const secret = await resolvePlatformSecret(
+    "PROPERTY_DISCOVERY_SECRET",
+    "mercadoimobi_property_discovery_secret",
+  );
   if (!secret) {
     return Response.json(
       { ok: false, message: "Descoberta automática ainda não ativada." },
