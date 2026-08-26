@@ -20,11 +20,11 @@ jobs:
           SYNC_KEY: ${{ secrets.PROPERTY_FEED_SYNC_SECRET }}
         run: |
           set -euo pipefail
-          BASE_URL="${BASE_URL:-https://mercadoimobi.rdmconsultoriaimobiliaria.com.br}"
+          BASE_URL="${BASE_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           BASE_URL="${BASE_URL%/}"
 
           if [ -z "${SYNC_KEY:-}" ]; then
-            echo "::notice::PROPERTY_FEED_SYNC_SECRET ainda não foi configurado no GitHub Actions. Nenhum feed autorizado foi chamado."
+            echo "::notice::GitHub secret ausente; a sincronização interna continua pelo cron protegido do Supabase Vault."
             exit 0
           fi
 
@@ -41,8 +41,6 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const payload = JSON.parse(fs.readFileSync('/tmp/property-feed-sync.json', 'utf8'));
-          if (payload.failed > 0) {
-            console.log(`::warning::${payload.failed} fonte(s) apresentaram falha de sincronização.`);
-          }
+          if (payload.failed > 0) console.log(`::warning::${payload.failed} fonte(s) apresentaram falha de sincronização.`);
           console.log(`Fontes processadas: ${payload.processed ?? 0}; sucesso: ${payload.success ?? 0}; falhas: ${payload.failed ?? 0}`);
           NODE
