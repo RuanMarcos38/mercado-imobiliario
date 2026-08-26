@@ -1,0 +1,35 @@
+name: MercadoImobi hourly prospect radar
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  prospect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run national prospect radar
+        shell: bash
+        env:
+          BASE_URL: ${{ secrets.MERCADOIMOBI_BASE_URL }}
+          JOB_KEY: ${{ secrets.CRM_AUTOMATION_JOB_SECRET || secrets.PROPERTY_FEED_SYNC_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${BASE_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
+          BASE_URL="${BASE_URL%/}"
+          if [ -z "${JOB_KEY:-}" ]; then
+            echo "::notice::A chave de job horária existente não está disponível; nenhuma credencial nova foi criada."
+            exit 0
+          fi
+          curl -fsS --connect-timeout 10 --max-time 540 \
+            -X POST \
+            -H "x-mercadoimobi-job-key: ${JOB_KEY}" \
+            "${BASE_URL}/api/public/jobs/prospect-radar" \
+            -o /tmp/prospect-radar.json
+          cat /tmp/prospect-radar.json
+          echo
