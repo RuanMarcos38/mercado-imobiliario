@@ -1,0 +1,39 @@
+name: Promote nationwide prospect radar
+
+on:
+  push:
+    branches:
+      - ops/promote-national-prospect-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact validated nationwide diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production feat/prospect-radar-social-20260825
+          changed="$(git diff --name-only origin/production..origin/feat/prospect-radar-social-20260825 | sort)"
+          expected='src/lib/prospect-leads.functions.ts
+          src/routes/_authenticated/prospectos.tsx
+          tests/prospect-leads.test.ts'
+          test "$changed" = "$(echo "$expected" | sed 's/^ *//')" || {
+            echo "Unexpected diff:"; echo "$changed"; exit 1;
+          }
+          git show origin/feat/prospect-radar-social-20260825:src/lib/prospect-leads.functions.ts | grep -F 'A abrangência é NACIONAL' >/dev/null
+          git show origin/feat/prospect-radar-social-20260825:src/routes/_authenticated/prospectos.tsx | grep -F 'Brasil — todo território nacional' >/dev/null
+          git merge-base --is-ancestor origin/production origin/feat/prospect-radar-social-20260825
+      - name: Promote as GitHub Actions bot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin origin/feat/prospect-radar-social-20260825:refs/heads/production
