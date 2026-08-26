@@ -3,6 +3,7 @@ import {
   aiParameters,
   documentParameters,
   externalServiceParameters,
+  integrationReadiness,
   speedToLeadParameters,
   whatsappParameters,
 } from "@/lib/platform-parameters.server";
@@ -19,6 +20,11 @@ const KEYS = [
   "CCA_SIGNED_URL_TTL_SECONDS",
   "STRIPE_REQUEST_TIMEOUT_MS",
   "VOICE_BRIDGE_TOKEN_MINUTES",
+  "EVOLUTION_API_URL",
+  "EVOLUTION_API_KEY",
+  "EVOLUTION_URL",
+  "EVOLUTION_GLOBAL_API_KEY",
+  "AUTHENTICATION_API_KEY",
 ] as const;
 
 const originals = new Map(KEYS.map((key) => [key, process.env[key]]));
@@ -96,5 +102,16 @@ describe("platform parameters", () => {
     expect(whatsappParameters().maxAttachmentMb).toBe(32);
     expect(documentParameters().ccaDocumentMaxMb).toBe(1);
     expect(externalServiceParameters().voiceBridgeTokenMinutes).toBe(30);
+  });
+
+  it("recognizes EasyPanel/Evolution gateway aliases", () => {
+    process.env["EVOLUTION_API_URL"] = "";
+    process.env["EVOLUTION_API_KEY"] = "";
+    process.env["EVOLUTION_URL"] = "https://evolution.example.test";
+    process.env["AUTHENTICATION_API_KEY"] = "gateway-key";
+
+    const whatsapp = integrationReadiness().find((item) => item.key === "whatsapp");
+
+    expect(whatsapp?.configured).toBe(true);
   });
 });

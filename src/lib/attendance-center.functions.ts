@@ -200,7 +200,7 @@ async function ensureConversation(tenantId: string, conversationId: string) {
   const db = adminDb();
   const { data, error } = await db
     .from("whatsapp_conversations")
-    .select("id,assigned_user_id,phone_e164")
+    .select("id,assigned_user_id,phone_e164,protocol_code")
     .eq("tenant_id", tenantId)
     .eq("id", conversationId)
     .maybeSingle();
@@ -498,12 +498,13 @@ export const endAttendanceConversation = createServerFn({ method: "POST" })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
 
+    const sessionId = state.sessionId || crypto.randomUUID();
     if (state.sessionId) {
       await insertEvent(
         tenantId,
         EVENT.sessionClosed,
         {
-          sessionId: state.sessionId,
+          sessionId,
           conversationId: data.conversationId,
           userId: context.userId,
           closedAt: now,
@@ -523,10 +524,37 @@ export const endAttendanceConversation = createServerFn({ method: "POST" })
         closedAt: now,
         assignedUserId: null,
         departmentName: state.departmentName || "Geral",
-        sessionId: state.sessionId,
+        sessionId,
       },
       "Atendimento encerrado e devolvido ao automático",
     );
+
+    let satisfactionSurveySent = false;
+    try {
+      const { sendAttendanceSatisfactionSurvey } =
+        await import("@/lib/attendance-satisfaction.server");
+      const satisfaction = await sendAttendanceSatisfactionSurvey({
+        tenantId,
+        conversationId: data.conversationId,
+        sessionId,
+        attendantUserId: context.userId,
+        phone: String(conversation.phone_e164 ?? ""),
+        protocolCode: conversation.protocol_code ?? null,
+      });
+      satisfactionSurveySent = satisfaction.sent;
+    } catch (error) {
+      await insertEvent(
+        tenantId,
+        "attendance_satisfaction_send_failed",
+        {
+          conversationId: data.conversationId,
+          sessionId,
+          attendantUserId: context.userId,
+          reason: error instanceof Error ? error.message : "attendance_survey_send_failed",
+        },
+        "Falha ao enviar pesquisa de satisfação",
+      ).catch(() => undefined);
+    }
 
     const { count } = await db
       .from("whatsapp_conversations")
@@ -534,7 +562,7 @@ export const endAttendanceConversation = createServerFn({ method: "POST" })
       .eq("tenant_id", tenantId)
       .eq("assigned_user_id", context.userId);
     if ((count ?? 0) === 0) await setOwnPresence(tenantId, context.userId, "free");
-    return { success: true, closedAt: now };
+    return { success: true, closedAt: now, satisfactionSurveySent };
   });
 
 export const recordAttendanceFirstResponse = createServerFn({ method: "POST" })

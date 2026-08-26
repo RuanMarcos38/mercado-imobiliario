@@ -11,20 +11,29 @@ export const PUBLIC_SUPABASE_PUBLISHABLE_KEY = String(
 ).trim();
 export const PUBLIC_SUPABASE_PROJECT_ID = String(env.VITE_SUPABASE_PROJECT_ID || "").trim();
 
-if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY || !PUBLIC_SUPABASE_PROJECT_ID) {
-  throw new Error("MercadoImobi exclusive Supabase configuration is required");
+const hasAnySupabaseConfig = Boolean(
+  PUBLIC_SUPABASE_URL || PUBLIC_SUPABASE_PUBLISHABLE_KEY || PUBLIC_SUPABASE_PROJECT_ID,
+);
+const hasCompleteSupabaseConfig = Boolean(
+  PUBLIC_SUPABASE_URL && PUBLIC_SUPABASE_PUBLISHABLE_KEY && PUBLIC_SUPABASE_PROJECT_ID,
+);
+
+if (hasAnySupabaseConfig && !hasCompleteSupabaseConfig) {
+  throw new Error("MercadoImobi Supabase configuration is incomplete");
 }
 
 if (FORBIDDEN_SUPABASE_PROJECT_IDS.has(PUBLIC_SUPABASE_PROJECT_ID)) {
   throw new Error("MercadoImobi must not use RM NEGOCIO IMOBILIARIO or CRM R2 MARKETING DIGITAL");
 }
 
-const expectedHost = `${PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`;
-try {
-  if (new URL(PUBLIC_SUPABASE_URL).hostname !== expectedHost) {
-    throw new Error("MercadoImobi Supabase URL does not match VITE_SUPABASE_PROJECT_ID");
+if (hasCompleteSupabaseConfig) {
+  const expectedHost = `${PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`;
+  try {
+    if (new URL(PUBLIC_SUPABASE_URL).hostname !== expectedHost) {
+      throw new Error("MercadoImobi Supabase URL does not match VITE_SUPABASE_PROJECT_ID");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("does not match")) throw error;
+    throw new Error("MercadoImobi Supabase URL is invalid");
   }
-} catch (error) {
-  if (error instanceof Error && error.message.includes("does not match")) throw error;
-  throw new Error("MercadoImobi Supabase URL is invalid");
 }

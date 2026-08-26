@@ -1,3 +1,4 @@
+import { evolutionGatewayConfig } from "@/lib/evolution-instance.server";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
 
 type JsonObject = Record<string, unknown>;
@@ -26,11 +27,10 @@ function object(value: unknown): JsonObject {
 }
 
 function evolutionConfig(): EvolutionConfig | null {
-  const baseUrl = process.env["EVOLUTION_API_URL"]?.trim().replace(/\/$/, "");
-  const apiKey = process.env["EVOLUTION_API_KEY"]?.trim();
+  const gateway = evolutionGatewayConfig();
   const instance = process.env["EVOLUTION_INSTANCE"]?.trim();
-  if (!baseUrl || !apiKey || !instance) return null;
-  return { baseUrl, apiKey, instance };
+  if (!gateway || !instance) return null;
+  return { ...gateway, instance };
 }
 
 function booleanValue(value: unknown): boolean {

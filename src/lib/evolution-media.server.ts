@@ -1,11 +1,6 @@
-type JsonObject = Record<string, unknown>;
+import { evolutionGatewayConfig } from "@/lib/evolution-instance.server";
 
-function evolutionGatewayConfig() {
-  const baseUrl = process.env["EVOLUTION_API_URL"]?.trim().replace(/\/$/, "");
-  const apiKey = process.env["EVOLUTION_API_KEY"]?.trim();
-  if (!baseUrl || !apiKey) return null;
-  return { baseUrl, apiKey };
-}
+type JsonObject = Record<string, unknown>;
 
 function parsePayload(raw: string): JsonObject {
   if (!raw) return {};

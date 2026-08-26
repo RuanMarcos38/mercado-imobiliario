@@ -1,8 +1,10 @@
 # MercadoImobi EasyPanel — LIVE OK
 
+> Registro histórico obsoleto: este check apontou para um projeto Supabase que agora é proibido para o MercadoImobi. Use o projeto dedicado `rjlqylmwenhzkzmqwris` nas configurações atuais.
+
 Verified at (UTC): 2026-08-22T12:18:49Z
 EasyPanel target: https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host
-Supabase project: uwzfgksmnqgaxtscwxow
+Supabase project observed at the time: uwzfgksmnqgaxtscwxow
 Supabase admin runtime: configured
 Status: corrected backend is live and operational.
 

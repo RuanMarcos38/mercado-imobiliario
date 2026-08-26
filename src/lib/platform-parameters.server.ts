@@ -24,6 +24,14 @@ function stringEnv(name: string, fallback: string) {
   return process.env[name]?.trim() || fallback;
 }
 
+function firstEnv(names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
 export function speedToLeadParameters() {
   return {
     slaSeconds: integerEnv("SPEED_TO_LEAD_SLA_SECONDS", 300, 30, 3600),
@@ -252,7 +260,12 @@ export function integrationReadiness() {
       key: "whatsapp",
       label: "Evolution / WhatsApp",
       configured: Boolean(
-        process.env["EVOLUTION_API_URL"]?.trim() && process.env["EVOLUTION_API_KEY"]?.trim(),
+        firstEnv([
+          "EVOLUTION_API_URL",
+          "EVOLUTION_URL",
+          "EVOLUTION_SERVER_URL",
+          "EVOLUTION_BASE_URL",
+        ]) && firstEnv(["EVOLUTION_API_KEY", "EVOLUTION_GLOBAL_API_KEY", "AUTHENTICATION_API_KEY"]),
       ),
     },
     {

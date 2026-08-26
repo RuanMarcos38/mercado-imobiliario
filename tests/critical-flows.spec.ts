@@ -117,13 +117,16 @@ describe("MercadoImobi product invariants", () => {
     const envExample = source(".env.example");
     const assistant = source("src/lib/ai-assistant.functions.ts");
     const evolutionSender = source("src/lib/evolution-text.server.ts");
+    const evolutionConfig = source("src/lib/evolution-instance.server.ts");
 
     expect(envExample).toContain("OPENAI_API_KEY=");
     expect(envExample).toContain("EVOLUTION_API_KEY=");
     expect(envExample).not.toContain("VITE_OPENAI_API_KEY");
     expect(envExample).not.toContain("VITE_EVOLUTION_API_KEY");
     expect(assistant).toContain('process.env["OPENAI_API_KEY"]');
-    expect(evolutionSender).toContain('process.env["EVOLUTION_API_KEY"]');
+    expect(evolutionSender).toContain("evolutionGatewayConfig");
+    expect(evolutionConfig).toContain('"EVOLUTION_API_KEY"');
+    expect(evolutionConfig).toContain('"AUTHENTICATION_API_KEY"');
   });
 
   it("keeps the Lovable template visual primitives and paginates the full property base", () => {

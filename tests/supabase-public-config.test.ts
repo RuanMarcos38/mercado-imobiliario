@@ -6,8 +6,8 @@ import {
   PUBLIC_SUPABASE_URL,
 } from "../src/integrations/supabase/public-config";
 
-const MERCADOIMOBI_PROJECT = "uwzfgksmnqgaxtscwxow";
-const FORBIDDEN_PROJECTS = ["iqrnytsgwaiegddfxfjs"];
+const MERCADOIMOBI_PROJECT = "rjlqylmwenhzkzmqwris";
+const FORBIDDEN_PROJECTS = ["uwzfgksmnqgaxtscwxow", "iqrnytsgwaiegddfxfjs"];
 
 describe("Supabase public configuration", () => {
   it("keeps MercadoImobi bound to its production Supabase project", () => {

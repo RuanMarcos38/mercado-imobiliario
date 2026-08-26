@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { evolutionGatewayConfig } from "@/lib/evolution-instance.server";
 import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { syncEvolutionInboxForTenant } from "@/lib/whatsapp-inbox-sync.server";
@@ -42,11 +43,10 @@ export interface WhatsAppMessage {
 }
 
 function evolutionConfig() {
-  const baseUrl = process.env["EVOLUTION_API_URL"]?.replace(/\/$/, "");
-  const apiKey = process.env["EVOLUTION_API_KEY"];
+  const gateway = evolutionGatewayConfig();
   const instance = process.env["EVOLUTION_INSTANCE"];
-  if (!baseUrl || !apiKey || !instance) return null;
-  return { baseUrl, apiKey, instance };
+  if (!gateway || !instance) return null;
+  return { ...gateway, instance };
 }
 
 async function evolutionRequest(path: string, init?: RequestInit) {

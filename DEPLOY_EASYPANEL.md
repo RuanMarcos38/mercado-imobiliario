@@ -21,12 +21,12 @@ Crie um **App** a partir do GitHub e selecione o `Dockerfile` da raiz.
 
 ## 3. Supabase correto do MercadoImobi
 
-O MercadoImobi usa exclusivamente o projeto **RM NEGOCIO IMOBILIARIO**:
+O MercadoImobi/Casa Conectada usa exclusivamente o projeto dedicado:
 
-- Project ID: `uwzfgksmnqgaxtscwxow`
-- URL: `https://uwzfgksmnqgaxtscwxow.supabase.co`
+- Project ID: `rjlqylmwenhzkzmqwris`
+- URL: `https://rjlqylmwenhzkzmqwris.supabase.co`
 
-Não usar o projeto antigo `rjlqylmwenhzkzmqwris` no EasyPanel, no build ou no runtime.
+Não usar os projetos `uwzfgksmnqgaxtscwxow` ou `iqrnytsgwaiegddfxfjs` no EasyPanel, no build ou no runtime.
 O frontend também está fixado no projeto correto para impedir que variáveis antigas de ambiente
 redirecionem a autenticação para outro Supabase.
 
@@ -34,9 +34,9 @@ redirecionem a autenticação para outro Supabase.
 
 As variáveis `VITE_*`, quando configuradas no EasyPanel, devem apontar para o mesmo projeto:
 
-- `VITE_SUPABASE_URL=https://uwzfgksmnqgaxtscwxow.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto uwzfgksmnqgaxtscwxow>`
-- `VITE_SUPABASE_PROJECT_ID=uwzfgksmnqgaxtscwxow`
+- `VITE_SUPABASE_URL=https://rjlqylmwenhzkzmqwris.supabase.co`
+- `VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto rjlqylmwenhzkzmqwris>`
+- `VITE_SUPABASE_PROJECT_ID=rjlqylmwenhzkzmqwris`
 
 ## 5. Runtime environment
 
@@ -45,10 +45,10 @@ Configure no serviço:
 - `PORT=3000`
 - `HOST=0.0.0.0`
 - `NODE_ENV=production`
-- `SUPABASE_URL=https://uwzfgksmnqgaxtscwxow.supabase.co`
-- `SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto uwzfgksmnqgaxtscwxow>`
-- `SUPABASE_PROJECT_ID=uwzfgksmnqgaxtscwxow`
-- `SUPABASE_SERVICE_ROLE_KEY=<service role do projeto uwzfgksmnqgaxtscwxow>`
+- `SUPABASE_URL=https://rjlqylmwenhzkzmqwris.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY=<publishable key do projeto rjlqylmwenhzkzmqwris>`
+- `SUPABASE_PROJECT_ID=rjlqylmwenhzkzmqwris`
+- `SUPABASE_SERVICE_ROLE_KEY=<service role do projeto rjlqylmwenhzkzmqwris>`
 
 `SUPABASE_SERVICE_ROLE_KEY` é somente servidor e nunca pode usar prefixo `VITE_`.
 Uma service-role key de outro projeto causa falhas nas rotinas administrativas mesmo quando o login do navegador funciona.
@@ -73,7 +73,7 @@ Para considerar o backend principal pronto, confirme:
 - `status: operational`;
 - `database: ok`;
 - `search: available`;
-- `supabaseProjectId: uwzfgksmnqgaxtscwxow`;
+- `supabaseProjectId: rjlqylmwenhzkzmqwris`;
 - `indexedProperties >= 1000`;
 - `coveredStates >= 27`.
 

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { evolutionGatewayConfig } from "@/lib/evolution-instance.server";
 
 type JsonObject = Record<string, unknown>;
 
@@ -99,7 +100,7 @@ function instanceNameFromPayload(payload: JsonObject): string {
 
 function webhookAuthorized(request: Request, payload: JsonObject): boolean {
   const configuredSecret = process.env["WHATSAPP_WEBHOOK_SECRET"]?.trim();
-  const evolutionApiKey = process.env["EVOLUTION_API_KEY"]?.trim();
+  const evolutionApiKey = evolutionGatewayConfig()?.apiKey;
 
   // No webhook secret configured: preserve backward compatibility. The endpoint is
   // still tied to a configured Evolution instance before any database write occurs.
@@ -294,9 +295,36 @@ async function handleWebhook(request: Request) {
       .eq("id", conversation.id);
     processed += 1;
 
-    // A burst received in the same webhook must generate at most one AI turn per conversation.
-    // The latest inbound entry replaces earlier candidates from the same customer.
+    // Satisfaction replies are consumed before AI. When the text is not a pending
+    // rating, a new inbound message after closure reopens the conversation lifecycle.
     if (!fromMe && body) {
+      let satisfactionCaptured = false;
+      try {
+        const { captureAttendanceSatisfactionResponse, reopenClosedAttendanceAfterInbound } =
+          await import("@/lib/attendance-satisfaction.server");
+        const satisfaction = await captureAttendanceSatisfactionResponse({
+          tenantId: connection.tenant_id,
+          conversationId: conversation.id,
+          inboundText: body,
+          inboundSentAt: sentAt,
+          inboundExternalMessageId: externalMessageId,
+        });
+        satisfactionCaptured = satisfaction.captured;
+        if (!satisfactionCaptured) {
+          await reopenClosedAttendanceAfterInbound({
+            tenantId: connection.tenant_id,
+            conversationId: conversation.id,
+            inboundSentAt: sentAt,
+          });
+        }
+      } catch {
+        // This layer is additive and must never block normal WhatsApp ingestion.
+      }
+
+      if (satisfactionCaptured) continue;
+
+      // A burst received in the same webhook must generate at most one AI turn per conversation.
+      // The latest inbound entry replaces earlier candidates from the same customer.
       autoReplyCandidates.set(conversation.id, {
         tenantId: connection.tenant_id,
         conversationId: conversation.id,
