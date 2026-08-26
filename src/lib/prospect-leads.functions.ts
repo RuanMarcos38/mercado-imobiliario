@@ -460,7 +460,9 @@ export const getProspectRadarSnapshot = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireTenantId(context.supabase, context.userId);
-    const { getScheduledProspectRadarSnapshot } = await import("@/lib/prospect-radar.server");
+    const { ensureProspectRadarLoop, getScheduledProspectRadarSnapshot } =
+      await import("@/lib/prospect-radar.server");
+    ensureProspectRadarLoop();
     return getScheduledProspectRadarSnapshot();
   });
 

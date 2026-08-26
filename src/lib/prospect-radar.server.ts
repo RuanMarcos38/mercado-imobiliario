@@ -35,6 +35,8 @@ export type ProspectRadarSnapshot = {
 type CacheState = {
   snapshot: ProspectRadarSnapshot | null;
   running: Promise<ProspectRadarSnapshot> | null;
+  timerStarted: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
 };
 
 const globalState = globalThis as typeof globalThis & {
@@ -43,7 +45,12 @@ const globalState = globalThis as typeof globalThis & {
 
 function state(): CacheState {
   if (!globalState.__mercadoimobiProspectRadar) {
-    globalState.__mercadoimobiProspectRadar = { snapshot: null, running: null };
+    globalState.__mercadoimobiProspectRadar = {
+      snapshot: null,
+      running: null,
+      timerStarted: false,
+      timer: null,
+    };
   }
   return globalState.__mercadoimobiProspectRadar;
 }
@@ -384,4 +391,43 @@ export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot
 
 export function getScheduledProspectRadarSnapshot() {
   return state().snapshot;
+}
+
+export function ensureProspectRadarLoop() {
+  const cache = state();
+  if (cache.timerStarted) return;
+  cache.timerStarted = true;
+
+  const schedule = (delayMs: number) => {
+    cache.timer = setTimeout(async () => {
+      try {
+        await runScheduledProspectRadar();
+      } catch (error) {
+        console.error(
+          "[prospect-radar] automatic sweep failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      } finally {
+        schedule(60 * 60 * 1000);
+      }
+    }, delayMs);
+    cache.timer.unref?.();
+  };
+
+  // Primeira execução logo após o processo Node carregar as rotas; depois repete a cada 1 hora.
+  schedule(5_000);
+}
+
+export function getProspectRadarPublicStatus() {
+  const cache = state();
+  const snapshot = cache.snapshot;
+  return {
+    schedulerActive: cache.timerStarted,
+    running: Boolean(cache.running),
+    searchedAt: snapshot?.searchedAt ?? null,
+    nextRunAt: snapshot?.nextRunAt ?? null,
+    leads: snapshot?.result.leads.length ?? 0,
+    hot: snapshot?.result.leads.filter((lead) => lead.intentStage === "quente").length ?? 0,
+    providers: snapshot?.providers ?? [],
+  };
 }

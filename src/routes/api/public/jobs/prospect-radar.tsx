@@ -1,4 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  ensureProspectRadarLoop,
+  getProspectRadarPublicStatus,
+  runScheduledProspectRadar,
+} from "@/lib/prospect-radar.server";
+
+// A rota é carregada pelo servidor no boot. O scheduler usa somente memória do processo
+// e não cria tabela, migration ou escrita no Supabase.
+ensureProspectRadarLoop();
 
 function authorized(request: Request) {
   const expected =
@@ -9,11 +18,10 @@ function authorized(request: Request) {
   return Boolean(expected && received && expected === received);
 }
 
-async function handle(request: Request) {
+async function handlePost(request: Request) {
   if (!authorized(request)) {
     return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
-  const { runScheduledProspectRadar } = await import("@/lib/prospect-radar.server");
   const snapshot = await runScheduledProspectRadar();
   return Response.json({
     ok: true,
@@ -25,6 +33,16 @@ async function handle(request: Request) {
   });
 }
 
+function handleGet() {
+  // Status público contém apenas saúde e contagens agregadas; nenhum perfil, contato ou lead.
+  return Response.json({ ok: true, ...getProspectRadarPublicStatus() });
+}
+
 export const Route = createFileRoute("/api/public/jobs/prospect-radar")({
-  server: { handlers: { POST: ({ request }) => handle(request) } },
+  server: {
+    handlers: {
+      GET: () => handleGet(),
+      POST: ({ request }) => handlePost(request),
+    },
+  },
 });
