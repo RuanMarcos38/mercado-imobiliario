@@ -294,9 +294,37 @@ async function handleWebhook(request: Request) {
       .eq("id", conversation.id);
     processed += 1;
 
-    // A burst received in the same webhook must generate at most one AI turn per conversation.
-    // The latest inbound entry replaces earlier candidates from the same customer.
+    // A resposta da pesquisa é consumida antes da IA. Se não for uma nota pendente,
+    // uma nova interação após encerramento apenas reabre o ciclo atual, preservando o histórico.
     if (!fromMe && body) {
+      let satisfactionCaptured = false;
+      try {
+        const { captureAttendanceSatisfactionResponse, reopenClosedAttendanceAfterInbound } =
+          await import("@/lib/attendance-satisfaction.server");
+        const satisfaction = await captureAttendanceSatisfactionResponse({
+          tenantId: connection.tenant_id,
+          conversationId: conversation.id,
+          inboundText: body,
+          inboundSentAt: sentAt,
+          inboundExternalMessageId: externalMessageId,
+        });
+        satisfactionCaptured = satisfaction.captured;
+        if (!satisfactionCaptured) {
+          await reopenClosedAttendanceAfterInbound({
+            tenantId: connection.tenant_id,
+            conversationId: conversation.id,
+            inboundSentAt: sentAt,
+          });
+        }
+      } catch {
+        // A camada de satisfação é aditiva. Uma indisponibilidade nela nunca bloqueia
+        // o recebimento normal nem o atendimento existente.
+      }
+
+      if (satisfactionCaptured) continue;
+
+      // A burst received in the same webhook must generate at most one AI turn per conversation.
+      // The latest inbound entry replaces earlier candidates from the same customer.
       autoReplyCandidates.set(conversation.id, {
         tenantId: connection.tenant_id,
         conversationId: conversation.id,
