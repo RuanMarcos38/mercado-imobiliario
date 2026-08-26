@@ -1,0 +1,145 @@
+name: Full platform audit TEMP
+
+on:
+  push:
+    branches: [ops/full-platform-audit-20260826]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EASY: https://r2rmarketingdigital-mercadoimobi.ke4n49.easypanel.host
+      CUSTOM: https://mercadoimobi.rdmconsultoriaimobiliaria.com.br
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: production
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+      - name: Full tests
+        id: tests
+        continue-on-error: true
+        run: npm test
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm run build
+      - name: Live smoke audit
+        id: live
+        shell: bash
+        run: |
+          set +e
+          FAIL=0
+          WARN=0
+          PASS=0
+          report(){ printf '%-42s %-6s %s\n' "$1" "$2" "$3"; }
+          pass(){ PASS=$((PASS+1)); report "$1" PASS "$2"; }
+          warn(){ WARN=$((WARN+1)); report "$1" WARN "$2"; }
+          fail(){ FAIL=$((FAIL+1)); report "$1" FAIL "$2"; }
+          code(){ curl -ksS -o /tmp/body -D /tmp/head --connect-timeout 8 --max-time 25 -w '%{http_code}' "$1"; }
+
+          echo '===== LIVE PLATFORM AUDIT ====='
+          echo "EasyPanel: $EASY"
+          echo "Custom: $CUSTOM"
+          echo
+
+          for BASE_NAME in EASY CUSTOM; do
+            BASE="${!BASE_NAME}"
+            echo "===== $BASE_NAME ====="
+            C=$(code "$BASE/")
+            if [[ "$C" =~ ^2|^3 ]]; then pass "$BASE_NAME homepage" "HTTP $C"; else fail "$BASE_NAME homepage" "HTTP $C"; fi
+
+            C=$(code "$BASE/auth")
+            if [[ "$C" =~ ^2|^3 ]]; then pass "$BASE_NAME auth page" "HTTP $C"; else fail "$BASE_NAME auth page" "HTTP $C"; fi
+
+            C=$(code "$BASE/api/public/status")
+            if [ "$C" = 200 ]; then
+              cp /tmp/body "/tmp/status-$BASE_NAME.json"
+              if node -e 'const f=require("fs");const p=JSON.parse(f.readFileSync(process.argv[1],"utf8"));process.exit(p&&p.runtime?0:1)' "/tmp/status-$BASE_NAME.json"; then
+                pass "$BASE_NAME public status" "JSON válido"
+                echo "STATUS_JSON_$BASE_NAME=$(cat /tmp/status-$BASE_NAME.json)"
+              else fail "$BASE_NAME public status" "JSON inesperado"; fi
+            else fail "$BASE_NAME public status" "HTTP $C"; fi
+          done
+
+          echo
+          echo '===== AUTHENTICATED ROUTE ROUTING (no session; must never 5xx) ====='
+          for P in dashboard buscar leiloes alertas atendimento prospectos crm integracoes central-integracoes assinatura assistente analise-localizacao simulador-financiamento speed-to-lead midias-sociais parcerias fluxos diagnostico discador email-cca admin/usuarios admin/parametros; do
+            C=$(code "$EASY/$P")
+            if [[ "$C" =~ ^5 ]]; then fail "route /$P" "HTTP $C"; elif [[ "$C" =~ ^2|^3|^401|^403 ]]; then pass "route /$P" "HTTP $C"; else warn "route /$P" "HTTP $C"; fi
+          done
+
+          echo
+          echo '===== PUBLIC / INTEGRATION ENDPOINTS ====='
+          C=$(code "$EASY/api/public/jobs/prospect-radar")
+          if [ "$C" = 200 ]; then pass 'prospect radar health' "HTTP 200 $(cat /tmp/body)"; else fail 'prospect radar health' "HTTP $C"; fi
+
+          for P in api/v1/properties api/v1/leads api/v1/appointments; do
+            C=$(code "$EASY/$P")
+            if [[ "$C" =~ ^401|^403 ]]; then pass "protected /$P" "HTTP $C"; elif [[ "$C" =~ ^5 ]]; then fail "protected /$P" "HTTP $C"; else warn "protected /$P" "HTTP $C (esperado 401/403 sem chave)"; fi
+          done
+
+          for P in api/public/jobs/crm-automations api/public/jobs/external-property-links api/public/jobs/property-discovery api/public/jobs/property-feeds; do
+            C=$(curl -ksS -X POST -o /tmp/body -D /tmp/head --connect-timeout 8 --max-time 25 -w '%{http_code}' "$EASY/$P")
+            if [[ "$C" =~ ^401|^403 ]]; then pass "protected job /$P" "HTTP $C"; elif [[ "$C" =~ ^5 ]]; then fail "protected job /$P" "HTTP $C"; else warn "protected job /$P" "HTTP $C sem segredo"; fi
+          done
+
+          for P in api/public/hooks/asaas api/public/hooks/leads api/public/hooks/n8n-webhook api/public/hooks/properties api/public/hooks/stripe api/public/hooks/whatsapp; do
+            C=$(curl -ksS -X POST -H 'content-type: application/json' --data '{}' -o /tmp/body -D /tmp/head --connect-timeout 8 --max-time 25 -w '%{http_code}' "$EASY/$P")
+            if [[ "$C" =~ ^5 ]]; then fail "webhook /$P" "HTTP $C"; elif [[ "$C" =~ ^400|^401|^403|^405|^422 ]]; then pass "webhook /$P" "rejeitou payload vazio com HTTP $C"; else warn "webhook /$P" "HTTP $C para payload vazio"; fi
+          done
+
+          for O in google meta; do
+            C=$(code "$EASY/api/public/oauth/$O")
+            LOC=$(grep -i '^location:' /tmp/head | tail -1 | tr -d '\r' | cut -c1-180)
+            if [[ "$C" =~ ^3 ]]; then pass "OAuth $O" "HTTP $C $LOC"; elif [[ "$C" =~ ^5 ]]; then fail "OAuth $O" "HTTP $C $(head -c 220 /tmp/body)"; else warn "OAuth $O" "HTTP $C $(head -c 220 /tmp/body)"; fi
+          done
+
+          C=$(code "$EASY/robots.txt")
+          if [ "$C" = 200 ]; then pass 'robots.txt' 'HTTP 200'; else warn 'robots.txt' "HTTP $C"; fi
+
+          C=$(code "$EASY/.mcp/list-tools")
+          if [[ "$C" =~ ^2|^401|^403 ]]; then pass 'MCP route' "HTTP $C"; elif [[ "$C" =~ ^5 ]]; then fail 'MCP route' "HTTP $C"; else warn 'MCP route' "HTTP $C"; fi
+
+          echo
+          echo '===== PARSE EASY STATUS ====='
+          if [ -f /tmp/status-EASY.json ]; then
+            node - <<'NODE'
+          const p=require('/tmp/status-EASY.json');
+          console.log(JSON.stringify({
+            status:p.status, release:p.release, database:p.database, search:p.search,
+            indexedProperties:p.indexedProperties, coveredStates:p.coveredStates,
+            latestUpdate:p.latestUpdate, synchronization:p.synchronization, runtime:p.runtime
+          },null,2));
+          NODE
+          fi
+
+          echo
+          echo "LIVE_SUMMARY pass=$PASS warn=$WARN fail=$FAIL"
+          echo "pass=$PASS" >> "$GITHUB_OUTPUT"
+          echo "warn=$WARN" >> "$GITHUB_OUTPUT"
+          echo "fail=$FAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Final audit summary
+        if: always()
+        shell: bash
+        run: |
+          echo '===== FINAL AUDIT SUMMARY ====='
+          echo "lint=${{ steps.lint.outcome }}"
+          echo "tests=${{ steps.tests.outcome }}"
+          echo "build=${{ steps.build.outcome }}"
+          echo "live_pass=${{ steps.live.outputs.pass }}"
+          echo "live_warn=${{ steps.live.outputs.warn }}"
+          echo "live_fail=${{ steps.live.outputs.fail }}"
