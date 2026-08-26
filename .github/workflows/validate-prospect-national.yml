@@ -1,0 +1,79 @@
+name: Validate nationwide prospect radar
+
+on:
+  push:
+    branches:
+      - feat/prospect-radar-social-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PROJECT_ID: example
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply isolated nationwide prospect patch
+        run: python .github/scripts/apply-national-prospect-radar.py
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Format changed product files
+        run: npx prettier --write src/lib/prospect-leads.functions.ts src/routes/_authenticated/prospectos.tsx tests/prospect-leads.test.ts
+      - name: Verify nationwide markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'Brasil — todo território nacional' src/routes/_authenticated/prospectos.tsx >/dev/null
+          grep -F 'A abrangência é NACIONAL' src/lib/prospect-leads.functions.ts >/dev/null
+          grep -F 'Norte, Nordeste, Centro-Oeste, Sudeste e Sul' src/lib/prospect-leads.functions.ts >/dev/null
+          grep -F 'AC, AL, AP, AM, BA' src/lib/prospect-leads.functions.ts >/dev/null
+      - name: Lint
+        run: npm run lint
+      - name: Prospect tests
+        run: npx vitest run tests/prospect-leads.test.ts
+      - name: Full regression tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Commit validated product changes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout HEAD -- src/routeTree.gen.ts 2>/dev/null || true
+          git checkout HEAD -- public/mcp/openapi.json 2>/dev/null || true
+          git checkout HEAD -- public/mcp/llms.txt 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/invoke-tool/$tool.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.mcp]/list-tools.ts' 2>/dev/null || true
+          git checkout HEAD -- 'src/routes/[.well-known]/oauth-protected-resource.ts' 2>/dev/null || true
+          git checkout HEAD -- src/routes/mcp.ts 2>/dev/null || true
+          changed="$(git diff --name-only | sort)"
+          allowed='src/lib/prospect-leads.functions.ts
+          src/routes/_authenticated/prospectos.tsx
+          tests/prospect-leads.test.ts'
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "$allowed" | sed 's/^ *//' | grep -Fx "$file" >/dev/null || {
+              echo "Unexpected product diff: $file"
+              exit 1
+            }
+          done <<< "$changed"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/prospect-leads.functions.ts src/routes/_authenticated/prospectos.tsx tests/prospect-leads.test.ts
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: ampliar prospecção imobiliária para todo o Brasil'
+            git push origin HEAD:${{ github.ref_name }}
+          fi
