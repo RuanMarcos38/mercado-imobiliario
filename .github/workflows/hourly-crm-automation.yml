@@ -20,10 +20,10 @@ jobs:
           JOB_KEY: ${{ secrets.CRM_AUTOMATION_JOB_SECRET || secrets.PROPERTY_FEED_SYNC_SECRET }}
         run: |
           set -euo pipefail
-          BASE_URL="${BASE_URL:-https://mercadoimobi.rdmconsultoriaimobiliaria.com.br}"
+          BASE_URL="${BASE_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
           BASE_URL="${BASE_URL%/}"
           if [ -z "${JOB_KEY:-}" ]; then
-            echo "::notice::Configure CRM_AUTOMATION_JOB_SECRET ou mantenha PROPERTY_FEED_SYNC_SECRET disponível para ativar as rotinas horárias."
+            echo "::notice::GitHub secret ausente; as rotinas internas continuam pelo cron protegido do Supabase Vault."
             exit 0
           fi
 
