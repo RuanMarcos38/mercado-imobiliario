@@ -45,6 +45,8 @@ export interface WhatsAppMessage {
   message_type: string;
   body: string | null;
   media_url: string | null;
+  media_file_name: string | null;
+  media_mime_type: string | null;
   status: string;
   sender_name: string | null;
   sent_at: string;
@@ -219,13 +221,48 @@ export const listWhatsAppMessages = createServerFn({ method: "POST" })
 
     const { data: messages, error } = await db
       .from("whatsapp_messages")
-      .select("id,direction,message_type,body,media_url,status,sender_name,sent_at")
+      .select("id,direction,message_type,body,media_url,status,sender_name,sent_at,raw_payload")
       .eq("tenant_id", tenantId)
       .eq("conversation_id", data.conversationId)
       .order("sent_at", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
-    return (messages ?? []) as WhatsAppMessage[];
+
+    const storagePrefix = "storage://whatsapp-media/";
+    return Promise.all(
+      (messages ?? []).map(async (row: Record<string, any>): Promise<WhatsAppMessage> => {
+        const rawPayload =
+          row.raw_payload && typeof row.raw_payload === "object"
+            ? (row.raw_payload as Record<string, unknown>)
+            : {};
+        let mediaUrl = typeof row.media_url === "string" ? row.media_url : null;
+        if (mediaUrl?.startsWith(storagePrefix)) {
+          const storagePath = mediaUrl.slice(storagePrefix.length);
+          const { data: signed } = await supabaseAdmin.storage
+            .from("whatsapp-media")
+            .createSignedUrl(storagePath, 60 * 60);
+          mediaUrl = signed?.signedUrl ?? null;
+        }
+        return {
+          id: String(row.id),
+          direction: row.direction === "outbound" ? "outbound" : "inbound",
+          message_type: String(row.message_type ?? "text"),
+          body: typeof row.body === "string" ? row.body : null,
+          media_url: mediaUrl,
+          media_file_name:
+            typeof rawPayload["mercadoimobi_file_name"] === "string"
+              ? String(rawPayload["mercadoimobi_file_name"])
+              : null,
+          media_mime_type:
+            typeof rawPayload["mercadoimobi_mime_type"] === "string"
+              ? String(rawPayload["mercadoimobi_mime_type"])
+              : null,
+          status: String(row.status ?? "received"),
+          sender_name: typeof row.sender_name === "string" ? row.sender_name : null,
+          sent_at: String(row.sent_at),
+        };
+      }),
+    );
   });
 
 export const markWhatsAppConversationRead = createServerFn({ method: "POST" })

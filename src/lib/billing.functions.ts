@@ -2,6 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  asaasConfigured,
+  createAsaasSubscriptionCheckout,
+  type AsaasBillingType,
+} from "@/lib/asaas-billing.server";
 import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 
 export interface BillingPlan {
@@ -25,13 +30,17 @@ export interface BillingPlan {
 
 export interface BillingOverview {
   configured: boolean;
+  provider: "asaas" | "stripe" | null;
   subscription: {
     status: string;
     currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
     trialEnd: string | null;
+    billingProvider: string | null;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
+    asaasCustomerId: string | null;
+    asaasSubscriptionId: string | null;
     planId: string | null;
     planSlug: string | null;
     planName: string | null;
@@ -39,12 +48,29 @@ export interface BillingOverview {
   plans: BillingPlan[];
 }
 
-const checkoutSchema = z.object({ planId: z.string().uuid() });
+const checkoutSchema = z.object({
+  planId: z.string().uuid(),
+  paymentMethod: z.enum(["PIX", "BOLETO", "CREDIT_CARD"]).optional(),
+});
 
 function requestOrigin() {
   const request = getRequest();
   if (!request?.url) return platformBaseUrl();
-  return new URL(request.url).origin;
+
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.trim();
+
+  if (forwardedHost) {
+    const easypanelHost = forwardedHost.toLowerCase().endsWith(".easypanel.host");
+    const protocol =
+      forwardedProto === "https" || easypanelHost ? "https" : url.protocol.replace(":", "");
+    return `${protocol}://${forwardedHost}`;
+  }
+
+  return url.origin.replace(/^http:\/\/([^/]*\.easypanel\.host)/i, "https://$1");
 }
 
 async function stripePost(path: string, body: URLSearchParams) {
@@ -96,12 +122,14 @@ export const getMyBillingOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<BillingOverview> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
+    const asaasReady = await asaasConfigured();
+    const stripeReady = Boolean(process.env["STRIPE_SECRET_KEY"]?.trim());
 
     const [{ data: subscription }, { data: plans }] = await Promise.all([
       db
         .from("subscriptions")
         .select(
-          "status,current_period_start,current_period_end,trial_end,stripe_customer_id,stripe_subscription_id,plan_id,created_at",
+          "status,current_period_start,current_period_end,trial_end,billing_provider,stripe_customer_id,stripe_subscription_id,asaas_customer_id,asaas_subscription_id,plan_id,created_at",
         )
         .eq("user_id", context.userId)
         .order("created_at", { ascending: false })
@@ -128,15 +156,19 @@ export const getMyBillingOverview = createServerFn({ method: "GET" })
     }
 
     return {
-      configured: Boolean(process.env["STRIPE_SECRET_KEY"]),
+      configured: asaasReady || stripeReady,
+      provider: asaasReady ? "asaas" : stripeReady ? "stripe" : null,
       subscription: subscription
         ? {
             status: String(subscription.status),
             currentPeriodStart: subscription.current_period_start ?? null,
             currentPeriodEnd: subscription.current_period_end ?? null,
             trialEnd: subscription.trial_end ?? null,
+            billingProvider: subscription.billing_provider ?? null,
             stripeCustomerId: subscription.stripe_customer_id ?? null,
             stripeSubscriptionId: subscription.stripe_subscription_id ?? null,
+            asaasCustomerId: subscription.asaas_customer_id ?? null,
+            asaasSubscriptionId: subscription.asaas_subscription_id ?? null,
             planId: subscription.plan_id ?? null,
             planSlug: selectedPlan?.slug ? String(selectedPlan.slug) : null,
             planName: selectedPlan?.name ? String(selectedPlan.name) : null,
@@ -150,14 +182,18 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => checkoutSchema.parse(data))
   .handler(async ({ data, context }) => {
-    if (!process.env["STRIPE_SECRET_KEY"]) throw new Error("STRIPE_NOT_CONFIGURED");
+    const asaasReady = await asaasConfigured();
+    const stripeReady = Boolean(process.env["STRIPE_SECRET_KEY"]?.trim());
+    if (!asaasReady && !stripeReady) throw new Error("PAYMENT_GATEWAY_NOT_CONFIGURED");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const [{ data: subscription }, { data: plan }, userResult] = await Promise.all([
       db
         .from("subscriptions")
-        .select("stripe_customer_id,stripe_subscription_id,status,plan_id")
+        .select(
+          "stripe_customer_id,stripe_subscription_id,asaas_customer_id,asaas_subscription_id,status,plan_id,billing_provider",
+        )
         .eq("user_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -178,7 +214,7 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
     if (userResult.error || !userResult.data.user) throw new Error("Conta não encontrada.");
 
     if (
-      subscription?.stripe_subscription_id &&
+      (subscription?.stripe_subscription_id || subscription?.asaas_subscription_id) &&
       subscription?.status === "active" &&
       subscription?.plan_id !== data.planId
     ) {
@@ -187,6 +223,29 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
 
     const origin = requestOrigin();
     if (!origin) throw new Error("PUBLIC_URL_NOT_CONFIGURED");
+
+    if (asaasReady) {
+      const checkout = await createAsaasSubscriptionCheckout({
+        origin,
+        userId: context.userId,
+        paymentMethod: data.paymentMethod as AsaasBillingType | undefined,
+        plan: {
+          id: String(plan.id),
+          slug: String(plan.slug),
+          name: String(plan.name),
+          description: plan.description ? String(plan.description) : null,
+          price_monthly: Number(plan.price_monthly),
+          onboarding_fee: Number(plan.onboarding_fee ?? 0),
+        },
+        customerEmail: userResult.data.user.email ?? null,
+      });
+      return {
+        url: checkout.url,
+        planId: String(plan.id),
+        planSlug: String(plan.slug),
+        provider: checkout.provider,
+      };
+    }
 
     const body = new URLSearchParams();
     body.set("mode", "subscription");
@@ -253,7 +312,12 @@ export const createSubscriptionCheckout = createServerFn({ method: "POST" })
     const payload = await stripePost("/checkout/sessions", body);
     const url = typeof payload["url"] === "string" ? payload["url"] : null;
     if (!url) throw new Error("Checkout não retornou uma URL válida.");
-    return { url, planId: String(plan.id), planSlug: String(plan.slug) };
+    return {
+      url,
+      planId: String(plan.id),
+      planSlug: String(plan.slug),
+      provider: "stripe" as const,
+    };
   });
 
 export const createSubscriberPortal = createServerFn({ method: "POST" })
@@ -263,12 +327,13 @@ export const createSubscriberPortal = createServerFn({ method: "POST" })
     const db = supabaseAdmin as any;
     const { data: subscription } = await db
       .from("subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id,billing_provider")
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    if (subscription?.billing_provider === "asaas") throw new Error("ASAAS_PORTAL_NOT_AVAILABLE");
     if (!subscription?.stripe_customer_id) throw new Error("STRIPE_CUSTOMER_NOT_FOUND");
     const origin = requestOrigin();
     if (!origin) throw new Error("PUBLIC_URL_NOT_CONFIGURED");

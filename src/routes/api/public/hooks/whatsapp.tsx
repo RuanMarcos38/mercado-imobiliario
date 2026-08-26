@@ -295,8 +295,8 @@ async function handleWebhook(request: Request) {
       .eq("id", conversation.id);
     processed += 1;
 
-    // Satisfaction replies are consumed before AI. When the text is not a pending
-    // rating, a new inbound message after closure reopens the conversation lifecycle.
+    // A resposta da pesquisa é consumida antes da IA. Se não for uma nota pendente,
+    // uma nova interação após encerramento apenas reabre o ciclo atual, preservando o histórico.
     if (!fromMe && body) {
       let satisfactionCaptured = false;
       try {
@@ -318,7 +318,8 @@ async function handleWebhook(request: Request) {
           });
         }
       } catch {
-        // This layer is additive and must never block normal WhatsApp ingestion.
+        // A camada de satisfação é aditiva. Uma indisponibilidade nela nunca bloqueia
+        // o recebimento normal nem o atendimento existente.
       }
 
       if (satisfactionCaptured) continue;

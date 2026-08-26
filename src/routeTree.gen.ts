@@ -33,6 +33,7 @@ import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedLeiloesRouteImport } from './routes/_authenticated/leiloes'
 import { Route as AuthenticatedMidiasSociaisRouteImport } from './routes/_authenticated/midias-sociais'
 import { Route as AuthenticatedParceriasRouteImport } from './routes/_authenticated/parcerias'
+import { Route as AuthenticatedProspectosRouteImport } from './routes/_authenticated/prospectos'
 import { Route as AuthenticatedSimuladorFinanciamentoRouteImport } from './routes/_authenticated/simulador-financiamento'
 import { Route as AuthenticatedSpeedToLeadRouteImport } from './routes/_authenticated/speed-to-lead'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -46,15 +47,18 @@ import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
 import { Route as ApiV1AppointmentsRouteImport } from './routes/api/v1/appointments'
 import { Route as ApiV1LeadsRouteImport } from './routes/api/v1/leads'
 import { Route as ApiV1PropertiesRouteImport } from './routes/api/v1/properties'
+import { Route as ApiPublicHooksAsaasRouteImport } from './routes/api/public/hooks/asaas'
 import { Route as ApiPublicHooksLeadsRouteImport } from './routes/api/public/hooks/leads'
 import { Route as ApiPublicHooksN8nWebhookRouteImport } from './routes/api/public/hooks/n8n-webhook'
 import { Route as ApiPublicHooksPropertiesRouteImport } from './routes/api/public/hooks/properties'
 import { Route as ApiPublicHooksStripeRouteImport } from './routes/api/public/hooks/stripe'
 import { Route as ApiPublicHooksWhatsappRouteImport } from './routes/api/public/hooks/whatsapp'
+import { Route as ApiPublicJobsAttendanceSurveysRouteImport } from './routes/api/public/jobs/attendance-surveys'
 import { Route as ApiPublicJobsCrmAutomationsRouteImport } from './routes/api/public/jobs/crm-automations'
 import { Route as ApiPublicJobsExternalPropertyLinksRouteImport } from './routes/api/public/jobs/external-property-links'
 import { Route as ApiPublicJobsPropertyDiscoveryRouteImport } from './routes/api/public/jobs/property-discovery'
 import { Route as ApiPublicJobsPropertyFeedsRouteImport } from './routes/api/public/jobs/property-feeds'
+import { Route as ApiPublicJobsProspectRadarRouteImport } from './routes/api/public/jobs/prospect-radar'
 import { Route as ApiPublicOauthGoogleRouteImport } from './routes/api/public/oauth/google'
 import { Route as ApiPublicOauthMetaRouteImport } from './routes/api/public/oauth/meta'
 import { Route as ApiPublicVoiceBridgeRouteImport } from './routes/api/public/voice/bridge'
@@ -186,6 +190,11 @@ const AuthenticatedParceriasRoute = AuthenticatedParceriasRouteImport.update({
   path: '/parcerias',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedProspectosRoute = AuthenticatedProspectosRouteImport.update({
+  id: '/prospectos',
+  path: '/prospectos',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSimuladorFinanciamentoRoute =
   AuthenticatedSimuladorFinanciamentoRouteImport.update({
     id: '/simulador-financiamento',
@@ -260,6 +269,11 @@ const ApiV1PropertiesRoute = ApiV1PropertiesRouteImport.update({
   path: '/api/v1/properties',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksAsaasRoute = ApiPublicHooksAsaasRouteImport.update({
+  id: '/api/public/hooks/asaas',
+  path: '/api/public/hooks/asaas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksLeadsRoute = ApiPublicHooksLeadsRouteImport.update({
   id: '/api/public/hooks/leads',
   path: '/api/public/hooks/leads',
@@ -287,6 +301,12 @@ const ApiPublicHooksWhatsappRoute = ApiPublicHooksWhatsappRouteImport.update({
   path: '/api/public/hooks/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicJobsAttendanceSurveysRoute =
+  ApiPublicJobsAttendanceSurveysRouteImport.update({
+    id: '/api/public/jobs/attendance-surveys',
+    path: '/api/public/jobs/attendance-surveys',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJobsCrmAutomationsRoute =
   ApiPublicJobsCrmAutomationsRouteImport.update({
     id: '/api/public/jobs/crm-automations',
@@ -309,6 +329,12 @@ const ApiPublicJobsPropertyFeedsRoute =
   ApiPublicJobsPropertyFeedsRouteImport.update({
     id: '/api/public/jobs/property-feeds',
     path: '/api/public/jobs/property-feeds',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicJobsProspectRadarRoute =
+  ApiPublicJobsProspectRadarRouteImport.update({
+    id: '/api/public/jobs/prospect-radar',
+    path: '/api/public/jobs/prospect-radar',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicOauthGoogleRoute = ApiPublicOauthGoogleRouteImport.update({
@@ -351,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/leiloes': typeof AuthenticatedLeiloesRoute
   '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
   '/parcerias': typeof AuthenticatedParceriasRoute
+  '/prospectos': typeof AuthenticatedProspectosRoute
   '/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -364,15 +391,18 @@ export interface FileRoutesByFullPath {
   '/api/v1/appointments': typeof ApiV1AppointmentsRoute
   '/api/v1/leads': typeof ApiV1LeadsRoute
   '/api/v1/properties': typeof ApiV1PropertiesRoute
+  '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
   '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/attendance-surveys': typeof ApiPublicJobsAttendanceSurveysRoute
   '/api/public/jobs/crm-automations': typeof ApiPublicJobsCrmAutomationsRoute
   '/api/public/jobs/external-property-links': typeof ApiPublicJobsExternalPropertyLinksRoute
   '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
   '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/jobs/prospect-radar': typeof ApiPublicJobsProspectRadarRoute
   '/api/public/oauth/google': typeof ApiPublicOauthGoogleRoute
   '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
   '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
@@ -401,6 +431,7 @@ export interface FileRoutesByTo {
   '/leiloes': typeof AuthenticatedLeiloesRoute
   '/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
   '/parcerias': typeof AuthenticatedParceriasRoute
+  '/prospectos': typeof AuthenticatedProspectosRoute
   '/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -414,15 +445,18 @@ export interface FileRoutesByTo {
   '/api/v1/appointments': typeof ApiV1AppointmentsRoute
   '/api/v1/leads': typeof ApiV1LeadsRoute
   '/api/v1/properties': typeof ApiV1PropertiesRoute
+  '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
   '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/attendance-surveys': typeof ApiPublicJobsAttendanceSurveysRoute
   '/api/public/jobs/crm-automations': typeof ApiPublicJobsCrmAutomationsRoute
   '/api/public/jobs/external-property-links': typeof ApiPublicJobsExternalPropertyLinksRoute
   '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
   '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/jobs/prospect-radar': typeof ApiPublicJobsProspectRadarRoute
   '/api/public/oauth/google': typeof ApiPublicOauthGoogleRoute
   '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
   '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
@@ -453,6 +487,7 @@ export interface FileRoutesById {
   '/_authenticated/leiloes': typeof AuthenticatedLeiloesRoute
   '/_authenticated/midias-sociais': typeof AuthenticatedMidiasSociaisRoute
   '/_authenticated/parcerias': typeof AuthenticatedParceriasRoute
+  '/_authenticated/prospectos': typeof AuthenticatedProspectosRoute
   '/_authenticated/simulador-financiamento': typeof AuthenticatedSimuladorFinanciamentoRoute
   '/_authenticated/speed-to-lead': typeof AuthenticatedSpeedToLeadRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -466,15 +501,18 @@ export interface FileRoutesById {
   '/api/v1/appointments': typeof ApiV1AppointmentsRoute
   '/api/v1/leads': typeof ApiV1LeadsRoute
   '/api/v1/properties': typeof ApiV1PropertiesRoute
+  '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
   '/api/public/hooks/whatsapp': typeof ApiPublicHooksWhatsappRoute
+  '/api/public/jobs/attendance-surveys': typeof ApiPublicJobsAttendanceSurveysRoute
   '/api/public/jobs/crm-automations': typeof ApiPublicJobsCrmAutomationsRoute
   '/api/public/jobs/external-property-links': typeof ApiPublicJobsExternalPropertyLinksRoute
   '/api/public/jobs/property-discovery': typeof ApiPublicJobsPropertyDiscoveryRoute
   '/api/public/jobs/property-feeds': typeof ApiPublicJobsPropertyFeedsRoute
+  '/api/public/jobs/prospect-radar': typeof ApiPublicJobsProspectRadarRoute
   '/api/public/oauth/google': typeof ApiPublicOauthGoogleRoute
   '/api/public/oauth/meta': typeof ApiPublicOauthMetaRoute
   '/api/public/voice/bridge': typeof ApiPublicVoiceBridgeRoute
@@ -505,6 +543,7 @@ export interface FileRouteTypes {
     | '/leiloes'
     | '/midias-sociais'
     | '/parcerias'
+    | '/prospectos'
     | '/simulador-financiamento'
     | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
@@ -518,15 +557,18 @@ export interface FileRouteTypes {
     | '/api/v1/appointments'
     | '/api/v1/leads'
     | '/api/v1/properties'
+    | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
     | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/attendance-surveys'
     | '/api/public/jobs/crm-automations'
     | '/api/public/jobs/external-property-links'
     | '/api/public/jobs/property-discovery'
     | '/api/public/jobs/property-feeds'
+    | '/api/public/jobs/prospect-radar'
     | '/api/public/oauth/google'
     | '/api/public/oauth/meta'
     | '/api/public/voice/bridge'
@@ -555,6 +597,7 @@ export interface FileRouteTypes {
     | '/leiloes'
     | '/midias-sociais'
     | '/parcerias'
+    | '/prospectos'
     | '/simulador-financiamento'
     | '/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
@@ -568,15 +611,18 @@ export interface FileRouteTypes {
     | '/api/v1/appointments'
     | '/api/v1/leads'
     | '/api/v1/properties'
+    | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
     | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/attendance-surveys'
     | '/api/public/jobs/crm-automations'
     | '/api/public/jobs/external-property-links'
     | '/api/public/jobs/property-discovery'
     | '/api/public/jobs/property-feeds'
+    | '/api/public/jobs/prospect-radar'
     | '/api/public/oauth/google'
     | '/api/public/oauth/meta'
     | '/api/public/voice/bridge'
@@ -606,6 +652,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leiloes'
     | '/_authenticated/midias-sociais'
     | '/_authenticated/parcerias'
+    | '/_authenticated/prospectos'
     | '/_authenticated/simulador-financiamento'
     | '/_authenticated/speed-to-lead'
     | '/.mcp/invoke-tool/$tool'
@@ -619,15 +666,18 @@ export interface FileRouteTypes {
     | '/api/v1/appointments'
     | '/api/v1/leads'
     | '/api/v1/properties'
+    | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
     | '/api/public/hooks/whatsapp'
+    | '/api/public/jobs/attendance-surveys'
     | '/api/public/jobs/crm-automations'
     | '/api/public/jobs/external-property-links'
     | '/api/public/jobs/property-discovery'
     | '/api/public/jobs/property-feeds'
+    | '/api/public/jobs/prospect-radar'
     | '/api/public/oauth/google'
     | '/api/public/oauth/meta'
     | '/api/public/voice/bridge'
@@ -646,15 +696,18 @@ export interface RootRouteChildren {
   ApiV1AppointmentsRoute: typeof ApiV1AppointmentsRoute
   ApiV1LeadsRoute: typeof ApiV1LeadsRoute
   ApiV1PropertiesRoute: typeof ApiV1PropertiesRoute
+  ApiPublicHooksAsaasRoute: typeof ApiPublicHooksAsaasRoute
   ApiPublicHooksLeadsRoute: typeof ApiPublicHooksLeadsRoute
   ApiPublicHooksN8nWebhookRoute: typeof ApiPublicHooksN8nWebhookRoute
   ApiPublicHooksPropertiesRoute: typeof ApiPublicHooksPropertiesRoute
   ApiPublicHooksStripeRoute: typeof ApiPublicHooksStripeRoute
   ApiPublicHooksWhatsappRoute: typeof ApiPublicHooksWhatsappRoute
+  ApiPublicJobsAttendanceSurveysRoute: typeof ApiPublicJobsAttendanceSurveysRoute
   ApiPublicJobsCrmAutomationsRoute: typeof ApiPublicJobsCrmAutomationsRoute
   ApiPublicJobsExternalPropertyLinksRoute: typeof ApiPublicJobsExternalPropertyLinksRoute
   ApiPublicJobsPropertyDiscoveryRoute: typeof ApiPublicJobsPropertyDiscoveryRoute
   ApiPublicJobsPropertyFeedsRoute: typeof ApiPublicJobsPropertyFeedsRoute
+  ApiPublicJobsProspectRadarRoute: typeof ApiPublicJobsProspectRadarRoute
   ApiPublicOauthGoogleRoute: typeof ApiPublicOauthGoogleRoute
   ApiPublicOauthMetaRoute: typeof ApiPublicOauthMetaRoute
   ApiPublicVoiceBridgeRoute: typeof ApiPublicVoiceBridgeRoute
@@ -830,6 +883,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedParceriasRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/prospectos': {
+      id: '/_authenticated/prospectos'
+      path: '/prospectos'
+      fullPath: '/prospectos'
+      preLoaderRoute: typeof AuthenticatedProspectosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/simulador-financiamento': {
       id: '/_authenticated/simulador-financiamento'
       path: '/simulador-financiamento'
@@ -921,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1PropertiesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/asaas': {
+      id: '/api/public/hooks/asaas'
+      path: '/api/public/hooks/asaas'
+      fullPath: '/api/public/hooks/asaas'
+      preLoaderRoute: typeof ApiPublicHooksAsaasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/leads': {
       id: '/api/public/hooks/leads'
       path: '/api/public/hooks/leads'
@@ -956,6 +1023,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/jobs/attendance-surveys': {
+      id: '/api/public/jobs/attendance-surveys'
+      path: '/api/public/jobs/attendance-surveys'
+      fullPath: '/api/public/jobs/attendance-surveys'
+      preLoaderRoute: typeof ApiPublicJobsAttendanceSurveysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/crm-automations': {
       id: '/api/public/jobs/crm-automations'
       path: '/api/public/jobs/crm-automations'
@@ -982,6 +1056,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/jobs/property-feeds'
       fullPath: '/api/public/jobs/property-feeds'
       preLoaderRoute: typeof ApiPublicJobsPropertyFeedsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/jobs/prospect-radar': {
+      id: '/api/public/jobs/prospect-radar'
+      path: '/api/public/jobs/prospect-radar'
+      fullPath: '/api/public/jobs/prospect-radar'
+      preLoaderRoute: typeof ApiPublicJobsProspectRadarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/oauth/google': {
@@ -1027,6 +1108,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLeiloesRoute: typeof AuthenticatedLeiloesRoute
   AuthenticatedMidiasSociaisRoute: typeof AuthenticatedMidiasSociaisRoute
   AuthenticatedParceriasRoute: typeof AuthenticatedParceriasRoute
+  AuthenticatedProspectosRoute: typeof AuthenticatedProspectosRoute
   AuthenticatedSimuladorFinanciamentoRoute: typeof AuthenticatedSimuladorFinanciamentoRoute
   AuthenticatedSpeedToLeadRoute: typeof AuthenticatedSpeedToLeadRoute
   AuthenticatedAdminAcessosRoute: typeof AuthenticatedAdminAcessosRoute
@@ -1055,6 +1137,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedLeiloesRoute: AuthenticatedLeiloesRoute,
   AuthenticatedMidiasSociaisRoute: AuthenticatedMidiasSociaisRoute,
   AuthenticatedParceriasRoute: AuthenticatedParceriasRoute,
+  AuthenticatedProspectosRoute: AuthenticatedProspectosRoute,
   AuthenticatedSimuladorFinanciamentoRoute:
     AuthenticatedSimuladorFinanciamentoRoute,
   AuthenticatedSpeedToLeadRoute: AuthenticatedSpeedToLeadRoute,
@@ -1084,16 +1167,19 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1AppointmentsRoute: ApiV1AppointmentsRoute,
   ApiV1LeadsRoute: ApiV1LeadsRoute,
   ApiV1PropertiesRoute: ApiV1PropertiesRoute,
+  ApiPublicHooksAsaasRoute: ApiPublicHooksAsaasRoute,
   ApiPublicHooksLeadsRoute: ApiPublicHooksLeadsRoute,
   ApiPublicHooksN8nWebhookRoute: ApiPublicHooksN8nWebhookRoute,
   ApiPublicHooksPropertiesRoute: ApiPublicHooksPropertiesRoute,
   ApiPublicHooksStripeRoute: ApiPublicHooksStripeRoute,
   ApiPublicHooksWhatsappRoute: ApiPublicHooksWhatsappRoute,
+  ApiPublicJobsAttendanceSurveysRoute: ApiPublicJobsAttendanceSurveysRoute,
   ApiPublicJobsCrmAutomationsRoute: ApiPublicJobsCrmAutomationsRoute,
   ApiPublicJobsExternalPropertyLinksRoute:
     ApiPublicJobsExternalPropertyLinksRoute,
   ApiPublicJobsPropertyDiscoveryRoute: ApiPublicJobsPropertyDiscoveryRoute,
   ApiPublicJobsPropertyFeedsRoute: ApiPublicJobsPropertyFeedsRoute,
+  ApiPublicJobsProspectRadarRoute: ApiPublicJobsProspectRadarRoute,
   ApiPublicOauthGoogleRoute: ApiPublicOauthGoogleRoute,
   ApiPublicOauthMetaRoute: ApiPublicOauthMetaRoute,
   ApiPublicVoiceBridgeRoute: ApiPublicVoiceBridgeRoute,

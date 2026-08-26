@@ -92,7 +92,10 @@ export const deletePlatformUser = createServerFn({ method: "POST" })
     if (tenantId) {
       const [tenantResult, memberCountResult] = await Promise.all([
         db.from("tenants").select("owner_user_id").eq("id", tenantId).maybeSingle(),
-        db.from("tenant_members").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+        db
+          .from("tenant_members")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId),
       ]);
       ownerUserId = tenantResult.data?.owner_user_id ?? null;
       memberCount = Number(memberCountResult.count ?? 0);
@@ -109,11 +112,19 @@ export const deletePlatformUser = createServerFn({ method: "POST" })
       await cancelStripeSubscription(String(subscriptionResult.data.stripe_subscription_id));
     }
 
-    // Para membros de equipe, preserva os agendamentos e transfere a autoria ao proprietário.
     if (ownerUserId && ownerUserId !== data.userId) {
+      // Membro de equipe: preserva os agendamentos transferindo a autoria ao proprietário.
       const { error: appointmentError } = await db
         .from("crm_appointments")
         .update({ created_by: ownerUserId })
+        .eq("created_by", data.userId);
+      if (appointmentError) throw new Error(appointmentError.message);
+    } else if (ownerUserId === data.userId && memberCount <= 1) {
+      // Proprietário de conta individual: os agendamentos pertencem ao tenant que será removido.
+      // A FK created_by é RESTRICT, então eles precisam sair antes da exclusão do usuário.
+      const { error: appointmentError } = await db
+        .from("crm_appointments")
+        .delete()
         .eq("created_by", data.userId);
       if (appointmentError) throw new Error(appointmentError.message);
     }

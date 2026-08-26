@@ -94,6 +94,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 }));
 
 vi.mock("@/lib/evolution-instance.server", () => ({
+  evolutionGatewayConfig: vi.fn(() => ({ apiKey: "test-key", baseUrl: "https://evolution.test" })),
   getTenantEvolutionInstance: vi.fn(async () => state.instanceName),
 }));
 
