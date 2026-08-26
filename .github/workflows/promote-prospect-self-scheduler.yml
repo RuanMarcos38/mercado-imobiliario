@@ -1,0 +1,37 @@
+name: Promote validated prospect self scheduler
+
+on:
+  push:
+    branches: [ops/promote-prospect-self-scheduler-20260825]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact validated diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin production fix/prospect-self-scheduler-20260825
+          changed="$(git diff --name-only origin/production..origin/fix/prospect-self-scheduler-20260825 | sort)"
+          expected='.github/workflows/hourly-prospect-radar.yml
+          src/lib/prospect-leads.functions.ts
+          src/lib/prospect-radar.server.ts
+          src/routes/api/public/jobs/prospect-radar.tsx'
+          test "$changed" = "$(echo "$expected" | sed 's/^ *//')" || { echo "Unexpected diff:"; echo "$changed"; exit 1; }
+          git show origin/fix/prospect-self-scheduler-20260825:src/lib/prospect-radar.server.ts | grep -F 'schedule(60 * 60 * 1000)' >/dev/null
+          git show origin/fix/prospect-self-scheduler-20260825:src/routes/api/public/jobs/prospect-radar.tsx | grep -F 'GET: () => handleGet()' >/dev/null
+          git merge-base --is-ancestor origin/production origin/fix/prospect-self-scheduler-20260825
+      - name: Promote as GitHub Actions bot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin origin/fix/prospect-self-scheduler-20260825:refs/heads/production
