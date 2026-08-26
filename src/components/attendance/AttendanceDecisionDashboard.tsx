@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { AttendanceHistoryReports } from "@/components/attendance/AttendanceHistoryReports";
 import {
   getAttendanceIntelligence,
   type AttendanceOperationalState,
@@ -339,6 +340,11 @@ export function AttendanceDecisionDashboard({ startIso, onOpenConversation }: Pr
           </section>
         </>
       ) : null}
+
+      <AttendanceHistoryReports
+        startIso={startIso}
+        onOpenConversation={(conversationId) => onOpenConversation(conversationId, "automatic")}
+      />
     </div>
   );
 }
