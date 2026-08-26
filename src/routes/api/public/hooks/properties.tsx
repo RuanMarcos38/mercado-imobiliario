@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { authenticateApiRequest } from "@/lib/api-auth.server";
+import { resolvePlatformSecret } from "@/lib/platform-secret.server";
 
 const itemSchema = z.object({
   id: z.string().max(200).optional(),
@@ -37,12 +39,14 @@ const payloadSchema = z
   });
 
 async function handler(request: Request) {
-  const secret = process.env["PROPERTY_IMPORT_WEBHOOK_SECRET"];
-  if (!secret) {
-    return Response.json({ ok: false, message: "Importação ainda não ativada." }, { status: 503 });
-  }
   const supplied = request.headers.get("x-property-import-key") ?? request.headers.get("x-api-key");
-  if (supplied !== secret) return Response.json({ ok: false }, { status: 401 });
+  const secret = await resolvePlatformSecret(
+    "PROPERTY_IMPORT_WEBHOOK_SECRET",
+    "mercadoimobi_property_import_secret",
+  );
+  const secretAuthorized = Boolean(secret && supplied && supplied === secret);
+  const principal = secretAuthorized ? null : await authenticateApiRequest(request);
+  if (!secretAuthorized && !principal) return Response.json({ ok: false }, { status: 401 });
 
   const parsed = payloadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -118,7 +122,11 @@ async function handler(request: Request) {
         source_property_id: item.id ?? null,
         first_seen_at: firstSeenByUrl.get(item.source_url) ?? now,
         last_seen_at: now,
-        metadata: { ...item.metadata, source: parsed.data.source_code },
+        metadata: {
+          ...item.metadata,
+          source: parsed.data.source_code,
+          ...(principal ? { importer_tenant: principal.tenantId, importer_user: principal.userId } : {}),
+        },
       }));
 
       const result = await db
