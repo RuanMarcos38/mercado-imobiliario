@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { evolutionGatewayConfig } from "@/lib/evolution-instance.server";
+import {
+  metaWhatsAppConfig,
+  metaWhatsAppInstanceName,
+  metaWhatsAppWebhookSignatureValid,
+  verifyMetaWhatsAppWebhookChallenge,
+} from "@/lib/meta-whatsapp.server";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
 
 type JsonObject = Record<string, unknown>;
 
@@ -125,8 +132,297 @@ function webhookAuthorized(request: Request, payload: JsonObject): boolean {
   return false;
 }
 
-async function handleWebhook(request: Request) {
-  const payload = object(await request.json().catch(() => ({})));
+function parseJsonObject(raw: string): JsonObject {
+  try {
+    return object(JSON.parse(raw));
+  } catch {
+    return {};
+  }
+}
+
+function isMetaWhatsAppWebhookPayload(payload: JsonObject) {
+  if (payload["object"] === "whatsapp_business_account") return true;
+  const entries = Array.isArray(payload["entry"]) ? payload["entry"] : [];
+  return entries.some((entry) => {
+    const entryObject = object(entry);
+    const changes = Array.isArray(entryObject["changes"]) ? entryObject["changes"] : [];
+    return changes.some((change) => {
+      const value = object(object(change)["value"]);
+      return value["messaging_product"] === "whatsapp" || Boolean(value["metadata"]);
+    });
+  });
+}
+
+function metaTextFromMessage(message: JsonObject): string | null {
+  const type = String(message["type"] ?? "text");
+  if (type === "text") {
+    const text = object(message["text"]);
+    return typeof text["body"] === "string" ? text["body"] : null;
+  }
+  const media = object(message[type]);
+  if (typeof media["caption"] === "string") return media["caption"];
+  if (type === "button") {
+    const button = object(message["button"]);
+    return typeof button["text"] === "string" ? button["text"] : null;
+  }
+  if (type === "interactive") {
+    const interactive = object(message["interactive"]);
+    const buttonReply = object(interactive["button_reply"]);
+    const listReply = object(interactive["list_reply"]);
+    return (
+      (typeof buttonReply["title"] === "string" ? buttonReply["title"] : null) ||
+      (typeof listReply["title"] === "string" ? listReply["title"] : null)
+    );
+  }
+  return null;
+}
+
+function metaMessageType(message: JsonObject): string {
+  const type = String(message["type"] ?? "text").toLowerCase();
+  if (["text", "image", "video", "audio", "document", "sticker"].includes(type)) return type;
+  if (type === "button" || type === "interactive") return "text";
+  return type || "text";
+}
+
+function metaMediaUrl(message: JsonObject): string | null {
+  const type = String(message["type"] ?? "");
+  const media = object(message[type]);
+  const id = typeof media["id"] === "string" ? media["id"] : "";
+  return id ? `meta://media/${id}` : null;
+}
+
+function metaTimestamp(value: unknown): string {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return new Date().toISOString();
+  const milliseconds = numeric > 10_000_000_000 ? numeric : numeric * 1000;
+  return new Date(milliseconds).toISOString();
+}
+
+function contactNamesByWaId(value: JsonObject) {
+  const contacts = Array.isArray(value["contacts"]) ? value["contacts"] : [];
+  const names = new Map<string, string>();
+  for (const contact of contacts) {
+    const contactObject = object(contact);
+    const waId = String(contactObject["wa_id"] ?? "").replace(/\D/g, "");
+    const profile = object(contactObject["profile"]);
+    const name = typeof profile["name"] === "string" ? profile["name"] : "";
+    if (waId && name) names.set(waId, name);
+  }
+  return names;
+}
+
+function metaWebhookValues(payload: JsonObject) {
+  const entries = Array.isArray(payload["entry"]) ? payload["entry"] : [];
+  const values: JsonObject[] = [];
+  for (const entry of entries) {
+    const changes = Array.isArray(object(entry)["changes"]) ? object(entry)["changes"] : [];
+    for (const change of changes) {
+      const value = object(object(change)["value"]);
+      if (value["metadata"]) values.push(value);
+    }
+  }
+  return values;
+}
+
+async function metaConnectionForPhoneNumber(db: any, phoneNumberId: string) {
+  const instanceName = metaWhatsAppInstanceName(phoneNumberId);
+  const providerLookup = await db
+    .from("whatsapp_connections")
+    .select("tenant_id,id,instance_name,provider,provider_phone_number_id")
+    .eq("provider", "meta")
+    .eq("provider_phone_number_id", phoneNumberId)
+    .maybeSingle();
+  if (!providerLookup.error && providerLookup.data?.tenant_id) return providerLookup.data;
+
+  const instanceLookup = await db
+    .from("whatsapp_connections")
+    .select("tenant_id,id,instance_name")
+    .eq("instance_name", instanceName)
+    .maybeSingle();
+  if (!instanceLookup.error && instanceLookup.data?.tenant_id) return instanceLookup.data;
+
+  const defaultTenantId = process.env["META_WHATSAPP_DEFAULT_TENANT_ID"]?.trim();
+  const configuredPhoneNumberId = metaWhatsAppConfig()?.phoneNumberId;
+  if (defaultTenantId && configuredPhoneNumberId === phoneNumberId) {
+    return { tenant_id: defaultTenantId, id: null, instance_name: instanceName };
+  }
+
+  return null;
+}
+
+async function applyMetaStatuses(db: any, payload: JsonObject) {
+  let updated = 0;
+  for (const value of metaWebhookValues(payload)) {
+    const metadata = object(value["metadata"]);
+    const phoneNumberId = String(metadata["phone_number_id"] ?? "");
+    if (!phoneNumberId) continue;
+    const connection = await metaConnectionForPhoneNumber(db, phoneNumberId);
+    if (!connection?.tenant_id) continue;
+
+    const statuses = Array.isArray(value["statuses"]) ? value["statuses"] : [];
+    for (const statusEntry of statuses) {
+      const status = object(statusEntry);
+      const externalMessageId = typeof status["id"] === "string" ? status["id"] : "";
+      const rawStatus = String(status["status"] ?? "").toLowerCase();
+      if (!externalMessageId || !rawStatus) continue;
+      await db
+        .from("whatsapp_messages")
+        .update({ status: rawStatus })
+        .eq("tenant_id", connection.tenant_id)
+        .eq("external_message_id", externalMessageId);
+      updated += 1;
+    }
+  }
+  return updated;
+}
+
+async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody: string) {
+  if (!metaWhatsAppWebhookSignatureValid(request, rawBody)) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized_meta_webhook" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const autoReplyCandidates = new Map<string, AutoReplyCandidate>();
+  let processed = 0;
+  let autoReplies = 0;
+  const statusUpdates = await applyMetaStatuses(db, payload);
+
+  for (const value of metaWebhookValues(payload)) {
+    const metadata = object(value["metadata"]);
+    const phoneNumberId = String(metadata["phone_number_id"] ?? "");
+    if (!phoneNumberId) continue;
+    const connection = await metaConnectionForPhoneNumber(db, phoneNumberId);
+    if (!connection?.tenant_id) continue;
+
+    const names = contactNamesByWaId(value);
+    const messages = Array.isArray(value["messages"]) ? value["messages"] : [];
+    for (const rawMessage of messages) {
+      const message = object(rawMessage);
+      const from = String(message["from"] ?? "").replace(/\D/g, "");
+      const phone = normalizeWhatsAppPhone(from);
+      if (!phone) continue;
+
+      const externalMessageId = typeof message["id"] === "string" ? message["id"] : null;
+      const body = metaTextFromMessage(message);
+      const type = metaMessageType(message);
+      const mediaUrl = metaMediaUrl(message);
+      const sentAt = metaTimestamp(message["timestamp"]);
+      const contactName = names.get(from) ?? null;
+
+      let { data: conversation } = await db
+        .from("whatsapp_conversations")
+        .select("id,unread_count,phone_e164")
+        .eq("tenant_id", connection.tenant_id)
+        .eq("phone_e164", phone)
+        .maybeSingle();
+
+      if (!conversation) {
+        const inserted = await db
+          .from("whatsapp_conversations")
+          .insert({
+            tenant_id: connection.tenant_id,
+            phone_e164: phone,
+            contact_name: contactName,
+            last_message: body ?? (mediaUrl ? "Mídia recebida" : "Nova mensagem"),
+            last_message_at: sentAt,
+            unread_count: 1,
+          })
+          .select("id,unread_count,phone_e164")
+          .single();
+        conversation = inserted.data;
+      }
+      if (!conversation) continue;
+
+      const messageInsert = await db.from("whatsapp_messages").insert({
+        tenant_id: connection.tenant_id,
+        conversation_id: conversation.id,
+        external_message_id: externalMessageId,
+        direction: "inbound",
+        message_type: type,
+        body,
+        media_url: mediaUrl,
+        status: "received",
+        sender_name: contactName,
+        sent_at: sentAt,
+        raw_payload: { ...message, mercadoimobi_provider: "meta", phone_number_id: phoneNumberId },
+      });
+
+      if (messageInsert.error?.code === "23505") continue;
+      if (messageInsert.error) throw new Error(messageInsert.error.message);
+
+      await db
+        .from("whatsapp_conversations")
+        .update({
+          contact_name: contactName ?? undefined,
+          last_message: body ?? (mediaUrl ? "Mídia" : type),
+          last_message_at: sentAt,
+          unread_count: Number(conversation.unread_count ?? 0) + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", conversation.id);
+      processed += 1;
+
+      if (body) {
+        let satisfactionCaptured = false;
+        try {
+          const { captureAttendanceSatisfactionResponse, reopenClosedAttendanceAfterInbound } =
+            await import("@/lib/attendance-satisfaction.server");
+          const satisfaction = await captureAttendanceSatisfactionResponse({
+            tenantId: connection.tenant_id,
+            conversationId: conversation.id,
+            inboundText: body,
+            inboundSentAt: sentAt,
+            inboundExternalMessageId: externalMessageId,
+          });
+          satisfactionCaptured = satisfaction.captured;
+          if (!satisfactionCaptured) {
+            await reopenClosedAttendanceAfterInbound({
+              tenantId: connection.tenant_id,
+              conversationId: conversation.id,
+              inboundSentAt: sentAt,
+            });
+          }
+        } catch {
+          // A camada de satisfação é aditiva. Uma indisponibilidade nela nunca bloqueia
+          // o recebimento normal nem o atendimento existente.
+        }
+
+        if (satisfactionCaptured) continue;
+
+        autoReplyCandidates.set(conversation.id, {
+          tenantId: connection.tenant_id,
+          conversationId: conversation.id,
+          phone,
+          inboundText: body,
+          inboundSentAt: sentAt,
+          inboundExternalMessageId: externalMessageId,
+        });
+      }
+    }
+  }
+
+  if (autoReplyCandidates.size > 0) {
+    try {
+      const { maybeAutoReply } = await import("@/lib/whatsapp-auto-reply.server");
+      const results = await Promise.all(
+        [...autoReplyCandidates.values()].map((candidate) =>
+          maybeAutoReply(candidate).catch(() => ({ sent: false, reason: "auto_reply_failed" })),
+        ),
+      );
+      autoReplies = results.filter((reply) => reply.sent).length;
+    } catch {
+      // Falha da IA nunca impede o recebimento da mensagem do cliente.
+    }
+  }
+
+  return Response.json({ ok: true, provider: "meta", processed, autoReplies, statusUpdates });
+}
+
+async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
   if (!webhookAuthorized(request, payload)) {
     return new Response(JSON.stringify({ ok: false, error: "unauthorized_webhook" }), {
       status: 401,
@@ -354,10 +650,20 @@ async function handleWebhook(request: Request) {
   return Response.json({ ok: true, processed, autoReplies });
 }
 
+async function handlePostWebhook(request: Request) {
+  const rawBody = await request.text();
+  const payload = parseJsonObject(rawBody);
+  if (isMetaWhatsAppWebhookPayload(payload)) {
+    return handleMetaWebhook(request, payload, rawBody);
+  }
+  return handleEvolutionWebhook(request, payload);
+}
+
 export const Route = createFileRoute("/api/public/hooks/whatsapp")({
   server: {
     handlers: {
-      POST: ({ request }) => handleWebhook(request),
+      GET: ({ request }) => verifyMetaWhatsAppWebhookChallenge(request),
+      POST: ({ request }) => handlePostWebhook(request),
     },
   },
 });

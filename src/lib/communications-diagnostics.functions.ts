@@ -60,44 +60,26 @@ async function testOpenAi(): Promise<DiagnosticItem> {
 
 async function testWhatsApp(db: any, tenantId: string): Promise<DiagnosticItem> {
   try {
-    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } =
-      await import("@/lib/evolution-instance.server");
-    const gateway = evolutionGatewayConfig();
-    const instance = await getTenantEvolutionInstance(db, tenantId);
-    if (!gateway || !instance)
-      return {
-        key: "whatsapp",
-        label: "WhatsApp / Evolution",
-        configured: false,
-        ok: false,
-        detail: "Gateway ou instância ainda não configurados.",
-      };
-    const response = await evolutionRequest(
-      gateway,
-      `/instance/connectionState/${encodeURIComponent(instance)}`,
-      { method: "GET" },
-    );
-    const payload = await response.json().catch(() => ({}));
-    const raw = String(
-      payload?.instance?.state ?? payload?.state ?? payload?.status ?? "",
-    ).toLowerCase();
-    const online = response.ok && ["open", "connected", "online"].includes(raw);
+    const { testTenantWhatsAppRuntime } = await import("@/lib/whatsapp-provider.server");
+    const runtime = await testTenantWhatsAppRuntime(db, tenantId);
+    const label = runtime.provider === "meta" ? "WhatsApp Oficial Meta" : "WhatsApp / Evolution";
     return {
       key: "whatsapp",
-      label: "WhatsApp / Evolution",
-      configured: true,
-      ok: online,
-      detail: online
-        ? `Instância ${instance} online.`
-        : `Instância ${instance}: ${raw || `HTTP ${response.status}`}.`,
+      label,
+      configured: runtime.configured,
+      ok: runtime.ok,
+      detail: runtime.detail,
     };
-  } catch {
+  } catch (error) {
     return {
       key: "whatsapp",
-      label: "WhatsApp / Evolution",
+      label: "WhatsApp",
       configured: true,
       ok: false,
-      detail: "Falha ao consultar a Evolution API.",
+      detail:
+        error instanceof Error
+          ? `Falha ao consultar o WhatsApp: ${error.message.slice(0, 180)}`
+          : "Falha ao consultar o WhatsApp.",
     };
   }
 }

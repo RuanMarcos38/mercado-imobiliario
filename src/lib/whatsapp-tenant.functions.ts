@@ -7,10 +7,17 @@ import {
   evolutionRequest,
   getTenantEvolutionInstance,
 } from "@/lib/evolution-instance.server";
-import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
+import { metaWhatsAppConfig } from "@/lib/meta-whatsapp.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
+import {
+  getTenantWhatsAppConnection,
+  sendTenantWhatsAppText,
+  shouldUseMetaWhatsApp,
+  testTenantWhatsAppRuntime,
+  type WhatsAppProvider,
+} from "@/lib/whatsapp-provider.server";
 
 const conversationSchema = z.object({ conversationId: z.string().uuid() });
 const sendTextSchema = z.object({
@@ -23,9 +30,11 @@ export interface WhatsAppConnectionStatus {
   hasConnection: boolean;
   connected: boolean;
   state: "connected" | "connecting" | "disconnected" | "error";
+  provider: WhatsAppProvider | null;
   displayName: string | null;
   phoneNumber: string | null;
   instanceName: string | null;
+  phoneNumberId: string | null;
   maxAttachmentMb: number;
 }
 
@@ -89,12 +98,35 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
     const maxAttachmentMb = whatsappParameters().maxAttachmentMb;
-    const { data: savedConnection, error } = await db
-      .from("whatsapp_connections")
-      .select("display_name,phone_number,status,instance_name,last_connected_at")
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+
+    if (shouldUseMetaWhatsApp(savedConnection)) {
+      const runtime = await testTenantWhatsAppRuntime(db, tenantId);
+      const now = new Date().toISOString();
+      if (savedConnection?.id) {
+        await db
+          .from("whatsapp_connections")
+          .update({
+            status: runtime.ok ? "connected" : runtime.configured ? "error" : "disconnected",
+            last_connected_at: runtime.ok ? now : savedConnection.last_connected_at,
+            phone_number: runtime.phoneNumber ?? savedConnection.phone_number,
+            updated_at: now,
+          })
+          .eq("id", savedConnection.id);
+      }
+      return {
+        configured: runtime.configured,
+        hasConnection: Boolean(savedConnection?.instance_name || runtime.phoneNumberId),
+        connected: runtime.ok,
+        state: runtime.state,
+        provider: "meta",
+        displayName: runtime.displayName,
+        phoneNumber: runtime.phoneNumber,
+        instanceName: runtime.instanceName,
+        phoneNumberId: runtime.phoneNumberId || null,
+        maxAttachmentMb,
+      };
+    }
 
     const gateway = evolutionGatewayConfig();
     const instanceName = savedConnection?.instance_name
@@ -106,9 +138,11 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         hasConnection: Boolean(instanceName),
         connected: false,
         state: "disconnected",
+        provider: "evolution",
         displayName: savedConnection?.display_name ?? null,
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
+        phoneNumberId: null,
         maxAttachmentMb,
       };
     }
@@ -135,9 +169,11 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         hasConnection: true,
         connected: state === "connected",
         state,
+        provider: "evolution",
         displayName: savedConnection?.display_name ?? "Meu WhatsApp",
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
+        phoneNumberId: null,
         maxAttachmentMb,
       };
     } catch {
@@ -146,9 +182,11 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         hasConnection: true,
         connected: false,
         state: "error",
+        provider: "evolution",
         displayName: savedConnection?.display_name ?? "Meu WhatsApp",
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
+        phoneNumberId: null,
         maxAttachmentMb,
       };
     }
@@ -159,6 +197,18 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+    if (shouldUseMetaWhatsApp(savedConnection)) {
+      return {
+        configured: Boolean(
+          metaWhatsAppConfig(savedConnection?.provider_phone_number_id ?? undefined),
+        ),
+        base64: null as string | null,
+        code: null as string | null,
+        pairingCode: null as string | null,
+        count: 0,
+      };
+    }
     const gateway = evolutionGatewayConfig();
     if (!gateway) {
       return {
@@ -286,8 +336,6 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
-    const instanceName = await getTenantEvolutionInstance(db, tenantId);
-    if (!instanceName || !evolutionGatewayConfig()) throw new Error("WHATSAPP_NOT_CONFIGURED");
 
     const { data: conversation, error: conversationError } = await db
       .from("whatsapp_conversations")
@@ -309,29 +357,26 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
       if (phoneUpdateError) throw new Error(phoneUpdateError.message);
     }
 
-    const payload = await sendEvolutionTextMessage({
+    const sent = await sendTenantWhatsAppText({
+      db,
+      tenantId,
+      userId: context.userId,
       phone,
       text: data.text,
       delay: whatsappParameters().sendDelayMs,
-      instanceName,
     });
-    const key = payload["key"] as Record<string, unknown> | undefined;
-    const externalMessageId =
-      (typeof key?.["id"] === "string" && key["id"]) ||
-      (typeof payload["id"] === "string" && payload["id"]) ||
-      null;
     const now = new Date().toISOString();
 
     const { error: insertError } = await db.from("whatsapp_messages").insert({
       tenant_id: tenantId,
       conversation_id: conversation.id,
-      external_message_id: externalMessageId,
       direction: "outbound",
       message_type: "text",
       body: data.text,
       status: "sent",
       sent_at: now,
-      raw_payload: payload,
+      external_message_id: sent.externalMessageId,
+      raw_payload: { ...sent.payload, mercadoimobi_provider: sent.provider },
     });
     if (insertError && insertError.code !== "23505") throw new Error(insertError.message);
 
@@ -341,5 +386,5 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
       .eq("id", conversation.id)
       .eq("tenant_id", tenantId);
     if (conversationUpdateError) throw new Error(conversationUpdateError.message);
-    return { success: true, externalMessageId };
+    return { success: true, externalMessageId: sent.externalMessageId, provider: sent.provider };
   });

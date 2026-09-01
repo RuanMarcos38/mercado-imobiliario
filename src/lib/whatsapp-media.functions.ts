@@ -2,18 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import {
-  evolutionGatewayConfig,
-  getTenantEvolutionInstance,
-} from "@/lib/evolution-instance.server";
-import {
-  sendEvolutionMediaMessage,
-  sendEvolutionWhatsAppAudioMessage,
-  type EvolutionMediaType,
-} from "@/lib/evolution-media.server";
+import { type EvolutionMediaType } from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
+import { sendTenantWhatsAppMedia } from "@/lib/whatsapp-provider.server";
 
 const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
 
@@ -70,8 +63,6 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
 
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
-    const instanceName = await getTenantEvolutionInstance(db, tenantId);
-    if (!instanceName || !evolutionGatewayConfig()) throw new Error("WHATSAPP_NOT_CONFIGURED");
 
     const { data: conversation, error } = await db
       .from("whatsapp_conversations")
@@ -95,35 +86,24 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
     });
     if (storageError) throw new Error(`MEDIA_STORAGE_FAILED:${storageError.message}`);
 
-    let payload: Record<string, unknown>;
+    let sent: Awaited<ReturnType<typeof sendTenantWhatsAppMedia>>;
     try {
-      payload = isAudio
-        ? await sendEvolutionWhatsAppAudioMessage({
-            phone,
-            mimeType: data.mimeType,
-            fileName: data.fileName,
-            base64: data.base64,
-            instanceName,
-          })
-        : await sendEvolutionMediaMessage({
-            phone,
-            mediaType: mediaType as EvolutionMediaType,
-            mimeType: data.mimeType,
-            fileName: data.fileName,
-            base64: data.base64,
-            caption: data.caption,
-            instanceName,
-          });
+      sent = await sendTenantWhatsAppMedia({
+        db,
+        tenantId,
+        userId: context.userId,
+        phone,
+        mediaType,
+        mimeType: data.mimeType,
+        fileName: data.fileName,
+        base64: data.base64,
+        caption: data.caption,
+      });
     } catch (providerError) {
       await storage.remove([storagePath]).catch(() => undefined);
       throw providerError;
     }
 
-    const key = payload["key"] as Record<string, unknown> | undefined;
-    const externalMessageId =
-      (typeof key?.["id"] === "string" && key["id"]) ||
-      (typeof payload["id"] === "string" && payload["id"]) ||
-      null;
     const now = new Date().toISOString();
     const label = isAudio ? "🎤 Mensagem de voz" : data.caption?.trim() || `📎 ${data.fileName}`;
     const mediaUrl = `storage://${WHATSAPP_MEDIA_BUCKET}/${storagePath}`;
@@ -131,7 +111,7 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
     const { error: insertError } = await db.from("whatsapp_messages").insert({
       tenant_id: tenantId,
       conversation_id: conversation.id,
-      external_message_id: externalMessageId,
+      external_message_id: sent.externalMessageId,
       direction: "outbound",
       message_type: mediaType,
       body: label,
@@ -139,7 +119,8 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       status: "sent",
       sent_at: now,
       raw_payload: {
-        ...payload,
+        ...sent.payload,
+        mercadoimobi_provider: sent.provider,
         mercadoimobi_file_name: data.fileName,
         mercadoimobi_mime_type: data.mimeType,
         mercadoimobi_storage_path: storagePath,
@@ -155,5 +136,11 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       .eq("tenant_id", tenantId);
     if (updateError) throw new Error(updateError.message);
 
-    return { success: true, externalMessageId, mediaType, fileName: data.fileName };
+    return {
+      success: true,
+      externalMessageId: sent.externalMessageId,
+      provider: sent.provider,
+      mediaType,
+      fileName: data.fileName,
+    };
   });

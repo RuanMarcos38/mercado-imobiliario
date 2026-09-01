@@ -32,6 +32,40 @@ function firstEnv(names: string[]) {
   return "";
 }
 
+function whatsappProviderValue() {
+  const normalized = firstEnv(["WHATSAPP_PROVIDER", "WHATSAPP_MODE"]).toLowerCase();
+  if (["meta", "official", "oficial", "cloud", "cloud_api"].includes(normalized)) return "meta";
+  if (["evolution", "baileys", "qr"].includes(normalized)) return "evolution";
+  return "auto";
+}
+
+function evolutionWhatsAppConfigured() {
+  return Boolean(
+    firstEnv([
+      "EVOLUTION_API_URL",
+      "EVOLUTION_URL",
+      "EVOLUTION_SERVER_URL",
+      "EVOLUTION_BASE_URL",
+    ]) && firstEnv(["EVOLUTION_API_KEY", "EVOLUTION_GLOBAL_API_KEY", "AUTHENTICATION_API_KEY"]),
+  );
+}
+
+function metaWhatsAppConfigured() {
+  return Boolean(
+    firstEnv([
+      "META_WHATSAPP_ACCESS_TOKEN",
+      "WHATSAPP_CLOUD_ACCESS_TOKEN",
+      "WHATSAPP_CLOUD_API_TOKEN",
+      "WHATSAPP_ACCESS_TOKEN",
+    ]) &&
+    firstEnv([
+      "META_WHATSAPP_PHONE_NUMBER_ID",
+      "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+      "WHATSAPP_PHONE_NUMBER_ID",
+    ]),
+  );
+}
+
 export function speedToLeadParameters() {
   return {
     slaSeconds: integerEnv("SPEED_TO_LEAD_SLA_SECONDS", 300, 30, 3600),
@@ -56,6 +90,7 @@ export function aiParameters() {
 
 export function whatsappParameters() {
   return {
+    provider: whatsappProviderValue(),
     sendDelayMs: integerEnv("WHATSAPP_SEND_DELAY_MS", 800, 0, 10000),
     maxAttachmentMb: integerEnv("WHATSAPP_ATTACHMENT_MAX_MB", 8, 1, 32),
     evolutionTimeoutMs: integerEnv("EVOLUTION_REQUEST_TIMEOUT_MS", 25000, 5000, 120000),
@@ -155,12 +190,20 @@ export function platformParameterDefinitions(): PlatformParameterDefinition[] {
       description: "Quantidade máxima de mensagens recentes usadas como contexto.",
     },
     {
+      key: "WHATSAPP_PROVIDER",
+      label: "Provedor WhatsApp",
+      category: "WhatsApp",
+      value: whatsapp.provider,
+      defaultValue: "auto",
+      description: "Escolhe auto, meta ou evolution para o atendimento WhatsApp.",
+    },
+    {
       key: "WHATSAPP_SEND_DELAY_MS",
       label: "Delay de envio WhatsApp",
       category: "WhatsApp",
       value: whatsapp.sendDelayMs,
       defaultValue: 800,
-      description: "Delay técnico aplicado antes do envio de texto pela Evolution.",
+      description: "Delay técnico aplicado antes do envio de texto quando o provedor permite.",
     },
     {
       key: "WHATSAPP_ATTACHMENT_MAX_MB",
@@ -177,6 +220,45 @@ export function platformParameterDefinitions(): PlatformParameterDefinition[] {
       value: whatsapp.evolutionTimeoutMs,
       defaultValue: 25000,
       description: "Tempo máximo para chamadas à Evolution API.",
+    },
+    {
+      key: "META_WHATSAPP_GRAPH_VERSION",
+      label: "Versão Graph WhatsApp",
+      category: "WhatsApp",
+      value: stringEnv("META_WHATSAPP_GRAPH_VERSION", "v26.0"),
+      defaultValue: "v26.0",
+      description: "Versão da Graph API usada pela integração oficial WhatsApp Cloud API.",
+    },
+    {
+      key: "META_WHATSAPP_ACCESS_TOKEN",
+      label: "Token WhatsApp Oficial",
+      category: "WhatsApp",
+      value: Boolean(
+        firstEnv([
+          "META_WHATSAPP_ACCESS_TOKEN",
+          "WHATSAPP_CLOUD_ACCESS_TOKEN",
+          "WHATSAPP_CLOUD_API_TOKEN",
+          "WHATSAPP_ACCESS_TOKEN",
+        ]),
+      ),
+      defaultValue: false,
+      description: "Token permanente de sistema para a WhatsApp Cloud API. Nunca é exibido.",
+      secret: true,
+    },
+    {
+      key: "META_WHATSAPP_PHONE_NUMBER_ID",
+      label: "Phone Number ID",
+      category: "WhatsApp",
+      value: Boolean(
+        firstEnv([
+          "META_WHATSAPP_PHONE_NUMBER_ID",
+          "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+          "WHATSAPP_PHONE_NUMBER_ID",
+        ]),
+      ),
+      defaultValue: false,
+      description: "Identificador oficial do número WhatsApp no Meta Developers.",
+      secret: true,
     },
     {
       key: "CCA_DOCUMENT_MAX_MB",
@@ -258,15 +340,8 @@ export function integrationReadiness() {
     { key: "openai", label: "OpenAI", configured: Boolean(process.env["OPENAI_API_KEY"]?.trim()) },
     {
       key: "whatsapp",
-      label: "Evolution / WhatsApp",
-      configured: Boolean(
-        firstEnv([
-          "EVOLUTION_API_URL",
-          "EVOLUTION_URL",
-          "EVOLUTION_SERVER_URL",
-          "EVOLUTION_BASE_URL",
-        ]) && firstEnv(["EVOLUTION_API_KEY", "EVOLUTION_GLOBAL_API_KEY", "AUTHENTICATION_API_KEY"]),
-      ),
+      label: "WhatsApp",
+      configured: evolutionWhatsAppConfigured() || metaWhatsAppConfigured(),
     },
     {
       key: "meta",

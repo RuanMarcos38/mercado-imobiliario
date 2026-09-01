@@ -44,9 +44,13 @@ describe("MercadoImobi communication hub security", () => {
     const diagnostics = readFileSync("src/routes/_authenticated/diagnostico.tsx", "utf8");
 
     expect(env).toContain("META_APP_SECRET=");
+    expect(env).toContain("META_WHATSAPP_ACCESS_TOKEN=");
+    expect(env).toContain("META_WHATSAPP_VERIFY_TOKEN=");
     expect(env).toContain("RESEND_API_KEY=");
     expect(env).toContain("TWILIO_AUTH_TOKEN=");
     expect(env).not.toContain("VITE_META_APP_SECRET");
+    expect(env).not.toContain("VITE_META_WHATSAPP_ACCESS_TOKEN");
+    expect(env).not.toContain("VITE_META_WHATSAPP_VERIFY_TOKEN");
     expect(env).not.toContain("VITE_RESEND_API_KEY");
     expect(nav).not.toContain('label: "Facebook e Instagram"');
     expect(nav).not.toContain('label: "E-mail / CCA"');

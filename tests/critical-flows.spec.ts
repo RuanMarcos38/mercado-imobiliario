@@ -118,15 +118,23 @@ describe("MercadoImobi product invariants", () => {
     const assistant = source("src/lib/ai-assistant.functions.ts");
     const evolutionSender = source("src/lib/evolution-text.server.ts");
     const evolutionConfig = source("src/lib/evolution-instance.server.ts");
+    const metaWhatsApp = source("src/lib/meta-whatsapp.server.ts");
 
     expect(envExample).toContain("OPENAI_API_KEY=");
     expect(envExample).toContain("EVOLUTION_API_KEY=");
+    expect(envExample).toContain("META_WHATSAPP_ACCESS_TOKEN=");
+    expect(envExample).toContain("META_WHATSAPP_PHONE_NUMBER_ID=");
     expect(envExample).not.toContain("VITE_OPENAI_API_KEY");
     expect(envExample).not.toContain("VITE_EVOLUTION_API_KEY");
+    expect(envExample).not.toContain("VITE_META_WHATSAPP_ACCESS_TOKEN");
+    expect(envExample).not.toContain("VITE_META_WHATSAPP_PHONE_NUMBER_ID");
     expect(assistant).toContain('process.env["OPENAI_API_KEY"]');
     expect(evolutionSender).toContain("evolutionGatewayConfig");
     expect(evolutionConfig).toContain('"EVOLUTION_API_KEY"');
     expect(evolutionConfig).toContain('"AUTHENTICATION_API_KEY"');
+    expect(metaWhatsApp).toContain("process.env[name]");
+    expect(metaWhatsApp).toContain('"META_WHATSAPP_ACCESS_TOKEN"');
+    expect(metaWhatsApp).toContain('"META_WHATSAPP_PHONE_NUMBER_ID"');
   });
 
   it("keeps the Lovable template visual primitives and paginates the full property base", () => {

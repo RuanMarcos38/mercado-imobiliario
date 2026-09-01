@@ -31,7 +31,7 @@ import {
   listDiscoveredPropertyDomains,
   runPropertyDiscovery,
 } from "@/lib/property-discovery.functions";
-import { getWhatsAppConnectionStatus } from "@/lib/whatsapp.functions";
+import { getWhatsAppConnectionStatus } from "@/lib/whatsapp-tenant.functions";
 
 export const Route = createFileRoute("/_authenticated/integracoes")({
   component: IntegrationsPage,

@@ -396,41 +396,27 @@ async function testOpenAi() {
 
 async function testWhatsApp(db: any, tenantId: string) {
   return timed(async () => {
-    const { evolutionGatewayConfig, evolutionRequest, getTenantEvolutionInstance } =
-      await import("@/lib/evolution-instance.server");
-    const gateway = evolutionGatewayConfig();
-    const instance = await getTenantEvolutionInstance(db, tenantId);
-    if (!gateway || !instance) {
+    const { testTenantWhatsAppRuntime } = await import("@/lib/whatsapp-provider.server");
+    const runtime = await testTenantWhatsAppRuntime(db, tenantId);
+    if (!runtime.configured) {
       return {
         key: "whatsapp-live",
-        label: "WhatsApp / Evolution",
+        label: "WhatsApp",
         category: "Comunicação",
         critical: false,
         configured: false,
         status: "not_configured" as const,
-        detail: "Gateway Evolution ou instância do tenant não configurados.",
+        detail: runtime.detail,
       };
     }
-    const response = await evolutionRequest(
-      gateway,
-      `/instance/connectionState/${encodeURIComponent(instance)}`,
-      { method: "GET" },
-    );
-    const payload = await response.json().catch(() => ({}));
-    const raw = String(
-      payload?.instance?.state ?? payload?.state ?? payload?.status ?? "",
-    ).toLowerCase();
-    const ok = response.ok && ["open", "connected", "online"].includes(raw);
     return {
       key: "whatsapp-live",
-      label: "WhatsApp / Evolution",
+      label: runtime.provider === "meta" ? "WhatsApp Oficial Meta" : "WhatsApp / Evolution",
       category: "Comunicação",
       critical: false,
       configured: true,
-      status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok
-        ? `Instância ${instance} online e autenticada.`
-        : `Instância ${instance}: ${raw || `HTTP ${response.status}`}.`,
+      status: runtime.ok ? ("pass" as const) : ("fail" as const),
+      detail: runtime.detail,
     };
   });
 }

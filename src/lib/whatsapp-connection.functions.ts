@@ -7,7 +7,14 @@ import {
   getTenantEvolutionInstance,
   type EvolutionGatewayConfig,
 } from "@/lib/evolution-instance.server";
+import { metaWhatsAppConfig } from "@/lib/meta-whatsapp.server";
 import { requireTenantId } from "@/lib/tenant.server";
+import {
+  ensureMetaWhatsAppConnection,
+  getTenantWhatsAppConnection,
+  shouldUseMetaWhatsApp,
+  testTenantWhatsAppRuntime,
+} from "@/lib/whatsapp-provider.server";
 
 type EvolutionState = "connected" | "connecting" | "disconnected" | "error";
 
@@ -174,6 +181,48 @@ async function ensureTenantInstance(input: {
 export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+
+    if (shouldUseMetaWhatsApp(savedConnection)) {
+      const configured = Boolean(
+        metaWhatsAppConfig(savedConnection?.provider_phone_number_id ?? undefined),
+      );
+      if (!configured) {
+        return {
+          configured: false,
+          ready: false,
+          connected: false,
+          state: "disconnected" as EvolutionState,
+          webhookConfigured: false,
+          webhookUrl: null as string | null,
+          warning: "META_WHATSAPP_ENV_MISSING" as string | null,
+          instanceName: null as string | null,
+          qrBase64: null as string | null,
+          qrCode: null as string | null,
+          pairingCode: null as string | null,
+        };
+      }
+
+      await ensureMetaWhatsAppConnection({ db, tenantId, userId: context.userId });
+      const runtime = await testTenantWhatsAppRuntime(db, tenantId);
+      const config = metaWhatsAppConfig(runtime.phoneNumberId || undefined);
+      return {
+        configured: runtime.configured,
+        ready: runtime.configured,
+        connected: runtime.ok,
+        state: runtime.state,
+        webhookConfigured: Boolean(config?.callbackUrl),
+        webhookUrl: config?.callbackUrl ?? null,
+        warning: runtime.ok ? null : "META_WHATSAPP_CONNECTION_FAILED",
+        instanceName: runtime.instanceName,
+        qrBase64: null as string | null,
+        qrCode: null as string | null,
+        pairingCode: null as string | null,
+      };
+    }
+
     const config = evolutionGatewayConfig();
     if (!config) {
       return {
@@ -191,8 +240,6 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
       };
     }
 
-    const tenantId = await requireTenantId(context.supabase, context.userId);
-    const db = context.supabase as any;
     const ensured = await ensureTenantInstance({ db, tenantId, userId: context.userId, config });
     const webhook = await configureWebhook(config, ensured.instance);
 
@@ -249,11 +296,28 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
 export const disconnectWhatsAppConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+    if (shouldUseMetaWhatsApp(savedConnection)) {
+      if (savedConnection?.id) {
+        const { error } = await db
+          .from("whatsapp_connections")
+          .update({
+            status: "disconnected",
+            last_connected_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", savedConnection.id)
+          .eq("tenant_id", tenantId);
+        if (error) throw new Error(error.message);
+      }
+      return { success: true, connected: false, state: "disconnected" as EvolutionState };
+    }
+
     const config = evolutionGatewayConfig();
     if (!config) throw new Error("EVOLUTION_ENV_MISSING");
 
-    const tenantId = await requireTenantId(context.supabase, context.userId);
-    const db = context.supabase as any;
     const instance = await getTenantEvolutionInstance(db, tenantId);
     if (!instance) {
       return { success: true, connected: false, state: "disconnected" as EvolutionState };

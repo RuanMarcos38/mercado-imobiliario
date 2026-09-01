@@ -7,8 +7,12 @@ import {
   normalizeAutomaticReply,
   normalizeComparableText,
 } from "@/lib/ai-conversation-policy";
-import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
+import {
+  getTenantWhatsAppConnection,
+  sendTenantWhatsAppText,
+  shouldUseMetaWhatsApp,
+} from "@/lib/whatsapp-provider.server";
 
 function extractText(payload: any): string {
   return (payload?.output ?? [])
@@ -24,17 +28,18 @@ function sleep(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function sendEvolutionText(phone: string, text: string, instanceName: string) {
+async function sendWhatsAppText(tenantId: string, phone: string, text: string) {
   const normalizedPhone = normalizeWhatsAppPhone(phone);
   if (!normalizedPhone) return null;
 
   try {
     const humanTypingDelay = Math.min(3_200, 1_200 + text.length * 8);
-    return await sendEvolutionTextMessage({
+    return await sendTenantWhatsAppText({
+      db: supabaseAdmin as any,
+      tenantId,
       phone: normalizedPhone,
       text,
       delay: humanTypingDelay,
-      instanceName,
     });
   } catch {
     return null;
@@ -257,16 +262,11 @@ export async function maybeAutoReply(input: {
     return { sent: false, reason: "courtesy_only" };
   }
 
-  const { data: connection } = await db
-    .from("whatsapp_connections")
-    .select("instance_name,status")
-    .eq("tenant_id", input.tenantId)
-    .maybeSingle();
-  const instanceName =
-    (connection?.instance_name ? String(connection.instance_name) : "") ||
-    process.env["EVOLUTION_INSTANCE"]?.trim() ||
-    "";
-  if (!instanceName) {
+  const connection = await getTenantWhatsAppConnection(db, input.tenantId);
+  const hasRuntime =
+    shouldUseMetaWhatsApp(connection) ||
+    Boolean(connection?.instance_name || process.env["EVOLUTION_INSTANCE"]?.trim());
+  if (!hasRuntime) {
     await queueForHuman(input);
     return { sent: false, reason: "whatsapp_not_connected" };
   }
@@ -327,29 +327,24 @@ export async function maybeAutoReply(input: {
     return { sent: false, reason: "human_service_active" };
   }
 
-  const evolutionPayload = await sendEvolutionText(input.phone, reply, instanceName);
-  if (!evolutionPayload) {
+  const sent = await sendWhatsAppText(input.tenantId, input.phone, reply);
+  if (!sent) {
     await queueForHuman(input);
     return { sent: false, reason: "whatsapp_send_failed" };
   }
 
-  const key = evolutionPayload["key"] as Record<string, unknown> | undefined;
-  const externalMessageId =
-    (typeof key?.["id"] === "string" && key["id"]) ||
-    (typeof evolutionPayload["id"] === "string" && evolutionPayload["id"]) ||
-    null;
   const now = new Date().toISOString();
 
   await db.from("whatsapp_messages").insert({
     tenant_id: input.tenantId,
     conversation_id: input.conversationId,
-    external_message_id: externalMessageId,
     direction: "outbound",
     message_type: "text",
     body: reply,
     status: "sent",
     sent_at: now,
-    raw_payload: evolutionPayload,
+    external_message_id: sent.externalMessageId,
+    raw_payload: { ...sent.payload, mercadoimobi_provider: sent.provider },
   });
   await db
     .from("whatsapp_conversations")

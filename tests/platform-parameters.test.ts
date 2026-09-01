@@ -25,6 +25,11 @@ const KEYS = [
   "EVOLUTION_URL",
   "EVOLUTION_GLOBAL_API_KEY",
   "AUTHENTICATION_API_KEY",
+  "WHATSAPP_PROVIDER",
+  "META_WHATSAPP_ACCESS_TOKEN",
+  "META_WHATSAPP_PHONE_NUMBER_ID",
+  "WHATSAPP_CLOUD_ACCESS_TOKEN",
+  "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
 ] as const;
 
 const originals = new Map(KEYS.map((key) => [key, process.env[key]]));
@@ -113,5 +118,20 @@ describe("platform parameters", () => {
     const whatsapp = integrationReadiness().find((item) => item.key === "whatsapp");
 
     expect(whatsapp?.configured).toBe(true);
+  });
+
+  it("recognizes the official Meta WhatsApp Cloud API runtime", () => {
+    process.env["EVOLUTION_API_URL"] = "";
+    process.env["EVOLUTION_API_KEY"] = "";
+    process.env["EVOLUTION_URL"] = "";
+    process.env["AUTHENTICATION_API_KEY"] = "";
+    process.env["META_WHATSAPP_ACCESS_TOKEN"] = "meta-token";
+    process.env["META_WHATSAPP_PHONE_NUMBER_ID"] = "123456789";
+    process.env["WHATSAPP_PROVIDER"] = "meta";
+
+    const whatsapp = integrationReadiness().find((item) => item.key === "whatsapp");
+
+    expect(whatsapp?.configured).toBe(true);
+    expect(whatsappParameters().provider).toBe("meta");
   });
 });

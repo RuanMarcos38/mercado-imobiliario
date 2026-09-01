@@ -141,7 +141,11 @@ function PlatformParametersPage() {
                             </code>
                           </td>
                           <td className="px-3 py-3 font-black text-blue-600">
-                            {String(parameter.value)}
+                            {parameter.secret
+                              ? parameter.value
+                                ? "Configurado"
+                                : "Não configurado"
+                              : String(parameter.value)}
                           </td>
                           <td className="px-3 py-3">
                             <span
