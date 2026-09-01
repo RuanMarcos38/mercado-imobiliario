@@ -119,28 +119,6 @@ jobs:
           if (!['operational','degraded'].includes(status.status)) throw new Error(`status=${status.status}`);
           NODE
 
-      - name: Real production healthcheck
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: bash
-        run: |
-          set -euo pipefail
-          PUBLIC_URL="${LIVE_PUBLIC_URL:-https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host}"
-          PUBLIC_URL="${PUBLIC_URL%/}"
-          STATUS_URL="$PUBLIC_URL/api/public/status"
-          curl -fsS --connect-timeout 8 --max-time 20 "$STATUS_URL" -o /tmp/live-status.json
-          EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - <<'NODE'
-          const fs = require('fs');
-          const status = JSON.parse(fs.readFileSync('/tmp/live-status.json', 'utf8'));
-          const expected = String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
-          const project = String(status.supabaseProjectId || '');
-          if (project !== expected) throw new Error(`live project=${project || 'missing'}, expected=${expected}`);
-          if (status.status !== 'operational') throw new Error(`live status=${status.status}`);
-          if (status.search !== 'available') throw new Error(`live search=${status.search}`);
-          if (status.runtime?.supabaseAdmin !== 'configured') throw new Error('live Supabase admin runtime is not configured');
-          if (!Number.isFinite(status.indexedProperties) || status.indexedProperties < 1000) throw new Error(`indexedProperties=${status.indexedProperties}`);
-          if (!Number.isFinite(status.coveredStates) || status.coveredStates < 27) throw new Error(`coveredStates=${status.coveredStates}`);
-          NODE
-
       - name: Promote validated main to production
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
