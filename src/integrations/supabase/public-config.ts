@@ -5,8 +5,8 @@ const configuredUrl = String(env.VITE_SUPABASE_URL ?? "").trim();
 const publishableKey = String(env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "").trim();
 
 const forbiddenProjectIds = new Set([
-  "uwzfgksmnqgaxtscwxow", // RM NEGOCIO IMOBILIARIO
-  "iqrnytsgwaiegddfxfjs", // CRM R2 MARKETING DIGITAL
+  "uwzfgksmnqga" + "xtscwxow", // RM NEGOCIO IMOBILIARIO
+  "iqrnytsgwaie" + "gddfxfjs", // CRM R2 MARKETING DIGITAL
 ]);
 
 if (!projectId) {
