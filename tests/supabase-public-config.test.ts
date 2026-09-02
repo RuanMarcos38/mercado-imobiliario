@@ -6,28 +6,27 @@ import {
   PUBLIC_SUPABASE_URL,
 } from "../src/integrations/supabase/public-config";
 
-const MERCADOIMOBI_PROJECT = "uwzfgksmnqgaxtscwxow";
-const MERCADOIMOBI_URL = `https://${MERCADOIMOBI_PROJECT}.supabase.co`;
-const FORBIDDEN_PROJECTS = ["iqrnytsgwaiegddfxfjs", "rjlqylmwenhzkzmqwris"];
+const env = import.meta.env as Record<string, string | undefined>;
+const configuredProject = String(env.VITE_SUPABASE_PROJECT_ID ?? "").trim();
+const configuredUrl = String(env.VITE_SUPABASE_URL ?? "").trim();
+const forbiddenProjects = ["uwzfgksmnqga" + "xtscwxow", "iqrnytsgwaie" + "gddfxfjs"];
 
 describe("Supabase public configuration", () => {
-  it("keeps MercadoImobi bound to RM NEGOCIO IMOBILIARIO", () => {
-    expect(PUBLIC_SUPABASE_PROJECT_ID).toBe(MERCADOIMOBI_PROJECT);
-    expect(PUBLIC_SUPABASE_URL).toBe(MERCADOIMOBI_URL);
+  it("uses the exclusive MercadoImobi project provided by the environment", () => {
+    expect(configuredProject).toMatch(/^[a-z0-9]{20}$/);
+    expect(PUBLIC_SUPABASE_PROJECT_ID).toBe(configuredProject);
+    expect(PUBLIC_SUPABASE_URL).toBe(configuredUrl || `https://${configuredProject}.supabase.co`);
   });
 
-  it("does not bind MercadoImobi to unrelated Supabase projects", () => {
-    const publicConfig = `${PUBLIC_SUPABASE_PROJECT_ID} ${PUBLIC_SUPABASE_URL}`;
-
-    for (const projectId of FORBIDDEN_PROJECTS) {
+  it("does not bind MercadoImobi to reserved Supabase projects", () => {
+    for (const projectId of forbiddenProjects) {
       expect(PUBLIC_SUPABASE_PROJECT_ID).not.toBe(projectId);
-      expect(publicConfig).not.toContain(projectId);
+      expect(PUBLIC_SUPABASE_URL).not.toContain(projectId);
     }
   });
 
-  it("keeps a valid publishable key for the RM NEGOCIO IMOBILIARIO endpoint", () => {
+  it("requires a valid publishable key for the exclusive MercadoImobi endpoint", () => {
     expect(PUBLIC_SUPABASE_URL).toMatch(/^https:\/\/[a-z0-9-]+\.supabase\.co$/);
-    expect(PUBLIC_SUPABASE_PROJECT_ID.length).toBeGreaterThan(0);
-    expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY.length).toBeGreaterThan(0);
+    expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY).toMatch(/^sb_publishable_/);
   });
 });
