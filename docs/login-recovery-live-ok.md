@@ -1,6 +1,6 @@
 # MercadoImobi EasyPanel — LIVE OK
 
-> Registro histórico obsoleto: este check apontou para um projeto Supabase que agora é proibido para o MercadoImobi. Use o projeto dedicado `rjlqylmwenhzkzmqwris` nas configurações atuais.
+> Correção de referência em 2026-09-02: o Supabase correto do MercadoImobi é o projeto RM NEGOCIO IMOBILIARIO `uwzfgksmnqgaxtscwxow`. O projeto `rjlqylmwenhzkzmqwris` não deve ser usado para autenticação nem dados desta aplicação.
 
 Verified at (UTC): 2026-08-22T12:18:49Z
 EasyPanel target: https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host
