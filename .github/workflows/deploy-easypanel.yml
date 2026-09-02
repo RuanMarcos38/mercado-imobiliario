@@ -20,19 +20,17 @@ jobs:
       EASYPANEL_DEPLOY_TRIGGER_URL: ${{ secrets.EASYPANEL_DEPLOY_TRIGGER_URL }}
       DEPLOY_TRIGGER_URL: ${{ secrets.DEPLOY_TRIGGER_URL }}
       EASYPANEL_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
-      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      EXPECTED_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
     steps:
-      - name: Validate exclusive MercadoImobi Supabase project
+      - name: Validate MercadoImobi Supabase project
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${EXPECTED_SUPABASE_PROJECT_ID:-}" || { echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID is required."; exit 1; }
-          FORBIDDEN_RM="uwzfgksmnqga""xtscwxow"
-          FORBIDDEN_CRM="iqrnytsgwaie""gddfxfjs"
-          if [ "$EXPECTED_SUPABASE_PROJECT_ID" = "$FORBIDDEN_RM" ] || [ "$EXPECTED_SUPABASE_PROJECT_ID" = "$FORBIDDEN_CRM" ]; then
-            echo "::error::MercadoImobi must use its exclusive Supabase project."
+          CANONICAL_RM="uwzfgksmnqgaxtscwxow"
+          test "$EXPECTED_SUPABASE_PROJECT_ID" = "$CANONICAL_RM" || {
+            echo "::error::MercadoImobi must use RM NEGOCIO IMOBILIARIO Supabase."
             exit 1
-          fi
+          }
 
       - name: Resolve EasyPanel deployment configuration
         id: config
@@ -93,7 +91,7 @@ jobs:
                 ready=1
                 break
               fi
-              echo "Backend responded but is not fully configured with the exclusive MercadoImobi Supabase project:"
+              echo "Backend responded but is not fully configured with RM NEGOCIO IMOBILIARIO Supabase:"
               head -c 800 /tmp/mercadoimobi-live-status.json || true
               echo
             fi
@@ -101,6 +99,6 @@ jobs:
             sleep 5
           done
           if [ "$ready" -ne 1 ]; then
-            echo "::error::MercadoImobi EasyPanel backend did not become fully operational with the exclusive production Supabase project."
+            echo "::error::MercadoImobi EasyPanel backend did not become fully operational with RM NEGOCIO IMOBILIARIO Supabase."
             exit 1
           fi
