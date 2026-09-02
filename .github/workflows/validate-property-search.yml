@@ -56,8 +56,8 @@ jobs:
         run: |
           set -euo pipefail
           CANONICAL_RM="uwzfgksmnqgaxtscwxow"
-          FORBIDDEN_CRM="iqrnytsgwaiegddfxfjs"
-          FORBIDDEN_OLD="rjlqylmwenhzkzmqwris"
+          FORBIDDEN_CRM="iqrnytsgwaie""gddfxfjs"
+          FORBIDDEN_OLD="rjlqylmwenhzk""zmqwris"
           test "$EXPECTED_SUPABASE_PROJECT_ID" = "$CANONICAL_RM" || {
             echo "::error::MercadoImobi must use RM NEGOCIO IMOBILIARIO Supabase."
             exit 1
