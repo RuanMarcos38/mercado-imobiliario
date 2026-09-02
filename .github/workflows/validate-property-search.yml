@@ -21,8 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      EXPECTED_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
+      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
       LIVE_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
+      VITE_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      VITE_SUPABASE_URL: https://${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,22 +58,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CANONICAL_RM="uwzfgksmnqgaxtscwxow"
+          FORBIDDEN_RM="uwzfgksmnqga""xtscwxow"
           FORBIDDEN_CRM="iqrnytsgwaie""gddfxfjs"
-          FORBIDDEN_OLD="rjlqylmwenhzk""zmqwris"
-          test "$EXPECTED_SUPABASE_PROJECT_ID" = "$CANONICAL_RM" || {
-            echo "::error::MercadoImobi must use RM NEGOCIO IMOBILIARIO Supabase."
+          test -n "$EXPECTED_SUPABASE_PROJECT_ID" || {
+            echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID is not configured."
             exit 1
           }
-          if git grep -nE "${FORBIDDEN_CRM}|${FORBIDDEN_OLD}" -- \
-            '.env.example' 'supabase/config.toml' '.github/workflows/*.yml' 'src/integrations/supabase/*.ts'; then
-            echo "::error::Unrelated Supabase project reference found in deployment/runtime configuration."
+          [[ "$EXPECTED_SUPABASE_PROJECT_ID" =~ ^[a-z0-9]{20}$ ]] || {
+            echo "::error::Invalid MercadoImobi Supabase project ref."
+            exit 1
+          }
+          test "$EXPECTED_SUPABASE_PROJECT_ID" != "$FORBIDDEN_RM" || {
+            echo "::error::RM NEGOCIO IMOBILIARIO is forbidden for MercadoImobi."
+            exit 1
+          }
+          test "$EXPECTED_SUPABASE_PROJECT_ID" != "$FORBIDDEN_CRM" || {
+            echo "::error::CRM R2 MARKETING DIGITAL is forbidden for MercadoImobi."
+            exit 1
+          }
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || {
+            echo "::error::MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY is not configured."
+            exit 1
+          }
+          if git grep -nE "${FORBIDDEN_RM}|${FORBIDDEN_CRM}" -- \
+            '.env.example' 'supabase/config.toml' 'src/integrations/supabase/*.ts'; then
+            echo "::error::Forbidden Supabase project reference found in runtime configuration."
             exit 1
           fi
-          grep -q "$CANONICAL_RM" supabase/config.toml || {
-            echo "::error::supabase/config.toml is not bound to RM NEGOCIO IMOBILIARIO."
-            exit 1
-          }
 
       - name: Verify source formatting
         run: npx prettier --check .
@@ -86,9 +100,6 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          VITE_SUPABASE_URL: https://uwzfgksmnqgaxtscwxow.supabase.co
-          VITE_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
         run: |
           set -euo pipefail
           npm run build
@@ -96,9 +107,6 @@ jobs:
 
       - name: Smoke test backend
         shell: bash
-        env:
-          VITE_SUPABASE_URL: https://uwzfgksmnqgaxtscwxow.supabase.co
-          VITE_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
         run: |
           set -euo pipefail
           PORT=3000 HOST=127.0.0.1 NODE_ENV=production node .output/server/index.mjs > /tmp/mercadoimobi-server.log 2>&1 &
@@ -115,6 +123,36 @@ jobs:
           const expected = String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
           if (String(status.supabaseProjectId || '') !== expected) throw new Error(`project=${status.supabaseProjectId || 'missing'}`);
           if (!['operational','degraded'].includes(status.status)) throw new Error(`status=${status.status}`);
+          NODE
+
+      - name: Healthcheck real
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$LIVE_PUBLIC_URL" || {
+            echo "::error::EASYPANEL_PUBLIC_URL is not configured; real healthcheck cannot run."
+            exit 1
+          }
+          case "$LIVE_PUBLIC_URL" in
+            http://localhost*|https://localhost*|http://127.*|https://127.*)
+              echo "::error::LIVE_PUBLIC_URL must point to the deployed public application."
+              exit 1
+              ;;
+          esac
+          BASE="${LIVE_PUBLIC_URL%/}"
+          curl --fail --silent --show-error --max-time 20 "$BASE/api/public/status" -o /tmp/live-status.json
+          EXPECTED_SUPABASE_PROJECT_ID="$EXPECTED_SUPABASE_PROJECT_ID" node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/live-status.json', 'utf8'));
+          const expected = String(process.env.EXPECTED_SUPABASE_PROJECT_ID || '');
+          if (String(status.supabaseProjectId || '') !== expected) throw new Error(`live project=${status.supabaseProjectId || 'missing'}`);
+          if (status.status !== 'operational') throw new Error(`live status=${status.status}`);
+          if (status.database !== 'ok') throw new Error(`database=${status.database}`);
+          if (status.search !== 'available') throw new Error(`search=${status.search}`);
+          if (Number(status.indexedProperties || 0) < 1000) throw new Error(`indexedProperties=${status.indexedProperties || 0}`);
+          if (Number(status.coveredStates || 0) < 27) throw new Error(`coveredStates=${status.coveredStates || 0}`);
+          if (status.synchronization?.state === 'stale') throw new Error(`synchronization=${status.synchronization.state}`);
+          if (status.runtime?.supabaseAdmin !== 'configured') throw new Error(`supabaseAdmin=${status.runtime?.supabaseAdmin || 'missing'}`);
           NODE
 
       - name: Promote validated main to production
