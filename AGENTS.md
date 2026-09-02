@@ -12,8 +12,8 @@ Estas regras são obrigatórias para qualquer agente, chatbot, IDE, automação 
 
 ## Banco de dados
 
-- Trabalhar somente com o Supabase do MercadoImobi/Casa Conectada, projeto `rjlqylmwenhzkzmqwris`.
-- Nunca modificar os projetos `uwzfgksmnqgaxtscwxow` (RM NEGOCIO IMOBILIARIO) ou `iqrnytsgwaiegddfxfjs` (CRM R2 MARKETING DIGITAL).
+- Trabalhar somente com o Supabase RM NEGOCIO IMOBILIARIO, projeto `uwzfgksmnqgaxtscwxow`, que é o banco correto do MercadoImobi.
+- Nunca modificar o projeto `iqrnytsgwaiegddfxfjs` (CRM R2 MARKETING DIGITAL) nem usar o projeto antigo `rjlqylmwenhzkzmqwris` para autenticação ou dados do MercadoImobi.
 - Toda tabela pública deve manter RLS habilitada; catálogos públicos podem ter policy SELECT explícita e nunca escrita anônima.
 - Favoritos e pesquisas salvas devem permanecer isolados por `auth.uid()`.
 - Alterações de schema/funções/políticas devem ser registradas em `supabase/migrations`.
@@ -35,7 +35,7 @@ Executar, nesta ordem:
 3. `npm run lint`
 4. `npm run test -- --passWithNoTests`
 5. `npm audit --omit=dev --audit-level=high`
-6. build de produção sem depender de variáveis Supabase do EasyPanel
+6. build de produção sem depender de variáveis Supabase incorretas do EasyPanel
 7. iniciar `.output/server/index.mjs`
 8. consultar `GET /api/public/status`
 9. exigir HTTP 200, `status=operational`, `search=available`, pelo menos 1.000 imóveis indexados e cobertura das 27 UFs
