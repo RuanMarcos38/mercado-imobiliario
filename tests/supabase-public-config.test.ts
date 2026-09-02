@@ -6,13 +6,14 @@ import {
   PUBLIC_SUPABASE_URL,
 } from "../src/integrations/supabase/public-config";
 
-const MERCADOIMOBI_PROJECT = "rjlqylmwenhzkzmqwris";
-const FORBIDDEN_PROJECTS = ["uwzfgksmnqgaxtscwxow", "iqrnytsgwaiegddfxfjs"];
+const MERCADOIMOBI_PROJECT = "uwzfgksmnqgaxtscwxow";
+const MERCADOIMOBI_URL = `https://${MERCADOIMOBI_PROJECT}.supabase.co`;
+const FORBIDDEN_PROJECTS = ["iqrnytsgwaiegddfxfjs", "rjlqylmwenhzkzmqwris"];
 
 describe("Supabase public configuration", () => {
-  it("keeps MercadoImobi bound to its production Supabase project", () => {
-    if (!PUBLIC_SUPABASE_PROJECT_ID) return;
+  it("keeps MercadoImobi bound to RM NEGOCIO IMOBILIARIO", () => {
     expect(PUBLIC_SUPABASE_PROJECT_ID).toBe(MERCADOIMOBI_PROJECT);
+    expect(PUBLIC_SUPABASE_URL).toBe(MERCADOIMOBI_URL);
   });
 
   it("does not bind MercadoImobi to unrelated Supabase projects", () => {
@@ -24,12 +25,7 @@ describe("Supabase public configuration", () => {
     }
   });
 
-  it("keeps the public key aligned with an explicitly configured public endpoint", () => {
-    if (!PUBLIC_SUPABASE_URL && !PUBLIC_SUPABASE_PROJECT_ID) {
-      expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBe("");
-      return;
-    }
-
+  it("keeps a valid publishable key for the RM NEGOCIO IMOBILIARIO endpoint", () => {
     expect(PUBLIC_SUPABASE_URL).toMatch(/^https:\/\/[a-z0-9-]+\.supabase\.co$/);
     expect(PUBLIC_SUPABASE_PROJECT_ID.length).toBeGreaterThan(0);
     expect(PUBLIC_SUPABASE_PUBLISHABLE_KEY.length).toBeGreaterThan(0);
