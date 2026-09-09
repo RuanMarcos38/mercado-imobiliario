@@ -21,11 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      EXPECTED_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
       LIVE_PUBLIC_URL: ${{ vars.EASYPANEL_PUBLIC_URL }}
-      VITE_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
-      VITE_SUPABASE_URL: https://${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}.supabase.co
-      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,33 +55,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          FORBIDDEN_RM="uwzfgksmnqga""xtscwxow"
+          CANONICAL_RM="uwzfgksmnqgaxtscwxow"
           FORBIDDEN_CRM="iqrnytsgwaie""gddfxfjs"
-          test -n "$EXPECTED_SUPABASE_PROJECT_ID" || {
-            echo "::error::MERCADOIMOBI_SUPABASE_PROJECT_ID is not configured."
+          FORBIDDEN_OLD="rjlqylmwenhzk""zmqwris"
+          test "$EXPECTED_SUPABASE_PROJECT_ID" = "$CANONICAL_RM" || {
+            echo "::error::MercadoImobi must use RM NEGOCIO IMOBILIARIO Supabase."
             exit 1
           }
-          [[ "$EXPECTED_SUPABASE_PROJECT_ID" =~ ^[a-z0-9]{20}$ ]] || {
-            echo "::error::Invalid MercadoImobi Supabase project ref."
-            exit 1
-          }
-          test "$EXPECTED_SUPABASE_PROJECT_ID" != "$FORBIDDEN_RM" || {
-            echo "::error::RM NEGOCIO IMOBILIARIO is forbidden for MercadoImobi."
-            exit 1
-          }
-          test "$EXPECTED_SUPABASE_PROJECT_ID" != "$FORBIDDEN_CRM" || {
-            echo "::error::CRM R2 MARKETING DIGITAL is forbidden for MercadoImobi."
-            exit 1
-          }
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || {
-            echo "::error::MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY is not configured."
-            exit 1
-          }
-          if git grep -nE "${FORBIDDEN_RM}|${FORBIDDEN_CRM}" -- \
-            '.env.example' 'supabase/config.toml' 'src/integrations/supabase/*.ts'; then
-            echo "::error::Forbidden Supabase project reference found in runtime configuration."
+          if git grep -nE "${FORBIDDEN_CRM}|${FORBIDDEN_OLD}" -- \
+            '.env.example' 'supabase/config.toml' '.github/workflows/*.yml' 'src/integrations/supabase/*.ts'; then
+            echo "::error::Unrelated Supabase project reference found in deployment/runtime configuration."
             exit 1
           fi
+          grep -q "$CANONICAL_RM" supabase/config.toml || {
+            echo "::error::supabase/config.toml is not bound to RM NEGOCIO IMOBILIARIO."
+            exit 1
+          }
 
       - name: Verify source formatting
         run: npx prettier --check .
@@ -100,6 +86,9 @@ jobs:
 
       - name: Build
         shell: bash
+        env:
+          VITE_SUPABASE_URL: https://uwzfgksmnqgaxtscwxow.supabase.co
+          VITE_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
         run: |
           set -euo pipefail
           npm run build
@@ -107,6 +96,9 @@ jobs:
 
       - name: Smoke test backend
         shell: bash
+        env:
+          VITE_SUPABASE_URL: https://uwzfgksmnqgaxtscwxow.supabase.co
+          VITE_SUPABASE_PROJECT_ID: uwzfgksmnqgaxtscwxow
         run: |
           set -euo pipefail
           PORT=3000 HOST=127.0.0.1 NODE_ENV=production node .output/server/index.mjs > /tmp/mercadoimobi-server.log 2>&1 &
