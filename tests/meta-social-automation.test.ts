@@ -25,12 +25,17 @@ describe("official Meta Facebook and Instagram automation", () => {
   it("requires a valid X-Hub-Signature-256", () => {
     vi.stubEnv("META_APP_SECRET", "app-secret");
     const rawBody = JSON.stringify({ object: "instagram", entry: [] });
-    const signature = createHmac("sha256", "app-secret").update(rawBody, "utf8").digest("hex");
-    const request = new Request("https://mercadoimobi.example.com/api/public/hooks/meta-social", {
-      method: "POST",
-      headers: { "x-hub-signature-256": `sha256=${signature}` },
-      body: rawBody,
-    });
+    const signature = createHmac("sha256", "app-secret")
+      .update(rawBody, "utf8")
+      .digest("hex");
+    const request = new Request(
+      "https://mercadoimobi.example.com/api/public/hooks/meta-social",
+      {
+        method: "POST",
+        headers: { "x-hub-signature-256": `sha256=${signature}` },
+        body: rawBody,
+      },
+    );
     expect(metaSocialWebhookSignatureValid(request, rawBody)).toBe(true);
     expect(metaSocialWebhookSignatureValid(request, `${rawBody}x`)).toBe(false);
   });
@@ -121,7 +126,9 @@ describe("official Meta Facebook and Instagram automation", () => {
 
   it("detects buying-intent language without treating a refusal as interest", () => {
     expect(classifySocialInterestText("Qual valor? Tenho interesse em visitar.")).toBe(true);
-    expect(classifySocialInterestText("Gostaria de mais detalhes sobre financiamento.")).toBe(true);
+    expect(
+      classifySocialInterestText("Gostaria de mais detalhes sobre financiamento."),
+    ).toBe(true);
     expect(classifySocialInterestText("Não tenho interesse, obrigado.")).toBe(false);
     expect(classifySocialInterestText("Muito bonito!")).toBe(false);
   });
