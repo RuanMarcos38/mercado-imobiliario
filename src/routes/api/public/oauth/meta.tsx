@@ -29,6 +29,10 @@ async function handleMetaOAuth(request: Request) {
   try {
     const { completeMetaOAuth } = await import("@/lib/meta-social.server");
     const result = await completeMetaOAuth({ code, state });
+    const { registerMetaSocialConnections } = await import(
+      "@/lib/meta-social-automation.server"
+    );
+    await registerMetaSocialConnections({ tenantId: result.tenantId, userId: result.userId });
     target.searchParams.set("meta", "connected");
     target.searchParams.set("pages", String(result.pageCount));
     target.searchParams.set("instagram", String(result.instagramCount));
