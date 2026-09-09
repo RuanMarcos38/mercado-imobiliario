@@ -16,17 +16,51 @@ const sendSchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 
+const META_AUTOMATION_SCOPES = [
+  "pages_show_list",
+  "pages_read_engagement",
+  "pages_read_user_content",
+  "pages_manage_engagement",
+  "pages_manage_metadata",
+  "pages_messaging",
+  "instagram_basic",
+  "instagram_manage_messages",
+  "instagram_manage_comments",
+];
+
+function connectUrlWithAutomationScopes(connectUrl: string | null) {
+  if (!connectUrl) return null;
+  try {
+    const url = new URL(connectUrl);
+    const scopes = new Set(
+      String(url.searchParams.get("scope") ?? "")
+        .split(",")
+        .map((scope) => scope.trim())
+        .filter(Boolean),
+    );
+    for (const scope of META_AUTOMATION_SCOPES) scopes.add(scope);
+    url.searchParams.set("scope", [...scopes].join(","));
+    return url.toString();
+  } catch {
+    return connectUrl;
+  }
+}
+
 export const getMetaSocialStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { getMetaOAuthUrl, getMetaSocialConfig } = await import("@/lib/meta-social.server");
+    const { metaSocialWebhookCallbackUrl } = await import("@/lib/meta-social-automation.server");
     const config = await getMetaSocialConfig(tenantId, context.userId);
-    const connectUrl = getMetaOAuthUrl({ tenantId, userId: context.userId });
+    const connectUrl = connectUrlWithAutomationScopes(
+      getMetaOAuthUrl({ tenantId, userId: context.userId }),
+    );
     return {
       configured: Boolean(connectUrl),
       connected: Boolean(config?.pages.length),
       connectUrl,
+      webhookCallbackUrl: metaSocialWebhookCallbackUrl(),
       connectedAt: config?.connectedAt ?? null,
       pages:
         config?.pages.map((page) => ({
@@ -42,7 +76,11 @@ export const disconnectMetaSocialAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
+    const { unregisterMetaSocialConnections } = await import(
+      "@/lib/meta-social-automation.server"
+    );
     const { disconnectMetaSocial } = await import("@/lib/meta-social.server");
+    await unregisterMetaSocialConnections({ tenantId, userId: context.userId });
     await disconnectMetaSocial(tenantId, context.userId);
     return { success: true };
   });
