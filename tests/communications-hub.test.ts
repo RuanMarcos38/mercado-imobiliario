@@ -22,7 +22,10 @@ describe("MercadoImobi communication hub security", () => {
     const url = getMetaOAuthUrl({ tenantId: "tenant-a", userId: "user-a" });
     expect(url).toContain("facebook.com/dialog/oauth");
     expect(url).toContain("pages_messaging");
+    expect(url).toContain("pages_read_user_content");
+    expect(url).toContain("pages_manage_engagement");
     expect(url).toContain("instagram_manage_messages");
+    expect(url).toContain("instagram_manage_comments");
     expect(url).toContain(
       encodeURIComponent("https://mercadoimobi.example.com/api/public/oauth/meta"),
     );
@@ -39,11 +42,14 @@ describe("MercadoImobi communication hub security", () => {
     const env = readFileSync(".env.example", "utf8");
     const nav = readFileSync("src/routes/_authenticated.tsx", "utf8");
     const social = readFileSync("src/routes/_authenticated/midias-sociais.tsx", "utf8");
+    const socialServer = readFileSync("src/lib/meta-social.server.ts", "utf8");
     const email = readFileSync("src/routes/_authenticated/email-cca.tsx", "utf8");
     const dialer = readFileSync("src/routes/_authenticated/discador.tsx", "utf8");
     const diagnostics = readFileSync("src/routes/_authenticated/diagnostico.tsx", "utf8");
 
     expect(env).toContain("META_APP_SECRET=");
+    expect(env).toContain("instagram_manage_comments");
+    expect(env).toContain("pages_read_user_content");
     expect(env).toContain("META_WHATSAPP_ACCESS_TOKEN=");
     expect(env).toContain("META_WHATSAPP_VERIFY_TOKEN=");
     expect(env).toContain("RESEND_API_KEY=");
@@ -57,6 +63,10 @@ describe("MercadoImobi communication hub security", () => {
     expect(nav).not.toContain('label: "Discador"');
     expect(nav).toContain('to: "/diagnostico"');
     expect(social).toContain("Conectar Facebook e Instagram");
+    expect(social).toContain("IA de comentários");
+    expect(socialServer).toContain("scanMetaSocialComments");
+    expect(socialServer).toContain("/private_replies");
+    expect(socialServer).toContain("recipient: { comment_id");
     expect(email).toContain("Enviar documentação por e-mail");
     expect(dialer).toContain("Ligar para o cliente");
     expect(diagnostics).toContain("Testar tudo agora");

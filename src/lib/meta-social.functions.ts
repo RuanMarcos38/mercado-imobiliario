@@ -15,6 +15,17 @@ const sendSchema = z.object({
   recipientId: z.string().min(1).max(180),
   text: z.string().trim().min(1).max(2000),
 });
+const scanCommentsSchema = z.object({
+  channel: channelSchema.default("all"),
+  pageId: z.string().trim().min(1).max(100).optional(),
+  sourceId: z.string().trim().min(1).max(180).optional(),
+  sourceLimit: z.number().int().min(1).max(20).default(5),
+  commentLimit: z.number().int().min(1).max(100).default(25),
+  keywords: z.array(z.string().trim().min(1).max(60)).max(40).optional(),
+  sendPrivateReplies: z.boolean().default(false),
+  whatsappNumber: z.string().trim().max(24).optional(),
+  inviteMessage: z.string().trim().max(700).optional(),
+});
 
 export const getMetaSocialStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -75,4 +86,13 @@ export const sendSocialText = createServerFn({ method: "POST" })
     const { sendMetaSocialText } = await import("@/lib/meta-social.server");
     const result = await sendMetaSocialText({ tenantId, userId: context.userId, ...data });
     return { success: true, result };
+  });
+
+export const scanSocialInterestComments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => scanCommentsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const { scanMetaSocialComments } = await import("@/lib/meta-social.server");
+    return scanMetaSocialComments({ tenantId, userId: context.userId, ...data });
   });
