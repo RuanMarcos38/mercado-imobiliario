@@ -1,3 +1,1 @@
-# Deliberately not bound to a live project in source control.
-# CI/runtime must provide the exclusive MercadoImobi/Casa Conectada project ref.
-project_id = "mercado-imobi"
+project_id = "uwzfgksmnqgaxtscwxow"
