@@ -76,9 +76,7 @@ export const disconnectMetaSocialAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
-    const { unregisterMetaSocialConnections } = await import(
-      "@/lib/meta-social-automation.server"
-    );
+    const { unregisterMetaSocialConnections } = await import("@/lib/meta-social-automation.server");
     const { disconnectMetaSocial } = await import("@/lib/meta-social.server");
     await unregisterMetaSocialConnections({ tenantId, userId: context.userId });
     await disconnectMetaSocial(tenantId, context.userId);

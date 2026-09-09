@@ -371,7 +371,9 @@ async function graphJson(url: string, token: string, body: JsonObject) {
     payload = { raw: text };
   }
   if (!response.ok || payload?.error) {
-    throw new Error(String(payload?.error?.message || payload?.raw || `HTTP ${response.status}`).slice(0, 260));
+    throw new Error(
+      String(payload?.error?.message || payload?.raw || `HTTP ${response.status}`).slice(0, 260),
+    );
   }
   return payload;
 }
@@ -387,7 +389,9 @@ async function tenantWhatsAppLink(tenantId: string) {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
   if (!digits) return null;
-  const text = encodeURIComponent("Olá! Vim pelo Facebook/Instagram e gostaria de mais informações.");
+  const text = encodeURIComponent(
+    "Olá! Vim pelo Facebook/Instagram e gostaria de mais informações.",
+  );
   return `https://wa.me/${digits}?text=${text}`;
 }
 
@@ -491,7 +495,10 @@ export async function processMetaSocialWebhook(payload: JsonObject) {
       }
 
       const result = await replyToInterestedComment(owner, item);
-      await recordAutomation(owner, item, result.reason, { interested: true, automated: result.acted });
+      await recordAutomation(owner, item, result.reason, {
+        interested: true,
+        automated: result.acted,
+      });
       processed += 1;
       if (result.acted) automated += 1;
     } catch {
