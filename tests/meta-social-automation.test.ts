@@ -121,6 +121,7 @@ describe("official Meta Facebook and Instagram automation", () => {
 
   it("detects buying-intent language without treating a refusal as interest", () => {
     expect(classifySocialInterestText("Qual valor? Tenho interesse em visitar.")).toBe(true);
+    expect(classifySocialInterestText("Gostaria de mais detalhes sobre financiamento.")).toBe(true);
     expect(classifySocialInterestText("Não tenho interesse, obrigado.")).toBe(false);
     expect(classifySocialInterestText("Muito bonito!")).toBe(false);
   });
