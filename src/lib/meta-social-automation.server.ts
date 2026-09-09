@@ -18,9 +18,9 @@ import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
 
 type JsonObject = Record<string, unknown>;
 
-const SOCIAL_CONNECTION_EVENT = "meta_social_connection";
-const SOCIAL_DISCONNECTION_EVENT = "meta_social_disconnection";
-const SOCIAL_AUTOMATION_EVENT = "meta_social_automation";
+const CONNECTION_EVENT = "meta_social_connection";
+const DISCONNECTION_EVENT = "meta_social_disconnection";
+const AUTOMATION_EVENT = "meta_social_automation";
 const DEFAULT_GRAPH_VERSION = "v26.0";
 
 type MetaSocialOwner = {
@@ -38,7 +38,6 @@ export type MetaSocialWebhookItem =
       externalId: string;
       senderId: string;
       text: string;
-      timestamp: string | null;
     }
   | {
       kind: "comment";
@@ -46,9 +45,7 @@ export type MetaSocialWebhookItem =
       accountId: string;
       externalId: string;
       senderId: string | null;
-      senderName: string | null;
       text: string;
-      timestamp: string | null;
     };
 
 function object(value: unknown): JsonObject {
@@ -70,10 +67,6 @@ function socialVerifyToken() {
   );
 }
 
-function socialAppSecret() {
-  return process.env["META_APP_SECRET"]?.trim() || "";
-}
-
 export function metaSocialWebhookCallbackUrl() {
   return `${platformBaseUrl()}/api/public/hooks/meta-social`;
 }
@@ -85,21 +78,17 @@ export function verifyMetaSocialWebhookChallenge(request: Request) {
   const challenge = url.searchParams.get("hub.challenge") ?? "";
   const expected = socialVerifyToken();
   if (mode === "subscribe" && expected && supplied === expected && challenge) {
-    return new Response(challenge, {
-      status: 200,
-      headers: { "Content-Type": "text/plain" },
-    });
+    return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
   }
   return new Response("Forbidden", { status: 403 });
 }
 
 export function metaSocialWebhookSignatureValid(request: Request, rawBody: string) {
-  const appSecret = socialAppSecret();
-  if (!appSecret) return false;
-  const header = request.headers.get("x-hub-signature-256") ?? "";
-  if (!header.startsWith("sha256=")) return false;
+  const appSecret = process.env["META_APP_SECRET"]?.trim() || "";
+  const signature = request.headers.get("x-hub-signature-256") ?? "";
+  if (!appSecret || !signature.startsWith("sha256=")) return false;
   try {
-    const supplied = Buffer.from(header.slice("sha256=".length), "hex");
+    const supplied = Buffer.from(signature.slice("sha256=".length), "hex");
     const expected = createHmac("sha256", appSecret).update(rawBody, "utf8").digest();
     return supplied.length === expected.length && timingSafeEqual(supplied, expected);
   } catch {
@@ -107,27 +96,18 @@ export function metaSocialWebhookSignatureValid(request: Request, rawBody: strin
   }
 }
 
-function timestampToIso(value: unknown) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) return null;
-  const milliseconds = numeric > 10_000_000_000 ? numeric : numeric * 1000;
-  return new Date(milliseconds).toISOString();
-}
-
 function instagramComment(entryId: string, value: JsonObject): MetaSocialWebhookItem | null {
-  const commentId = String(value["id"] ?? value["comment_id"] ?? "");
+  const externalId = String(value["id"] ?? value["comment_id"] ?? "");
   const text = String(value["text"] ?? value["message"] ?? "").trim();
-  if (!commentId || !text) return null;
+  if (!externalId || !text) return null;
   const from = object(value["from"]);
   return {
     kind: "comment",
     channel: "instagram",
     accountId: entryId,
-    externalId: commentId,
+    externalId,
     senderId: String(from["id"] ?? value["from_id"] ?? "") || null,
-    senderName: String(from["username"] ?? from["name"] ?? value["username"] ?? "") || null,
     text,
-    timestamp: timestampToIso(value["timestamp"] ?? value["created_time"]),
   };
 }
 
@@ -135,19 +115,17 @@ function facebookComment(entryId: string, value: JsonObject): MetaSocialWebhookI
   if (String(value["item"] ?? "") !== "comment" || String(value["verb"] ?? "add") !== "add") {
     return null;
   }
-  const commentId = String(value["comment_id"] ?? value["id"] ?? "");
+  const externalId = String(value["comment_id"] ?? value["id"] ?? "");
   const text = String(value["message"] ?? value["text"] ?? "").trim();
-  if (!commentId || !text) return null;
+  if (!externalId || !text) return null;
   const from = object(value["from"]);
   return {
     kind: "comment",
     channel: "facebook",
     accountId: entryId,
-    externalId: commentId,
+    externalId,
     senderId: String(from["id"] ?? "") || null,
-    senderName: String(from["name"] ?? "") || null,
     text,
-    timestamp: timestampToIso(value["created_time"] ?? value["timestamp"]),
   };
 }
 
@@ -155,8 +133,8 @@ export function extractMetaSocialWebhookItems(payload: JsonObject): MetaSocialWe
   const objectType = String(payload["object"] ?? "").toLowerCase();
   if (objectType !== "page" && objectType !== "instagram") return [];
   const channel: SocialChannel = objectType === "instagram" ? "instagram" : "facebook";
-  const entries = Array.isArray(payload["entry"]) ? payload["entry"] : [];
   const result: MetaSocialWebhookItem[] = [];
+  const entries = Array.isArray(payload["entry"]) ? payload["entry"] : [];
 
   for (const rawEntry of entries) {
     const entry = object(rawEntry);
@@ -168,19 +146,11 @@ export function extractMetaSocialWebhookItems(payload: JsonObject): MetaSocialWe
       const event = object(rawEvent);
       const message = object(event["message"]);
       if (!Object.keys(message).length || message["is_echo"] === true) continue;
-      const text = String(message["text"] ?? "").trim();
       const senderId = String(object(event["sender"])["id"] ?? "");
       const externalId = String(message["mid"] ?? "");
-      if (!text || !senderId || !externalId) continue;
-      result.push({
-        kind: "message",
-        channel,
-        accountId: entryId,
-        externalId,
-        senderId,
-        text,
-        timestamp: timestampToIso(event["timestamp"]),
-      });
+      const text = String(message["text"] ?? "").trim();
+      if (!senderId || !externalId || !text) continue;
+      result.push({ kind: "message", channel, accountId: entryId, externalId, senderId, text });
     }
 
     const changes = Array.isArray(entry["changes"]) ? entry["changes"] : [];
@@ -191,14 +161,12 @@ export function extractMetaSocialWebhookItems(payload: JsonObject): MetaSocialWe
       if (objectType === "instagram" && (field === "comments" || field === "live_comments")) {
         const item = instagramComment(entryId, value);
         if (item) result.push(item);
-      }
-      if (objectType === "page" && field === "feed") {
+      } else if (objectType === "page" && field === "feed") {
         const item = facebookComment(entryId, value);
         if (item) result.push(item);
       }
     }
   }
-
   return result;
 }
 
@@ -217,7 +185,7 @@ export async function registerMetaSocialConnections(input: { tenantId: string; u
   if (!config?.pages.length) return { registered: 0 };
   const rows = config.pages.map((page) => ({
     tenant_id: input.tenantId,
-    event_type: SOCIAL_CONNECTION_EVENT,
+    event_type: CONNECTION_EVENT,
     severity: "info",
     message: "Conta Meta vinculada ao atendimento omnichannel",
     metadata: registryMetadata(page, input.userId),
@@ -232,7 +200,7 @@ export async function unregisterMetaSocialConnections(input: { tenantId: string;
   if (!config?.pages.length) return { unregistered: 0 };
   const rows = config.pages.map((page) => ({
     tenant_id: input.tenantId,
-    event_type: SOCIAL_DISCONNECTION_EVENT,
+    event_type: DISCONNECTION_EVENT,
     severity: "info",
     message: "Conta Meta removida do atendimento omnichannel",
     metadata: registryMetadata(page, input.userId),
@@ -242,12 +210,11 @@ export async function unregisterMetaSocialConnections(input: { tenantId: string;
   return { unregistered: rows.length };
 }
 
-async function resolveMetaSocialOwner(accountId: string): Promise<MetaSocialOwner | null> {
-  const db = supabaseAdmin as any;
-  const { data, error } = await db
+async function resolveOwner(accountId: string): Promise<MetaSocialOwner | null> {
+  const { data, error } = await (supabaseAdmin as any)
     .from("system_events")
     .select("tenant_id,event_type,metadata,created_at")
-    .in("event_type", [SOCIAL_CONNECTION_EVENT, SOCIAL_DISCONNECTION_EVENT])
+    .in("event_type", [CONNECTION_EVENT, DISCONNECTION_EVENT])
     .order("created_at", { ascending: false })
     .limit(5000);
   if (error) throw new Error(error.message);
@@ -257,9 +224,9 @@ async function resolveMetaSocialOwner(accountId: string): Promise<MetaSocialOwne
     const pageId = String(metadata["pageId"] ?? "");
     const instagramUserId = String(metadata["instagramUserId"] ?? "") || null;
     if (accountId !== pageId && accountId !== instagramUserId) continue;
-    if (row.event_type === SOCIAL_DISCONNECTION_EVENT) return null;
-    const userId = String(metadata["userId"] ?? "");
+    if (row.event_type === DISCONNECTION_EVENT) return null;
     const tenantId = String(row.tenant_id ?? "");
+    const userId = String(metadata["userId"] ?? "");
     if (!tenantId || !userId || !pageId) return null;
     return { tenantId, userId, pageId, instagramUserId };
   }
@@ -271,7 +238,7 @@ async function alreadyProcessed(owner: MetaSocialOwner, externalId: string) {
     .from("system_events")
     .select("id")
     .eq("tenant_id", owner.tenantId)
-    .eq("event_type", SOCIAL_AUTOMATION_EVENT)
+    .eq("event_type", AUTOMATION_EVENT)
     .contains("metadata", { externalId })
     .limit(1);
   return Boolean(data?.length);
@@ -285,7 +252,7 @@ async function recordAutomation(
 ) {
   await (supabaseAdmin as any).from("system_events").insert({
     tenant_id: owner.tenantId,
-    event_type: SOCIAL_AUTOMATION_EVENT,
+    event_type: AUTOMATION_EVENT,
     severity: "info",
     message: "Automação de atendimento Meta processada",
     metadata: {
@@ -301,8 +268,6 @@ async function recordAutomation(
 
 const INTEREST_TERMS = [
   "tenho interesse",
-  "tenho interesse nesse",
-  "tenho interesse neste",
   "interessado",
   "interessada",
   "quero saber",
@@ -328,17 +293,12 @@ const INTEREST_TERMS = [
   "localizacao",
 ];
 
-const NEGATIVE_INTEREST_TERMS = [
-  "nao tenho interesse",
-  "nao quero",
-  "sem interesse",
-  "nao me interessa",
-];
+const NEGATIVE_TERMS = ["nao tenho interesse", "nao quero", "sem interesse", "nao me interessa"];
 
 export function classifySocialInterestText(text: string) {
   const normalized = normalizeComparableText(text);
   if (!normalized) return false;
-  if (NEGATIVE_INTEREST_TERMS.some((term) => normalized.includes(term))) return false;
+  if (NEGATIVE_TERMS.some((term) => normalized.includes(term))) return false;
   return INTEREST_TERMS.some((term) => normalized.includes(term));
 }
 
@@ -352,30 +312,39 @@ function extractOpenAIText(payload: any) {
     .trim();
 }
 
-async function classifyInterestWithAI(text: string, fallback: boolean) {
+async function openAIText(instructions: string, input: unknown) {
   const apiKey = process.env["OPENAI_API_KEY"]?.trim();
-  if (!apiKey) return fallback;
+  if (!apiKey) return null;
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: process.env["OPENAI_MODEL"] || "gpt-5.6",
-        instructions:
-          "Classifique somente se o comentário demonstra intenção real de saber mais, preço, disponibilidade, financiamento, visita, localização ou atendimento. Responda exatamente INTERESSE ou SEM_INTERESSE. Não invente contexto.",
-        input: text.slice(0, 1200),
+        instructions,
+        input,
         store: false,
       }),
-      signal: AbortSignal.timeout(externalServiceParameters().aiTimeoutMs),
+      signal: AbortSignal.timeout(externalServiceParameters().metaTimeoutMs),
     });
-    if (!response.ok) return fallback;
-    const answer = normalizeComparableText(extractOpenAIText(await response.json()));
-    if (answer === "interesse") return true;
-    if (answer === "sem interesse") return false;
-    return fallback;
+    if (!response.ok) return null;
+    return extractOpenAIText(await response.json());
   } catch {
-    return fallback;
+    return null;
   }
+}
+
+async function classifyInterestWithAI(text: string) {
+  const fallback = classifySocialInterestText(text);
+  const answer = await openAIText(
+    "Classifique somente se o comentário demonstra intenção real de saber mais, preço, disponibilidade, financiamento, visita, localização ou atendimento. Responda exatamente INTERESSE ou SEM_INTERESSE. Não invente contexto.",
+    text.slice(0, 1200),
+  );
+  if (!answer) return fallback;
+  const normalized = normalizeComparableText(answer);
+  if (normalized === "interesse") return true;
+  if (normalized === "sem interesse") return false;
+  return fallback;
 }
 
 async function pageForOwner(owner: MetaSocialOwner) {
@@ -383,15 +352,15 @@ async function pageForOwner(owner: MetaSocialOwner) {
   return config?.pages.find((page) => page.pageId === owner.pageId) ?? null;
 }
 
-async function graphJson(url: string, token: string, init?: RequestInit) {
+async function graphJson(url: string, token: string, body: JsonObject) {
   const response = await fetch(url, {
-    ...init,
+    method: "POST",
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers ?? {}),
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(externalServiceParameters().metaTimeoutMs),
   });
   const text = await response.text();
@@ -414,64 +383,51 @@ async function tenantWhatsAppLink(tenantId: string) {
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (!data?.phone_number || data.status === "disconnected") return null;
-  const normalized = normalizeWhatsAppPhone(String(data.phone_number));
-  if (!normalized) return null;
-  const digits = normalized.replace(/\D/g, "");
+  const phone = normalizeWhatsAppPhone(String(data.phone_number));
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
   if (!digits) return null;
-  const message = encodeURIComponent("Olá! Vim pelo Facebook/Instagram e gostaria de mais informações.");
-  return `https://wa.me/${digits}?text=${message}`;
+  const text = encodeURIComponent("Olá! Vim pelo Facebook/Instagram e gostaria de mais informações.");
+  return `https://wa.me/${digits}?text=${text}`;
 }
 
-async function sendInstagramCommentPrivateReply(
-  page: MetaPageConnection,
-  commentId: string,
-  text: string,
+async function replyToInterestedComment(
+  owner: MetaSocialOwner,
+  item: Extract<MetaSocialWebhookItem, { kind: "comment" }>,
 ) {
-  if (!page.instagramUserId) throw new Error("INSTAGRAM_NOT_CONNECTED");
-  return graphJson(
-    `https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(page.instagramUserId)}/messages`,
-    page.pageAccessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        recipient: { comment_id: commentId },
-        message: { text },
-      }),
-    },
-  );
-}
-
-async function sendFacebookCommentReply(page: MetaPageConnection, commentId: string, text: string) {
-  return graphJson(
-    `https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(commentId)}/comments`,
-    page.pageAccessToken,
-    { method: "POST", body: JSON.stringify({ message: text }) },
-  );
-}
-
-async function handleInterestedComment(owner: MetaSocialOwner, item: Extract<MetaSocialWebhookItem, { kind: "comment" }>) {
   const page = await pageForOwner(owner);
   if (!page) return { acted: false, reason: "connection_not_found" };
   const whatsapp = await tenantWhatsAppLink(owner.tenantId);
 
   if (item.channel === "instagram") {
+    if (!page.instagramUserId) return { acted: false, reason: "instagram_not_connected" };
     const text = whatsapp
       ? `Olá! Vi seu interesse 😊 Posso continuar seu atendimento aqui no Direct. Se preferir WhatsApp: ${whatsapp}`
       : "Olá! Vi seu interesse 😊 Posso continuar seu atendimento por aqui no Direct. Responda esta mensagem e eu te ajudo.";
-    await sendInstagramCommentPrivateReply(page, item.externalId, text);
+    await graphJson(
+      `https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(page.instagramUserId)}/messages`,
+      page.pageAccessToken,
+      { recipient: { comment_id: item.externalId }, message: { text } },
+    );
     return { acted: true, reason: "instagram_private_reply" };
   }
 
   const text = whatsapp
     ? `Olá! Obrigado pelo interesse. Para continuarmos seu atendimento, fale conosco pelo WhatsApp: ${whatsapp}`
     : "Olá! Obrigado pelo interesse. Envie uma mensagem para a página e continuamos seu atendimento por lá.";
-  await sendFacebookCommentReply(page, item.externalId, text);
+  await graphJson(
+    `https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(item.externalId)}/comments`,
+    page.pageAccessToken,
+    { message: text },
+  );
   return { acted: true, reason: "facebook_comment_reply" };
 }
 
-async function socialDirectAutoReply(owner: MetaSocialOwner, item: Extract<MetaSocialWebhookItem, { kind: "message" }>) {
-  const db = supabaseAdmin as any;
-  const { data: settings } = await db
+async function replyToDirect(
+  owner: MetaSocialOwner,
+  item: Extract<MetaSocialWebhookItem, { kind: "message" }>,
+) {
+  const { data: settings } = await (supabaseAdmin as any)
     .from("ai_agent_settings")
     .select("enabled,auto_reply,system_prompt,handoff_keywords")
     .eq("tenant_id", owner.tenantId)
@@ -487,22 +443,12 @@ async function socialDirectAutoReply(owner: MetaSocialOwner, item: Extract<MetaS
     return { sent: false, reason: "human_handoff" };
   }
 
-  const apiKey = process.env["OPENAI_API_KEY"]?.trim();
-  if (!apiKey) return { sent: false, reason: "ai_not_configured" };
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env["OPENAI_MODEL"] || "gpt-5.6",
-      instructions: `${buildAutomaticInstructions(settings.system_prompt)}\n\nCanal atual: ${item.channel === "instagram" ? "Instagram Direct" : "Facebook Messenger"}. Responda somente à mensagem recebida. Não invente preço, disponibilidade, endereço ou condição. Se precisar de humano, não prometa transferência concluída.`,
-      input: [{ role: "user", content: item.text }],
-      store: false,
-    }),
-    signal: AbortSignal.timeout(externalServiceParameters().aiTimeoutMs),
-  });
-  if (!response.ok) return { sent: false, reason: "ai_request_failed" };
-  const reply = normalizeAutomaticReply(extractOpenAIText(await response.json()));
-  if (!reply) return { sent: false, reason: "empty_reply" };
+  const response = await openAIText(
+    `${buildAutomaticInstructions(settings.system_prompt)}\n\nCanal atual: ${item.channel === "instagram" ? "Instagram Direct" : "Facebook Messenger"}. Responda somente ao que foi perguntado. Não invente preço, disponibilidade, endereço ou condição.`,
+    [{ role: "user", content: item.text }],
+  );
+  const reply = normalizeAutomaticReply(response ?? "");
+  if (!reply) return { sent: false, reason: "ai_unavailable" };
 
   await sendMetaSocialText({
     tenantId: owner.tenantId,
@@ -523,29 +469,28 @@ export async function processMetaSocialWebhook(payload: JsonObject) {
 
   for (const item of items) {
     try {
-      const owner = await resolveMetaSocialOwner(item.accountId);
+      const owner = await resolveOwner(item.accountId);
       if (!owner || (await alreadyProcessed(owner, item.externalId))) {
         skipped += 1;
         continue;
       }
 
       if (item.kind === "message") {
-        const result = await socialDirectAutoReply(owner, item);
+        const result = await replyToDirect(owner, item);
         await recordAutomation(owner, item, result.reason, { automated: result.sent });
         processed += 1;
         if (result.sent) automated += 1;
         continue;
       }
 
-      const keywordInterest = classifySocialInterestText(item.text);
-      const interested = await classifyInterestWithAI(item.text, keywordInterest);
+      const interested = await classifyInterestWithAI(item.text);
       if (!interested) {
         await recordAutomation(owner, item, "comment_without_interest", { interested: false });
         processed += 1;
         continue;
       }
 
-      const result = await handleInterestedComment(owner, item);
+      const result = await replyToInterestedComment(owner, item);
       await recordAutomation(owner, item, result.reason, { interested: true, automated: result.acted });
       processed += 1;
       if (result.acted) automated += 1;
