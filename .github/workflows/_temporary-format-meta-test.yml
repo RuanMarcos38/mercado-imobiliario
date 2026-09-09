@@ -1,0 +1,38 @@
+name: Temporary format Meta social test
+
+on:
+  push:
+    branches: [feat/meta-official-omnichannel-comments]
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-remove:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/meta-official-omnichannel-comments
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Format Meta social test
+        run: npx prettier --write tests/meta-social-automation.test.ts
+
+      - name: Remove temporary workflow and commit formatting
+        run: |
+          rm .github/workflows/_temporary-format-meta-test.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add tests/meta-social-automation.test.ts .github/workflows/_temporary-format-meta-test.yml
+          git commit -m "style: format Meta social automation test"
+          git push origin HEAD:feat/meta-official-omnichannel-comments
