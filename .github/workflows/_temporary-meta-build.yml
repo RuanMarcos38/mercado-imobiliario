@@ -1,0 +1,36 @@
+name: Temporary Meta integration build
+
+on:
+  push:
+    branches: [feat/meta-official-omnichannel-comments]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_PROJECT_ID: ${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}
+      VITE_SUPABASE_URL: https://${{ vars.MERCADOIMOBI_SUPABASE_PROJECT_ID }}.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MERCADOIMOBI_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/meta-official-omnichannel-comments
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: |
+          npm run build
+          test -f .output/server/index.mjs
