@@ -691,9 +691,11 @@ export async function sendMetaSocialText(input: {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
   const page = config?.pages.find((item) => item.pageId === input.pageId);
   if (!page) throw new Error("META_CONNECTION_NOT_FOUND");
-  const senderId = input.channel === "instagram" ? page.instagramUserId : page.pageId;
-  if (!senderId) throw new Error("INSTAGRAM_NOT_CONNECTED");
-  const endpoint = `https://graph.facebook.com/${encodeURIComponent(senderId)}/messages`;
+  if (input.channel === "instagram" && !page.instagramUserId) {
+    throw new Error("INSTAGRAM_NOT_CONNECTED");
+  }
+  // Messenger Platform sends both Facebook and Instagram replies through the Page edge.
+  const endpoint = `https://graph.facebook.com/${encodeURIComponent(page.pageId)}/messages`;
   const body: Record<string, unknown> = {
     recipient: { id: input.recipientId },
     message: { text: input.text },

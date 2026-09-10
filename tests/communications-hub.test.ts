@@ -68,6 +68,9 @@ describe("MercadoImobi communication hub security", () => {
     expect(socialServer).toContain("scanMetaSocialComments");
     expect(socialServer).toContain("/private_replies");
     expect(socialServer).toContain("recipient: { comment_id");
+    expect(socialServer).toContain(
+      "https://graph.facebook.com/${encodeURIComponent(page.pageId)}/messages",
+    );
     expect(whatsappProvider).toContain("Token oficial da Meta expirado ou inválido.");
     expect(email).toContain("Enviar documentação por e-mail");
     expect(dialer).toContain("Ligar para o cliente");
