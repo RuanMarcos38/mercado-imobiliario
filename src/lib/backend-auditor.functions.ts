@@ -3,11 +3,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
 import {
-  aiParameters,
   documentParameters,
   externalServiceParameters,
   platformBaseUrl,
 } from "@/lib/platform-parameters.server";
+import { createOpenAIText, describeOpenAIError } from "@/lib/openai-text.server";
 
 export type BackendAuditStatus = "pass" | "warn" | "fail" | "not_configured";
 
@@ -92,45 +92,14 @@ async function timed(
   }
 }
 
-function extractOpenAiText(payload: any) {
-  const direct = typeof payload?.output_text === "string" ? payload.output_text.trim() : "";
-  if (direct) return direct;
-
-  return (payload?.output ?? [])
-    .flatMap((item: any) => item?.content ?? [])
-    .map((item: any) => {
-      if (typeof item?.text === "string") return item.text;
-      if (typeof item?.text?.value === "string") return item.text.value;
-      if (typeof item?.content === "string") return item.content;
-      return "";
-    })
-    .map((text: string) => text.trim())
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-}
-
 async function openAiText(input: unknown, instructions: string) {
-  const apiKey = process.env["OPENAI_API_KEY"]?.trim();
-  if (!apiKey) return null;
-  const parameters = aiParameters();
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: parameters.model,
-      instructions,
-      input,
-      store: false,
-      max_output_tokens: 650,
-    }),
-    signal: AbortSignal.timeout(parameters.requestTimeoutMs),
-  });
-  if (!response.ok) return null;
-  return extractOpenAiText(await response.json().catch(() => ({}))) || null;
+  if (!process.env["OPENAI_API_KEY"]?.trim()) return null;
+  try {
+    const result = await createOpenAIText(input, instructions, { maxOutputTokens: 650 });
+    return result.text;
+  } catch {
+    return null;
+  }
 }
 
 function deterministicReport(checks: BackendAuditCheck[]) {
@@ -383,22 +352,32 @@ async function testOpenAi() {
         detail: "OPENAI_API_KEY ausente no ambiente do servidor.",
       };
     }
-    const text = await openAiText(
-      [{ role: "user", content: "Teste técnico. Responda somente OK." }],
-      "Você é um teste de saúde. Responda somente OK.",
-    );
-    const ok = Boolean(text);
-    return {
-      key: "openai-live",
-      label: "OpenAI / agente de IA",
-      category: "Inteligência artificial",
-      critical: false,
-      configured: true,
-      status: ok ? ("pass" as const) : ("fail" as const),
-      detail: ok
-        ? `Resposta sintética recebida usando ${aiParameters().model}.`
-        : "A OpenAI está configurada, mas o teste sintético não retornou resposta válida.",
-    };
+    try {
+      const result = await createOpenAIText(
+        [{ role: "user", content: "Teste técnico. Responda somente OK." }],
+        "Você é um teste de saúde. Responda somente OK.",
+        { maxOutputTokens: 64 },
+      );
+      return {
+        key: "openai-live",
+        label: "OpenAI / agente de IA",
+        category: "Inteligência artificial",
+        critical: false,
+        configured: true,
+        status: "pass" as const,
+        detail: `Resposta sintética recebida usando ${result.model} via ${result.endpoint === "responses" ? "Responses API" : "Chat Completions"}.`,
+      };
+    } catch (error) {
+      return {
+        key: "openai-live",
+        label: "OpenAI / agente de IA",
+        category: "Inteligência artificial",
+        critical: false,
+        configured: true,
+        status: "fail" as const,
+        detail: describeOpenAIError(error),
+      };
+    }
   });
 }
 

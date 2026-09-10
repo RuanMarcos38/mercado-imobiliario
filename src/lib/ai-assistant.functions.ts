@@ -1,28 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  createOpenAIText,
+  extractOpenAIText,
+  type OpenAITextResult,
+} from "@/lib/openai-text.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { aiParameters } from "@/lib/platform-parameters.server";
 
 const draftSchema = z.object({ conversationId: z.string().uuid() });
 const testSchema = z.object({ message: z.string().trim().min(1).max(2000) });
 
-type OpenAIResponse = {
-  output?: Array<{
-    type?: string;
-    content?: Array<{ type?: string; text?: string }>;
-  }>;
-};
-
-export function extractOpenAIText(payload: OpenAIResponse): string {
-  return (payload.output ?? [])
-    .flatMap((item) => item.content ?? [])
-    .filter((content) => content.type === "output_text" && typeof content.text === "string")
-    .map((content) => content.text?.trim() ?? "")
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-}
+export { extractOpenAIText };
 
 function aiConfig() {
   const apiKey = process.env["OPENAI_API_KEY"];
@@ -30,30 +20,10 @@ function aiConfig() {
   return apiKey ? { apiKey, ...parameters } : null;
 }
 
-async function createResponse(input: unknown, instructions: string) {
+async function createResponse(input: unknown, instructions: string): Promise<OpenAITextResult> {
   const config = aiConfig();
   if (!config) throw new Error("AI_NOT_CONFIGURED");
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: config.model,
-      instructions,
-      input,
-      store: false,
-    }),
-    signal: AbortSignal.timeout(config.requestTimeoutMs),
-  });
-
-  if (!response.ok) throw new Error(`AI_REQUEST_FAILED_${response.status}`);
-  const payload = (await response.json()) as OpenAIResponse;
-  const text = extractOpenAIText(payload);
-  if (!text) throw new Error("AI_EMPTY_RESPONSE");
-  return { text, model: config.model };
+  return createOpenAIText(input, instructions, { timeoutMs: config.requestTimeoutMs });
 }
 
 export const getAiRuntimeStatus = createServerFn({ method: "GET" })

@@ -13,16 +13,7 @@ import {
   sendTenantWhatsAppText,
   shouldUseMetaWhatsApp,
 } from "@/lib/whatsapp-provider.server";
-
-function extractText(payload: any): string {
-  return (payload?.output ?? [])
-    .flatMap((item: any) => item?.content ?? [])
-    .filter((content: any) => content?.type === "output_text" && typeof content?.text === "string")
-    .map((content: any) => content.text.trim())
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-}
+import { createOpenAIText } from "@/lib/openai-text.server";
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -290,23 +281,20 @@ export async function maybeAutoReply(input: {
     }))
     .filter((message) => message.content.trim());
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env["OPENAI_MODEL"] || "gpt-5.6",
-      instructions: buildAutomaticInstructions(settings.system_prompt),
-      input: history,
-      store: false,
-    }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) {
+  let extractedReply = "";
+  try {
+    const response = await createOpenAIText(
+      history,
+      buildAutomaticInstructions(settings.system_prompt),
+      {
+        timeoutMs: 30_000,
+      },
+    );
+    extractedReply = response.text;
+  } catch {
     await queueForHuman(input);
     return { sent: false, reason: "ai_request_failed" };
   }
-
-  const extractedReply = extractText(await response.json());
   if (!extractedReply) {
     await queueForHuman(input);
     return { sent: false, reason: "ai_empty" };

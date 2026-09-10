@@ -6,6 +6,7 @@ import {
   integrationReadiness,
   platformParameterDefinitions,
 } from "@/lib/platform-parameters.server";
+import { createOpenAIText, describeOpenAIError } from "@/lib/openai-text.server";
 
 export type DiagnosticItem = {
   key: string;
@@ -27,33 +28,28 @@ async function testOpenAi(): Promise<DiagnosticItem> {
     };
   const parameters = aiParameters();
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: parameters.model,
-        input: "Teste técnico do MercadoImobi. Responda somente OK.",
-        max_output_tokens: parameters.testMaxOutputTokens,
-        store: false,
-      }),
-      signal: AbortSignal.timeout(parameters.requestTimeoutMs),
-    });
+    const response = await createOpenAIText(
+      "Teste técnico do MercadoImobi. Responda somente OK.",
+      "Você é um teste de saúde. Responda somente OK.",
+      {
+        maxOutputTokens: Math.max(32, parameters.testMaxOutputTokens),
+        timeoutMs: parameters.requestTimeoutMs,
+      },
+    );
     return {
       key: "openai",
       label: "Chatbot / OpenAI",
       configured: true,
-      ok: response.ok,
-      detail: response.ok
-        ? `Resposta sintética executada com sucesso (${parameters.model}).`
-        : `OpenAI HTTP ${response.status}.`,
+      ok: true,
+      detail: `Resposta sintética executada com sucesso (${response.model}, ${response.endpoint === "responses" ? "Responses API" : "Chat Completions"}).`,
     };
-  } catch {
+  } catch (error) {
     return {
       key: "openai",
       label: "Chatbot / OpenAI",
       configured: true,
       ok: false,
-      detail: "Falha de conexão com a OpenAI.",
+      detail: describeOpenAIError(error),
     };
   }
 }

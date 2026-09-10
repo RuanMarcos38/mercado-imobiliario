@@ -16,6 +16,15 @@ describe("MercadoImobi AI assistant", () => {
     expect(text).toBe("Olá! Posso ajudar a encontrar um imóvel.");
   });
 
+  it("extracts direct Responses API and Chat Completions text", () => {
+    expect(extractOpenAIText({ output_text: "OK" })).toBe("OK");
+    expect(
+      extractOpenAIText({
+        choices: [{ message: { content: "Olá! Vamos continuar o atendimento." } }],
+      }),
+    ).toBe("Olá! Vamos continuar o atendimento.");
+  });
+
   it("returns an empty string when no output text exists", () => {
     expect(extractOpenAIText({ output: [] })).toBe("");
   });

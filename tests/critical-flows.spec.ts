@@ -119,7 +119,7 @@ describe("MercadoImobi product invariants", () => {
     const evolutionSender = source("src/lib/evolution-text.server.ts");
     const evolutionConfig = source("src/lib/evolution-instance.server.ts");
     const metaWhatsApp = source("src/lib/meta-whatsapp.server.ts");
-    const auditor = source("src/lib/backend-auditor.functions.ts");
+    const openaiText = source("src/lib/openai-text.server.ts");
 
     expect(envExample).toContain("OPENAI_API_KEY=");
     expect(envExample).toContain("EVOLUTION_API_KEY=");
@@ -136,7 +136,8 @@ describe("MercadoImobi product invariants", () => {
     expect(metaWhatsApp).toContain("process.env[name]");
     expect(metaWhatsApp).toContain('"META_WHATSAPP_ACCESS_TOKEN"');
     expect(metaWhatsApp).toContain('"META_WHATSAPP_PHONE_NUMBER_ID"');
-    expect(auditor).toContain("payload?.output_text");
+    expect(openaiText).toContain("payload?.output_text");
+    expect(openaiText).toContain("https://api.openai.com/v1/chat/completions");
   });
 
   it("keeps the Lovable template visual primitives and paginates the full property base", () => {
