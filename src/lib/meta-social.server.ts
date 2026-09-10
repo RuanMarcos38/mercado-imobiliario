@@ -140,7 +140,11 @@ export function verifyMetaOAuthState(state: string) {
   return { tenantId: parsed.tenantId, userId: parsed.userId };
 }
 
-export function getMetaOAuthUrl(input: { tenantId: string; userId: string }) {
+export function getMetaOAuthUrl(input: {
+  tenantId: string;
+  userId: string;
+  forceAccountSelection?: boolean;
+}) {
   const app = metaAppConfig();
   if (!app) return null;
   const scopes =
@@ -163,6 +167,7 @@ export function getMetaOAuthUrl(input: { tenantId: string; userId: string }) {
     scope: scopes,
     state: createMetaOAuthState(input),
   });
+  if (input.forceAccountSelection) params.set("auth_type", "reauthenticate");
   return `https://www.facebook.com/dialog/oauth?${params.toString()}`;
 }
 

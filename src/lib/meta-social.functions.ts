@@ -34,10 +34,16 @@ export const getMetaSocialStatus = createServerFn({ method: "GET" })
     const { getMetaOAuthUrl, getMetaSocialConfig } = await import("@/lib/meta-social.server");
     const config = await getMetaSocialConfig(tenantId, context.userId);
     const connectUrl = getMetaOAuthUrl({ tenantId, userId: context.userId });
+    const switchAccountUrl = getMetaOAuthUrl({
+      tenantId,
+      userId: context.userId,
+      forceAccountSelection: true,
+    });
     return {
       configured: Boolean(connectUrl),
       connected: Boolean(config?.pages.length),
       connectUrl,
+      switchAccountUrl,
       connectedAt: config?.connectedAt ?? null,
       pages:
         config?.pages.map((page) => ({

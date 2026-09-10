@@ -144,12 +144,15 @@ function SocialInboxPage() {
     );
   }, [conversations.data, search]);
 
-  const connect = () => {
-    if (!status.data?.configured || !status.data.connectUrl) {
+  const connect = (forceAccountSelection = false) => {
+    const targetUrl = forceAccountSelection
+      ? status.data?.switchAccountUrl || status.data?.connectUrl
+      : status.data?.connectUrl;
+    if (!status.data?.configured || !targetUrl) {
       toast.info("Configure META_APP_ID e META_APP_SECRET no servidor para liberar a conexão.");
       return;
     }
-    window.location.assign(status.data.connectUrl);
+    window.location.assign(targetUrl);
   };
 
   const disconnect = async () => {
@@ -226,8 +229,12 @@ function SocialInboxPage() {
             </p>
             <h1 className="mt-1 text-2xl font-black">Facebook e Instagram</h1>
             <p className="mt-1 text-sm text-[var(--mi-text-muted)]">
-              Centralize as conversas das páginas e perfis profissionais conectados, sem misturar
-              contas de outros usuários.
+              Conecte qualquer conta Meta que administre as páginas e perfis profissionais que serão
+              atendidos aqui, sem depender de um perfil próprio do MercadoImobi.
+            </p>
+            <p className="mt-1 text-xs font-bold text-[var(--mi-text-soft)]">
+              Para usar outra conta, escolha o login correto no Facebook/Instagram durante a
+              autorização ou use a opção de trocar conta.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -237,20 +244,38 @@ function SocialInboxPage() {
               </Button>
             </Link>
             {status.data?.connected ? (
-              <Button
-                variant="outline"
-                onClick={() => void disconnect()}
-                className="rounded-xl border-[var(--mi-border)] text-rose-600"
-              >
-                <LogOut className="mr-2 h-4 w-4" /> Desconectar Meta
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => connect(true)}
+                  className="rounded-xl border-[var(--mi-border)]"
+                >
+                  <Link2 className="mr-2 h-4 w-4" /> Trocar conta Meta
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void disconnect()}
+                  className="rounded-xl border-[var(--mi-border)] text-rose-600"
+                >
+                  <LogOut className="mr-2 h-4 w-4" /> Desconectar Meta
+                </Button>
+              </>
             ) : (
-              <Button
-                onClick={connect}
-                className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
-              >
-                <Link2 className="mr-2 h-4 w-4" /> Conectar Facebook e Instagram
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => connect(true)}
+                  className="rounded-xl border-[var(--mi-border)]"
+                >
+                  <Link2 className="mr-2 h-4 w-4" /> Escolher conta Meta
+                </Button>
+                <Button
+                  onClick={() => connect()}
+                  className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
+                >
+                  <Link2 className="mr-2 h-4 w-4" /> Conectar Facebook e Instagram
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -576,7 +601,10 @@ function SocialInboxPage() {
                     Selecione uma conversa para responder sem sair do MercadoImobi.
                   </p>
                   {!status.data?.connected && (
-                    <Button onClick={connect} className="mt-5 rounded-xl bg-blue-600 text-white">
+                    <Button
+                      onClick={() => connect()}
+                      className="mt-5 rounded-xl bg-blue-600 text-white"
+                    >
                       <Link2 className="mr-2 h-4 w-4" /> Conectar Meta
                     </Button>
                   )}
