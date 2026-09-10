@@ -43,6 +43,7 @@ describe("MercadoImobi communication hub security", () => {
     const nav = readFileSync("src/routes/_authenticated.tsx", "utf8");
     const social = readFileSync("src/routes/_authenticated/midias-sociais.tsx", "utf8");
     const socialServer = readFileSync("src/lib/meta-social.server.ts", "utf8");
+    const whatsappProvider = readFileSync("src/lib/whatsapp-provider.server.ts", "utf8");
     const email = readFileSync("src/routes/_authenticated/email-cca.tsx", "utf8");
     const dialer = readFileSync("src/routes/_authenticated/discador.tsx", "utf8");
     const diagnostics = readFileSync("src/routes/_authenticated/diagnostico.tsx", "utf8");
@@ -67,6 +68,7 @@ describe("MercadoImobi communication hub security", () => {
     expect(socialServer).toContain("scanMetaSocialComments");
     expect(socialServer).toContain("/private_replies");
     expect(socialServer).toContain("recipient: { comment_id");
+    expect(whatsappProvider).toContain("Token oficial da Meta expirado ou inválido.");
     expect(email).toContain("Enviar documentação por e-mail");
     expect(dialer).toContain("Ligar para o cliente");
     expect(diagnostics).toContain("Testar tudo agora");

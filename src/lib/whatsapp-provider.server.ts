@@ -122,6 +122,29 @@ function metaBusinessAccountId(connection: TenantWhatsAppConnection | null) {
   );
 }
 
+function metaWhatsAppRuntimeDetail(input: { ok: boolean; phoneNumberId: string; error?: string }) {
+  if (input.ok) {
+    return `Phone Number ID ${input.phoneNumberId} validado na Meta Cloud API.`;
+  }
+
+  const error = input.error?.trim() || "META_WHATSAPP_NOT_CONFIGURED";
+  const normalized = error.toLowerCase();
+  if (
+    normalized.includes("session has expired") ||
+    normalized.includes("error validating access token") ||
+    (normalized.includes("access token") &&
+      (normalized.includes("expired") || normalized.includes("invalid")))
+  ) {
+    return [
+      "Token oficial da Meta expirado ou inválido.",
+      "Atualize META_WHATSAPP_ACCESS_TOKEN no ambiente do Easypanel com um token válido/permanente da WhatsApp Cloud API",
+      input.phoneNumberId ? `para o Phone Number ID ${input.phoneNumberId}.` : ".",
+    ].join(" ");
+  }
+
+  return error;
+}
+
 export async function ensureMetaWhatsAppConnection(input: {
   db: any;
   tenantId: string;
@@ -336,9 +359,11 @@ export async function testTenantWhatsAppRuntime(db: any, tenantId: string) {
       instanceName: phoneNumberId ? metaWhatsAppInstanceName(phoneNumberId) : null,
       phoneNumberId,
       businessAccountId: metaBusinessAccountId(connection),
-      detail: result.ok
-        ? `Phone Number ID ${phoneNumberId} validado na Meta Cloud API.`
-        : String("error" in result ? result.error : "META_WHATSAPP_NOT_CONFIGURED"),
+      detail: metaWhatsAppRuntimeDetail({
+        ok: result.ok,
+        phoneNumberId,
+        error: "error" in result ? String(result.error) : "META_WHATSAPP_NOT_CONFIGURED",
+      }),
     };
   }
 

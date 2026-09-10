@@ -93,10 +93,18 @@ async function timed(
 }
 
 function extractOpenAiText(payload: any) {
+  const direct = typeof payload?.output_text === "string" ? payload.output_text.trim() : "";
+  if (direct) return direct;
+
   return (payload?.output ?? [])
     .flatMap((item: any) => item?.content ?? [])
-    .filter((item: any) => item?.type === "output_text" && typeof item?.text === "string")
-    .map((item: any) => String(item.text).trim())
+    .map((item: any) => {
+      if (typeof item?.text === "string") return item.text;
+      if (typeof item?.text?.value === "string") return item.text.value;
+      if (typeof item?.content === "string") return item.content;
+      return "";
+    })
+    .map((text: string) => text.trim())
     .filter(Boolean)
     .join("\n")
     .trim();
