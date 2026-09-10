@@ -107,6 +107,7 @@ describe("prospect lead privacy and quality", () => {
     expect(PROSPECT_RADAR_INTERVAL_MINUTES).toBe(10);
     expect(workflow).toContain('cron: "*/10 * * * *"');
     expect(workflow).toContain("/api/public/jobs/prospect-radar");
+    expect(workflow).toContain("mantendo o radar acordado via status publico");
   });
 
   it("keeps public profile context and market opportunity on the lead", () => {

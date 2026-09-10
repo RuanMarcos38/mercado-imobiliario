@@ -26,7 +26,21 @@ jobs:
           JOB_KEY="${CRM_KEY:-${FEED_KEY:-}}"
 
           if [ -z "${JOB_KEY:-}" ]; then
-            echo "::notice::Configure CRM_AUTOMATION_JOB_SECRET ou PROPERTY_FEED_SYNC_SECRET para ativar a varredura automatica de prospects."
+            echo "::notice::CRM_AUTOMATION_JOB_SECRET ou PROPERTY_FEED_SYNC_SECRET nao configurado no GitHub Actions; mantendo o radar acordado via status publico."
+            curl -fsS --connect-timeout 10 --max-time 60 \
+              "${BASE_URL}/api/public/jobs/prospect-radar" \
+              -o /tmp/prospect-radar.json
+            cat /tmp/prospect-radar.json
+            echo
+            node - <<'NODE'
+            const fs = require('fs');
+            const payload = JSON.parse(fs.readFileSync('/tmp/prospect-radar.json', 'utf8'));
+            if (!payload.ok) {
+              console.log(`::error::Prospect radar status returned ${payload.error || 'unknown error'}.`);
+              process.exit(1);
+            }
+            console.log(`Prospect radar scheduler: active=${payload.schedulerActive}; running=${payload.running}; interval=${payload.intervalMinutes ?? 'unknown'}min`);
+            NODE
             exit 0
           fi
 
