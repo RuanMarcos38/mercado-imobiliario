@@ -32,7 +32,7 @@ import type { SocialCommentScanResult, SocialInterestComment } from "@/lib/meta-
 
 export const Route = createFileRoute("/_authenticated/midias-sociais")({
   component: SocialInboxPage,
-  head: () => ({ title: "Facebook e Instagram | MercadoImobi" }),
+  head: () => ({ title: "Atendimento Facebook e Instagram | MercadoImobi" }),
 });
 
 type Channel = "all" | "facebook" | "instagram";
@@ -227,7 +227,7 @@ function SocialInboxPage() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
               Omnichannel
             </p>
-            <h1 className="mt-1 text-2xl font-black">Facebook e Instagram</h1>
+            <h1 className="mt-1 text-2xl font-black">Atendimento Facebook e Instagram</h1>
             <p className="mt-1 text-sm text-[var(--mi-text-muted)]">
               Conecte qualquer conta Meta que administre as páginas e perfis profissionais que serão
               atendidos aqui, sem depender de um perfil próprio do MercadoImobi.

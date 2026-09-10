@@ -59,10 +59,12 @@ describe("MercadoImobi communication hub security", () => {
     expect(env).not.toContain("VITE_META_WHATSAPP_ACCESS_TOKEN");
     expect(env).not.toContain("VITE_META_WHATSAPP_VERIFY_TOKEN");
     expect(env).not.toContain("VITE_RESEND_API_KEY");
-    expect(nav).not.toContain('label: "Facebook e Instagram"');
+    expect(nav).toContain('label: "Facebook / Instagram"');
     expect(nav).not.toContain('label: "E-mail / CCA"');
     expect(nav).not.toContain('label: "Discador"');
     expect(nav).toContain('to: "/diagnostico"');
+    expect(nav).toContain('to: "/midias-sociais"');
+    expect(social).toContain("Atendimento Facebook e Instagram");
     expect(social).toContain("Conectar Facebook e Instagram");
     expect(social).toContain("IA de comentários");
     expect(socialServer).toContain("scanMetaSocialComments");

@@ -11,6 +11,7 @@ import {
   Bell,
   Bot,
   Calculator,
+  Camera,
   ChevronDown,
   CreditCard,
   Gavel,
@@ -215,6 +216,12 @@ const toolItems = [
     icon: MessageCircle,
     feature: "atendimento",
   },
+  {
+    to: "/midias-sociais",
+    label: "Facebook / Instagram",
+    icon: Camera,
+    feature: "midias",
+  },
   { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
   { to: "/parcerias", label: "Parcerias imobiliárias", icon: Handshake, feature: "buscar" },
   { to: "/prospectos", label: "Prospecção IA", icon: Target, feature: "buscar" },
@@ -383,6 +390,15 @@ function AuthenticatedLayout() {
             {isFeatureAllowed("atendimento") && (
               <Link to="/atendimento" className="mi-icon-button hidden sm:grid" title="Atendimento">
                 <MessageCircle className="h-4 w-4" />
+              </Link>
+            )}
+            {isFeatureAllowed("midias") && (
+              <Link
+                to="/midias-sociais"
+                className="mi-icon-button hidden sm:grid"
+                title="Facebook / Instagram"
+              >
+                <Camera className="h-4 w-4" />
               </Link>
             )}
             {isFeatureAllowed("alertas") && (
