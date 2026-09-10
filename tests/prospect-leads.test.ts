@@ -3,6 +3,7 @@ import { buildProspectSearchPhrase, isBrazilNationalScope } from "@/lib/prospect
 import {
   dedupeAndRankProspectLeads,
   isNetworkUrl,
+  PROSPECT_REAL_SWEEP_RULES,
   sanitizeProspectLead,
   type ProspectLead,
 } from "@/lib/prospect-leads.core";
@@ -19,6 +20,9 @@ function baseLead(overrides: Partial<ProspectLead> = {}): ProspectLead {
     publicEmail: null,
     publicWebsite: null,
     location: "Joinville, SC",
+    sourceKind: "comentario",
+    profileInsight: "Comentou publicamente em publicação imobiliária.",
+    marketOpportunity: "Oferecer opções similares com financiamento na região.",
     intentStage: "quente",
     intentScore: 88,
     intentSignals: ["perguntou valor", "citou financiamento"],
@@ -27,6 +31,13 @@ function baseLead(overrides: Partial<ProspectLead> = {}): ProspectLead {
     sourceUrls: ["https://www.instagram.com/perfil/"],
     ...overrides,
   };
+}
+
+function plain(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 describe("prospect lead privacy and quality", () => {
@@ -79,6 +90,28 @@ describe("prospect lead privacy and quality", () => {
     });
     expect(lead?.publicPhone).toBeNull();
     expect(lead?.publicEmail).toBeNull();
+  });
+
+  it("documents the real sweep rule for comments, posts and likes context", () => {
+    const rules = plain(PROSPECT_REAL_SWEEP_RULES.join(" "));
+    expect(rules).toContain("comentarios");
+    expect(rules).toContain("posts");
+    expect(rules).toContain("curtidas");
+    expect(rules).toContain("nunca geram prospect isolado");
+  });
+
+  it("keeps public profile context and market opportunity on the lead", () => {
+    const lead = sanitizeProspectLead({
+      ...baseLead({
+        sourceKind: "post",
+        profileInsight: "Perfil público menciona interesse em financiamento imobiliário.",
+        marketOpportunity: "Mostrar apartamentos com entrada facilitada e simulação.",
+      }),
+      contactIsProfessional: false,
+    });
+    expect(lead?.sourceKind).toBe("post");
+    expect(lead?.profileInsight).toContain("financiamento imobiliário");
+    expect(lead?.marketOpportunity).toContain("entrada facilitada");
   });
 
   it("keeps explicitly public professional contact only for professional profiles", () => {

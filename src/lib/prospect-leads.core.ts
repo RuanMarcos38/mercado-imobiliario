@@ -12,6 +12,15 @@ export const SOCIAL_NETWORKS = [
 export type SocialNetwork = (typeof SOCIAL_NETWORKS)[number];
 export type ProspectIntentStage = "quente" | "morno";
 export type ProspectProfileType = "consumidor" | "profissional";
+export type ProspectSourceKind = "comentario" | "post" | "perfil" | "engajamento";
+
+export const PROSPECT_REAL_SWEEP_RULES = [
+  "A etapa de prospecção só pode registrar sinais reais vindos de comentários, posts, perfis públicos indexáveis ou APIs oficiais autorizadas.",
+  "Curtidas, reactions e contagens de engajamento podem reforçar contexto de mercado, mas nunca geram prospect isolado sem comentário, post ou perfil público verificável.",
+  "Todo prospect precisa manter URL da fonte, evidência pública, tipo de fonte e oportunidade de mercado sugerida para revisão humana.",
+  "Dados privados, perfis fechados, contatos pessoais ocultos e informações de data broker não podem ser coletados nem inferidos.",
+  "Telefone, e-mail e site só aparecem quando forem contato profissional publicado para finalidade comercial; consumidores ficam somente com perfil/fonte pública.",
+] as const;
 
 export type ProspectLead = {
   id: string;
@@ -24,6 +33,9 @@ export type ProspectLead = {
   publicEmail: string | null;
   publicWebsite: string | null;
   location: string | null;
+  sourceKind: ProspectSourceKind;
+  profileInsight: string | null;
+  marketOpportunity: string | null;
   intentStage: ProspectIntentStage;
   intentScore: number;
   intentSignals: string[];
@@ -126,6 +138,11 @@ export function sanitizeProspectLead(
     publicEmail: contactAllowed ? sanitizeEmail(lead.publicEmail) : null,
     publicWebsite: contactAllowed ? safePublicUrl(lead.publicWebsite) : null,
     location: lead.location?.trim().slice(0, 160) || null,
+    sourceKind: ["comentario", "post", "perfil", "engajamento"].includes(lead.sourceKind)
+      ? lead.sourceKind
+      : "perfil",
+    profileInsight: lead.profileInsight?.trim().slice(0, 360) || null,
+    marketOpportunity: lead.marketOpportunity?.trim().slice(0, 420) || null,
     intentStage: intentScore >= 75 ? "quente" : "morno",
     intentScore,
     intentSignals: dedupeStrings(lead.intentSignals ?? [], 6),
@@ -160,6 +177,10 @@ function mergeLead(a: ProspectLead, b: ProspectLead): ProspectLead {
     publicEmail: a.publicEmail || b.publicEmail,
     publicWebsite: a.publicWebsite || b.publicWebsite,
     location: a.location || b.location,
+    sourceKind:
+      a.sourceKind === "comentario" || b.sourceKind !== "comentario" ? a.sourceKind : b.sourceKind,
+    profileInsight: a.profileInsight || b.profileInsight,
+    marketOpportunity: better.marketOpportunity || a.marketOpportunity || b.marketOpportunity,
     intentStage: Math.max(a.intentScore, b.intentScore) >= 75 ? "quente" : "morno",
     intentScore: Math.max(a.intentScore, b.intentScore),
     intentSignals: dedupeStrings([...a.intentSignals, ...b.intentSignals], 6),
@@ -173,6 +194,8 @@ export function prospectLeadScore(lead: ProspectLead) {
   let score = lead.intentScore;
   if (lead.intentStage === "quente") score += 15;
   if (lead.evidence) score += 5;
+  if (lead.marketOpportunity) score += 4;
+  if (lead.profileInsight) score += 2;
   if (lead.publishedAt) score += 4;
   if (lead.profileUrl) score += 2;
   if (lead.publicPhone || lead.publicEmail) score += 2;

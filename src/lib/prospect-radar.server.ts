@@ -1,5 +1,6 @@
 import {
   dedupeAndRankProspectLeads,
+  PROSPECT_REAL_SWEEP_RULES,
   safePublicUrl,
   sanitizeProspectLead,
   SOCIAL_NETWORKS,
@@ -13,7 +14,7 @@ import {
 
 const GOOGLE_PLACES_VAULT_SECRET = "mercadoimobi_google_places_api_key";
 const AUTO_QUERY =
-  "Localize comentários, posts e perfis públicos em páginas de venda de imóveis, corretores, imobiliárias, lançamentos e anúncios imobiliários onde pessoas demonstrem intenção real: perguntar preço ou valor, entrada, financiamento, parcelas, disponibilidade, localização, visita ou dizer que quer comprar, alugar ou investir.";
+  "Localize comentários, posts, perfis públicos e contexto de engajamento em páginas de venda de imóveis, corretores, imobiliárias, lançamentos e anúncios imobiliários onde pessoas demonstrem intenção real: perguntar preço ou valor, entrada, financiamento, parcelas, disponibilidade, localização, visita ou dizer que quer comprar, alugar ou investir. Curtidas e reactions entram apenas como contexto; o prospect precisa ter evidência pública verificável.";
 
 export type ProspectProviderStatus = {
   provider: "web_publica" | "google_places" | "youtube_api";
@@ -281,6 +282,10 @@ async function searchYouTubeComments(apiKey: string) {
           publicEmail: null,
           publicWebsite: null,
           location: null,
+          sourceKind: "comentario",
+          profileInsight: "Autor de comentario publico em conteudo imobiliario no YouTube.",
+          marketOpportunity:
+            "Oferecer imoveis similares ao tema do video e conduzir para atendimento consultivo.",
           intentStage: classification.score >= 75 ? "quente" : "morno",
           intentScore: classification.score,
           intentSignals: classification.signals,
@@ -368,8 +373,7 @@ export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot
           configured: true,
           operational: web.networks.some((item) => item.operational),
           found: web.leads.length,
-          detail:
-            "Posts, páginas, perfis e trechos publicamente indexáveis nas redes selecionadas.",
+          detail: `Posts, comentários, perfis e trechos publicamente indexáveis nas redes selecionadas. Regra ativa: ${PROSPECT_REAL_SWEEP_RULES[1]}`,
         },
         places.status,
         youtube.status,

@@ -6,6 +6,7 @@ import {
   dedupeAndRankProspectLeads,
   isNetworkUrl,
   networkDomainHint,
+  PROSPECT_REAL_SWEEP_RULES,
   safePublicUrl,
   sanitizeProspectLead,
   SOCIAL_NETWORKS,
@@ -36,6 +37,9 @@ type RawProspectLead = {
   publicEmail: string | null;
   publicWebsite: string | null;
   location: string | null;
+  sourceKind: "comentario" | "post" | "perfil" | "engajamento";
+  profileInsight: string | null;
+  marketOpportunity: string | null;
   intentScore: number;
   intentSignals: string[];
   evidence: string | null;
@@ -88,6 +92,12 @@ function leadSchema(maxItems: number) {
             publicEmail: { type: ["string", "null"] },
             publicWebsite: { type: ["string", "null"] },
             location: { type: ["string", "null"] },
+            sourceKind: {
+              type: "string",
+              enum: ["comentario", "post", "perfil", "engajamento"],
+            },
+            profileInsight: { type: ["string", "null"] },
+            marketOpportunity: { type: ["string", "null"] },
             intentScore: { type: "integer", minimum: 0, maximum: 100 },
             intentSignals: { type: "array", items: { type: "string" }, maxItems: 6 },
             evidence: { type: ["string", "null"] },
@@ -104,6 +114,9 @@ function leadSchema(maxItems: number) {
             "publicEmail",
             "publicWebsite",
             "location",
+            "sourceKind",
+            "profileInsight",
+            "marketOpportunity",
             "intentScore",
             "intentSignals",
             "evidence",
@@ -236,6 +249,8 @@ async function callNetworkSearch(
 ) {
   const query = buildProspectSearchPhrase(data, network, regionalFocus);
   const instructions = [
+    "REGRA OBRIGATORIA DESTA ETAPA:",
+    ...PROSPECT_REAL_SWEEP_RULES.map((rule) => `- ${rule}`),
     "Você está executando prospecção imobiliária responsável usando apenas conteúdo público e indexável da web.",
     `Pesquise exclusivamente sinais públicos na rede social ${network}.`,
     isBrazilNationalScope(data.location)
@@ -244,6 +259,10 @@ async function callNetworkSearch(
         : `A abrangência é NACIONAL: pesquise em todo o Brasil, cobrindo as cinco regiões (${BRAZIL_REGIONS}) e os 26 estados + Distrito Federal (${BRAZIL_UFS}). Não concentre os resultados apenas em grandes capitais ou em SP/RJ; quando houver sinais confiáveis, diversifique geograficamente.`
       : `A busca está filtrada para ${data.location}. Mantenha os resultados compatíveis com essa localização.`,
     "Encontre perfis ou publicações que demonstrem intenção imobiliária explícita e recente, como procurar imóvel, perguntar preço, financiamento, entrada, visita, localização, compra, aluguel ou investimento.",
+    "A varredura deve procurar comentarios, posts, publicacoes de perfis e sinais publicos relacionados ao mercado imobiliario. Se encontrar curtidas/reactions, use apenas como contexto de engajamento do post; nao retorne uma pessoa apenas porque curtiu.",
+    "sourceKind deve indicar a fonte principal do sinal: comentario, post, perfil ou engajamento. Use engajamento somente quando houver tambem evidencia textual publica verificavel.",
+    "profileInsight deve resumir somente informacoes publicas do perfil ou pagina que ajudem a abordagem comercial, como cidade, interesse imobiliario declarado, segmento profissional ou contexto do post. Use null se nao estiver publico.",
+    "marketOpportunity deve sugerir a oportunidade de mercado a oferecer com base no sinal real: financiamento, entrada menor, imovel similar na regiao, aluguel, investimento, visita ou comparacao de valores. Nao invente imoveis; descreva o angulo da oportunidade.",
     "Priorize sinais dos últimos 90 dias quando a data estiver publicamente disponível.",
     "Não infira interesse somente por curtida genérica, seguidores ou características pessoais. O sinal deve estar explícito em texto ou contexto público.",
     "Não procure nem revele dados privados, dados de login, dados de data broker, endereço residencial, documentos, informações de menores ou qualquer dado que não esteja publicamente disponível.",
@@ -352,6 +371,9 @@ async function searchNetwork(
           intentSignals: lead.intentSignals ?? [],
           evidence: lead.evidence,
           publishedAt: lead.publishedAt,
+          sourceKind: lead.sourceKind,
+          profileInsight: lead.profileInsight,
+          marketOpportunity: lead.marketOpportunity,
           sourceUrls: sourceUrls.length ? sourceUrls : [profileUrl],
         });
         return clean;
@@ -392,6 +414,7 @@ export const getProspectRadarStatus = createServerFn({ method: "GET" })
       configured: Boolean(openAiConfig()),
       networks: SOCIAL_NETWORKS,
       mode: "public_indexed_sources" as const,
+      realSweepRules: PROSPECT_REAL_SWEEP_RULES,
     };
   });
 
@@ -444,8 +467,8 @@ export async function runPublicProspectSearch(
     ? "em todo o território nacional, com passes complementares nas 5 regiões do Brasil"
     : `em ${data.location}`;
   const assistantMessage = leads.length
-    ? `Encontrei ${leads.length} sinais públicos compatíveis com a busca ${coverage}, sendo ${hot} classificados como quentes. ${operationalNetworks} de ${networkSummary.length} redes selecionadas responderam à varredura pública. Revise a evidência e a fonte antes de qualquer abordagem.`
-    : `Não encontrei sinais públicos suficientemente confiáveis nesta tentativa ${coverage}. ${operationalNetworks} de ${networkSummary.length} redes selecionadas responderam; tente ampliar o tipo de imóvel ou os termos de intenção.`;
+    ? `Encontrei ${leads.length} sinais públicos reais compatíveis com a busca ${coverage}, sendo ${hot} classificados como quentes. ${operationalNetworks} de ${networkSummary.length} redes selecionadas responderam à varredura pública. A regra desta etapa exige fonte, evidência e oportunidade de mercado antes de qualquer abordagem.`
+    : `Não encontrei sinais públicos suficientemente confiáveis nesta tentativa ${coverage}. ${operationalNetworks} de ${networkSummary.length} redes selecionadas responderam; pela regra da etapa, curtidas ou perfis sem evidência textual não são registrados como prospect.`;
 
   return {
     leads,

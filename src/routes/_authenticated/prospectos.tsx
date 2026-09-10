@@ -25,7 +25,12 @@ import {
   searchHotRealEstateProspects,
   type ProspectSearchResponse,
 } from "@/lib/prospect-leads.functions";
-import { SOCIAL_NETWORKS, type ProspectLead, type SocialNetwork } from "@/lib/prospect-leads.core";
+import {
+  PROSPECT_REAL_SWEEP_RULES,
+  SOCIAL_NETWORKS,
+  type ProspectLead,
+  type SocialNetwork,
+} from "@/lib/prospect-leads.core";
 
 export const Route = createFileRoute("/_authenticated/prospectos")({
   component: ProspectRadarPage,
@@ -143,10 +148,10 @@ function ProspectRadarPage() {
             </p>
             <h1 className="mt-2 text-3xl font-black">Prospecção IA em redes sociais públicas</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-              Localize sinais públicos de intenção de compra, aluguel ou investimento em imóveis em
-              todo o Brasil. O radar nasce com cobertura nacional — Norte, Nordeste, Centro-Oeste,
-              Sudeste e Sul — e permite refinar por cidade ou região quando necessário, sempre
-              mantendo a fonte para conferência.
+              Localize comentários, posts, perfis públicos e contexto de engajamento ligados ao
+              mercado imobiliário em todo o Brasil. Curtidas e reactions entram como sinal de
+              mercado, mas o lead só aparece quando existe evidência pública verificável para
+              conferência.
             </p>
           </div>
           <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.05] px-4 py-3">
@@ -160,6 +165,19 @@ function ProspectRadarPage() {
           </div>
         </header>
 
+        <section className="mt-5 border-l-4 border-blue-500/50 pl-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700 dark:text-blue-200">
+            Regra desta etapa
+          </p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {PROSPECT_REAL_SWEEP_RULES.map((rule) => (
+              <p key={rule} className="text-xs leading-5 text-[var(--mi-text-muted)]">
+                {rule}
+              </p>
+            ))}
+          </div>
+        </section>
+
         <div className="mt-7 grid gap-6 xl:grid-cols-[460px_1fr]">
           <section className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 sm:p-6">
             <div className="flex items-center gap-2">
@@ -169,7 +187,8 @@ function ProspectRadarPage() {
             <p className="mt-2 text-sm leading-6 text-[var(--mi-text-muted)]">
               Descreva em linguagem natural quem você quer encontrar. Por padrão, a varredura cobre
               todo o território nacional; use o campo de localização somente quando quiser
-              restringir a busca.
+              restringir a busca. Cada resultado precisa trazer fonte, evidência, perfil público e
+              oportunidade de mercado sugerida.
             </p>
 
             <div className="mt-5 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4">
@@ -367,7 +386,7 @@ function LeadCard({ lead }: { lead: ProspectLead }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
-            {NETWORK_LABELS[lead.network]}
+            {NETWORK_LABELS[lead.network]} · {lead.sourceKind}
           </p>
           <h3 className="mt-1 truncate text-lg font-black">{lead.displayName}</h3>
           {lead.profileHandle && (
@@ -392,6 +411,31 @@ function LeadCard({ lead }: { lead: ProspectLead }) {
             Sinal público observado
           </p>
           <p className="mt-2 text-sm leading-6 text-[var(--mi-text)]">{lead.evidence}</p>
+        </div>
+      )}
+
+      {(lead.profileInsight || lead.marketOpportunity) && (
+        <div className="mt-4 grid gap-4 border-t border-[var(--mi-border)] pt-4 sm:grid-cols-2">
+          {lead.profileInsight && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                Informação pública do perfil
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--mi-text-muted)]">
+                {lead.profileInsight}
+              </p>
+            </div>
+          )}
+          {lead.marketOpportunity && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-200">
+                Oportunidade a oferecer
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--mi-text-muted)]">
+                {lead.marketOpportunity}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
