@@ -1,5 +1,7 @@
 import {
   dedupeAndRankProspectLeads,
+  PROSPECT_RADAR_INTERVAL_MS,
+  PROSPECT_RADAR_INTERVAL_MINUTES,
   PROSPECT_REAL_SWEEP_RULES,
   safePublicUrl,
   sanitizeProspectLead,
@@ -328,6 +330,49 @@ function aggregateNetworks(base: ProspectSearchResponse, extra: ProspectLead[]) 
   });
 }
 
+function publicWebSearchFallback(detail: string): ProspectSearchResponse {
+  return {
+    leads: [],
+    networks: SOCIAL_NETWORKS.map((network) => ({
+      network,
+      operational: false,
+      found: 0,
+    })),
+    warnings: [detail],
+    searchedAt: new Date().toISOString(),
+    assistantMessage:
+      "A varredura automática foi executada, mas a pesquisa web pública por IA não respondeu nesta execução. Nenhum prospect foi inventado; as fontes oficiais/complementares disponíveis continuaram sendo consultadas.",
+  };
+}
+
+async function runPublicWebSweep(query: string) {
+  try {
+    const result = await runPublicProspectSearch({
+      query,
+      location: "Brasil — todo território nacional",
+      intent: "qualquer",
+      propertyType: "imóveis residenciais, lançamentos, casas e apartamentos",
+      networks: [...SOCIAL_NETWORKS],
+      limit: 30,
+    });
+    return {
+      result,
+      detail: `Posts, comentários, perfis e trechos publicamente indexáveis nas redes selecionadas. Regra ativa: ${PROSPECT_REAL_SWEEP_RULES[1]}`,
+      configured: true,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message === "PROSPECT_AI_NOT_CONFIGURED"
+        ? "Pesquisa Web IA não configurada no servidor."
+        : "Pesquisa Web IA indisponível nesta execução; demais fontes continuaram sem gerar dados artificiais.";
+    return {
+      result: publicWebSearchFallback(message),
+      detail: message,
+      configured: Boolean(process.env["OPENAI_API_KEY"]?.trim()),
+    };
+  }
+}
+
 export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot> {
   const cache = state();
   if (cache.running) return cache.running;
@@ -343,14 +388,8 @@ export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot
       ? ` Considere também interações públicas ligadas a imobiliárias e corretores reais identificados pelo Google, como: ${places.anchors.join(", ")}.`
       : "";
     const query = `${AUTO_QUERY}${anchorText}`.slice(0, 590);
-    const web = await runPublicProspectSearch({
-      query,
-      location: "Brasil — todo território nacional",
-      intent: "qualquer",
-      propertyType: "imóveis residenciais, lançamentos, casas e apartamentos",
-      networks: [...SOCIAL_NETWORKS],
-      limit: 30,
-    });
+    const webSweep = await runPublicWebSweep(query);
+    const web = webSweep.result;
 
     const leads = dedupeAndRankProspectLeads([...youtube.leads, ...web.leads], 30);
     const hot = leads.filter((lead) => lead.intentStage === "quente").length;
@@ -360,8 +399,8 @@ export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot
       networks: aggregateNetworks(web, youtube.leads),
       searchedAt: new Date().toISOString(),
       assistantMessage: leads.length
-        ? `Varredura nacional automática encontrou ${leads.length} sinais públicos, sendo ${hot} quentes. Foram combinadas pesquisa web pública, Google Places como fonte de contexto imobiliário e comentários públicos do YouTube quando a API oficial estava disponível.`
-        : "A varredura automática foi executada, mas não encontrou sinais públicos suficientemente confiáveis nesta hora. As fontes disponíveis serão consultadas novamente na próxima execução.",
+        ? `Varredura nacional automática encontrou ${leads.length} sinais públicos, sendo ${hot} quentes. Foram combinadas pesquisa web pública, Google Places como fonte de contexto imobiliário e comentários públicos do YouTube quando a API oficial estava disponível. A próxima busca automática roda em ${PROSPECT_RADAR_INTERVAL_MINUTES} minutos.`
+        : `A varredura automática foi executada, mas não encontrou sinais públicos suficientemente confiáveis nesta janela. As fontes disponíveis serão consultadas novamente em ${PROSPECT_RADAR_INTERVAL_MINUTES} minutos.`,
     };
     const now = new Date();
     const snapshot: ProspectRadarSnapshot = {
@@ -370,16 +409,16 @@ export async function runScheduledProspectRadar(): Promise<ProspectRadarSnapshot
         {
           provider: "web_publica",
           label: "Pesquisa Web pública",
-          configured: true,
+          configured: webSweep.configured,
           operational: web.networks.some((item) => item.operational),
           found: web.leads.length,
-          detail: `Posts, comentários, perfis e trechos publicamente indexáveis nas redes selecionadas. Regra ativa: ${PROSPECT_REAL_SWEEP_RULES[1]}`,
+          detail: webSweep.detail,
         },
         places.status,
         youtube.status,
       ],
       searchedAt: now.toISOString(),
-      nextRunAt: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+      nextRunAt: new Date(now.getTime() + PROSPECT_RADAR_INTERVAL_MS).toISOString(),
       scope: "Brasil — todo território nacional",
     };
     cache.snapshot = snapshot;
@@ -412,13 +451,13 @@ export function ensureProspectRadarLoop() {
           error instanceof Error ? error.message : String(error),
         );
       } finally {
-        schedule(60 * 60 * 1000);
+        schedule(PROSPECT_RADAR_INTERVAL_MS);
       }
     }, delayMs);
     cache.timer.unref?.();
   };
 
-  // Primeira execução logo após o processo Node carregar as rotas; depois repete a cada 1 hora.
+  // Primeira execução logo após o processo Node carregar as rotas; depois repete a cada 10 minutos.
   schedule(5_000);
 }
 
@@ -432,6 +471,7 @@ export function getProspectRadarPublicStatus() {
     nextRunAt: snapshot?.nextRunAt ?? null,
     leads: snapshot?.result.leads.length ?? 0,
     hot: snapshot?.result.leads.filter((lead) => lead.intentStage === "quente").length ?? 0,
+    intervalMinutes: PROSPECT_RADAR_INTERVAL_MINUTES,
     providers: snapshot?.providers ?? [],
   };
 }

@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildProspectSearchPhrase, isBrazilNationalScope } from "@/lib/prospect-leads.functions";
 import {
   dedupeAndRankProspectLeads,
   isNetworkUrl,
+  PROSPECT_RADAR_INTERVAL_MINUTES,
   PROSPECT_REAL_SWEEP_RULES,
   sanitizeProspectLead,
   type ProspectLead,
@@ -98,6 +100,13 @@ describe("prospect lead privacy and quality", () => {
     expect(rules).toContain("posts");
     expect(rules).toContain("curtidas");
     expect(rules).toContain("nunca geram prospect isolado");
+  });
+
+  it("runs the automated prospect radar every 10 minutes", () => {
+    const workflow = readFileSync(".github/workflows/prospect-radar.yml", "utf8");
+    expect(PROSPECT_RADAR_INTERVAL_MINUTES).toBe(10);
+    expect(workflow).toContain('cron: "*/10 * * * *"');
+    expect(workflow).toContain("/api/public/jobs/prospect-radar");
   });
 
   it("keeps public profile context and market opportunity on the lead", () => {

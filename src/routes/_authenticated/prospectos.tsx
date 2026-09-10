@@ -26,6 +26,7 @@ import {
   type ProspectSearchResponse,
 } from "@/lib/prospect-leads.functions";
 import {
+  PROSPECT_RADAR_INTERVAL_LABEL,
   PROSPECT_REAL_SWEEP_RULES,
   SOCIAL_NETWORKS,
   type ProspectLead,
@@ -56,7 +57,7 @@ function ProspectRadarPage() {
   const searchFn = useServerFn(searchHotRealEstateProspects);
   const status = useQuery({ queryKey: ["prospect-radar-status"], queryFn: () => statusFn() });
   const snapshot = useQuery({
-    queryKey: ["prospect-radar-hourly-snapshot"],
+    queryKey: ["prospect-radar-auto-snapshot"],
     queryFn: () => snapshotFn(),
     refetchInterval: 60_000,
   });
@@ -308,12 +309,16 @@ function ProspectRadarPage() {
               <div className="rounded-2xl border border-blue-300/25 bg-blue-300/[0.06] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-black text-blue-700 dark:text-blue-200">
-                    Varredura automática nacional a cada 1 hora
+                    Varredura automática nacional a cada {PROSPECT_RADAR_INTERVAL_LABEL}
                   </p>
                   <p className="text-[11px] text-[var(--mi-text-soft)]">
                     Última: {new Date(snapshot.data.searchedAt).toLocaleString("pt-BR")}
                   </p>
                 </div>
+                <p className="mt-2 text-[11px] leading-5 text-[var(--mi-text-muted)]">
+                  Próxima: {new Date(snapshot.data.nextRunAt).toLocaleString("pt-BR")}. A busca
+                  segue a regra de sinais reais e não cria leads a partir de curtidas isoladas.
+                </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {snapshot.data.providers.map((provider) => (
                     <span

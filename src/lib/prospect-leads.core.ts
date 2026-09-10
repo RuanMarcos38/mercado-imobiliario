@@ -14,6 +14,10 @@ export type ProspectIntentStage = "quente" | "morno";
 export type ProspectProfileType = "consumidor" | "profissional";
 export type ProspectSourceKind = "comentario" | "post" | "perfil" | "engajamento";
 
+export const PROSPECT_RADAR_INTERVAL_MINUTES = 10;
+export const PROSPECT_RADAR_INTERVAL_MS = PROSPECT_RADAR_INTERVAL_MINUTES * 60 * 1000;
+export const PROSPECT_RADAR_INTERVAL_LABEL = `${PROSPECT_RADAR_INTERVAL_MINUTES} minutos`;
+
 export const PROSPECT_REAL_SWEEP_RULES = [
   "A etapa de prospecção só pode registrar sinais reais vindos de comentários, posts, perfis públicos indexáveis ou APIs oficiais autorizadas.",
   "Curtidas, reactions e contagens de engajamento podem reforçar contexto de mercado, mas nunca geram prospect isolado sem comentário, post ou perfil público verificável.",
