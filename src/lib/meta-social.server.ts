@@ -9,6 +9,19 @@ import { normalizeComparableText } from "@/lib/ai-conversation-policy";
 import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 
 const SECRET_NAME = "meta-social";
+const META_OAUTH_DEFAULT_SCOPES = [
+  "pages_show_list",
+  "pages_read_engagement",
+  "pages_manage_metadata",
+  "pages_messaging",
+  "instagram_basic",
+  "instagram_manage_comments",
+] as const;
+const META_OAUTH_LEGACY_INVALID_SCOPES = new Set([
+  "pages_read_user_content",
+  "pages_manage_engagement",
+  "instagram_manage_messages",
+]);
 
 export type SocialChannel = "facebook" | "instagram";
 
@@ -140,6 +153,15 @@ export function verifyMetaOAuthState(state: string) {
   return { tenantId: parsed.tenantId, userId: parsed.userId };
 }
 
+export function getMetaOAuthScopes(configuredScopes = process.env["META_OAUTH_SCOPES"]?.trim()) {
+  const configured = String(configuredScopes ?? "")
+    .split(/[,\s]+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean)
+    .filter((scope) => !META_OAUTH_LEGACY_INVALID_SCOPES.has(scope));
+  return [...new Set([...META_OAUTH_DEFAULT_SCOPES, ...configured])].join(",");
+}
+
 export function getMetaOAuthUrl(input: {
   tenantId: string;
   userId: string;
@@ -147,24 +169,11 @@ export function getMetaOAuthUrl(input: {
 }) {
   const app = metaAppConfig();
   if (!app) return null;
-  const scopes =
-    process.env["META_OAUTH_SCOPES"]?.trim() ||
-    [
-      "pages_show_list",
-      "pages_read_engagement",
-      "pages_read_user_content",
-      "pages_manage_metadata",
-      "pages_messaging",
-      "pages_manage_engagement",
-      "instagram_basic",
-      "instagram_manage_messages",
-      "instagram_manage_comments",
-    ].join(",");
   const params = new URLSearchParams({
     client_id: app.appId,
     redirect_uri: app.redirectUri,
     response_type: "code",
-    scope: scopes,
+    scope: getMetaOAuthScopes(),
     state: createMetaOAuthState(input),
   });
   if (input.forceAccountSelection) params.set("auth_type", "reauthenticate");
