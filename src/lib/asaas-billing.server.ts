@@ -91,7 +91,9 @@ async function asaasRequest(
         .map((entry) => String(object(entry)["description"] ?? "").trim())
         .filter(Boolean);
       const detail = descriptions.join(" | ");
-      throw new Error(detail ? `ASAAS_HTTP_${response.status}:${detail}` : `ASAAS_HTTP_${response.status}`);
+      throw new Error(
+        detail ? `ASAAS_HTTP_${response.status}:${detail}` : `ASAAS_HTTP_${response.status}`,
+      );
     }
     return payload;
   } finally {
@@ -151,7 +153,12 @@ function validEmail(value: unknown) {
 
 function asaasWebhookAuthToken(webhookUrl: string) {
   const explicit = process.env["ASAAS_WEBHOOK_TOKEN"]?.trim();
-  if (explicit && explicit.length >= 32 && explicit.length <= 255 && !/\s/.test(explicit)) {
+  if (
+    explicit &&
+    explicit.length >= 32 &&
+    explicit.length <= 255 &&
+    !/\s/.test(explicit)
+  ) {
     return explicit;
   }
 
