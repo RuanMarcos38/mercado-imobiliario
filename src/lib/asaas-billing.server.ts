@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 type JsonObject = Record<string, unknown>;
 
 export type AsaasBillingType = "UNDEFINED" | "PIX" | "BOLETO" | "CREDIT_CARD";
@@ -88,7 +90,8 @@ async function asaasRequest(
       const descriptions = errors
         .map((entry) => String(object(entry)["description"] ?? "").trim())
         .filter(Boolean);
-      throw new Error(descriptions.join(" | ") || `ASAAS_HTTP_${response.status}`);
+      const detail = descriptions.join(" | ");
+      throw new Error(detail ? `ASAAS_HTTP_${response.status}:${detail}` : `ASAAS_HTTP_${response.status}`);
     }
     return payload;
   } finally {
@@ -141,6 +144,27 @@ function resourceId(value: unknown) {
   return null;
 }
 
+function validEmail(value: unknown) {
+  const email = String(value ?? "").trim();
+  return email.includes("@") ? email : null;
+}
+
+function asaasWebhookAuthToken(webhookUrl: string) {
+  const explicit = process.env["ASAAS_WEBHOOK_TOKEN"]?.trim();
+  if (explicit && explicit.length >= 32 && explicit.length <= 255 && !/\s/.test(explicit)) {
+    return explicit;
+  }
+
+  const seed =
+    process.env["INTEGRATIONS_ENCRYPTION_KEY"]?.trim() ||
+    process.env["SUPABASE_SERVICE_ROLE_KEY"]?.trim();
+  if (!seed) return null;
+
+  return createHash("sha256")
+    .update(`mercadoimobi:asaas-webhook:${webhookUrl}:${seed}`)
+    .digest("hex");
+}
+
 async function ensurePaymentWebhook(config: AsaasConfig, origin: string, email?: string | null) {
   const safeOrigin = origin
     .replace(/^http:\/\/([^/]*\.easypanel\.host)/i, "https://$1")
@@ -152,17 +176,23 @@ async function ensurePaymentWebhook(config: AsaasConfig, origin: string, email?:
     data.find((item) => String(item["url"] ?? "") === webhookUrl) ??
     data.find((item) => String(item["name"] ?? "") === "MercadoImobi - pagamentos");
 
+  const notificationEmail =
+    validEmail(existing?.["email"]) ??
+    validEmail(email) ??
+    validEmail(process.env["EMAIL_FROM"]) ??
+    validEmail(process.env["SMTP_USER"]);
+  if (!notificationEmail) throw new Error("ASAAS_WEBHOOK_EMAIL_MISSING");
+
   const body: JsonObject = {
     name: "MercadoImobi - pagamentos",
     url: webhookUrl,
+    email: notificationEmail,
     enabled: true,
     interrupted: false,
+    apiVersion: 3,
     sendType: "SEQUENTIALLY",
     events: [...PAYMENT_EVENTS],
   };
-  const currentEmail = String(existing?.["email"] ?? "").trim();
-  if (currentEmail.includes("@")) body["email"] = currentEmail;
-  else if (email?.includes("@")) body["email"] = email;
 
   if (existing) {
     const existingId = resourceId(existing);
@@ -180,7 +210,13 @@ async function ensurePaymentWebhook(config: AsaasConfig, origin: string, email?:
     }
   }
 
-  await asaasRequest(config, "/webhooks", { method: "POST", body: JSON.stringify(body) });
+  const authToken = asaasWebhookAuthToken(webhookUrl);
+  if (!authToken) throw new Error("ASAAS_WEBHOOK_TOKEN_MISSING");
+
+  await asaasRequest(config, "/webhooks", {
+    method: "POST",
+    body: JSON.stringify({ ...body, authToken }),
+  });
 }
 
 async function createAsaasRecurringPaymentLink(
@@ -237,7 +273,14 @@ export async function createAsaasSubscriptionCheckout(input: {
   const config = await getAsaasConfig();
   if (!config) throw new Error("ASAAS_NOT_CONFIGURED");
 
-  await ensurePaymentWebhook(config, input.origin, input.customerEmail);
+  try {
+    await ensurePaymentWebhook(config, input.origin, input.customerEmail);
+  } catch (error) {
+    console.warn(
+      "[asaas] Não foi possível sincronizar automaticamente o webhook; o checkout continuará.",
+      String((error as Error)?.message ?? error),
+    );
+  }
 
   const monthly = Number(input.plan.price_monthly ?? 0);
   const onboarding = Math.max(0, Number(input.plan.onboarding_fee ?? 0));
