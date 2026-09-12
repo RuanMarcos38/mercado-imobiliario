@@ -153,12 +153,7 @@ function validEmail(value: unknown) {
 
 function asaasWebhookAuthToken(webhookUrl: string) {
   const explicit = process.env["ASAAS_WEBHOOK_TOKEN"]?.trim();
-  if (
-    explicit &&
-    explicit.length >= 32 &&
-    explicit.length <= 255 &&
-    !/\s/.test(explicit)
-  ) {
+  if (explicit && explicit.length >= 32 && explicit.length <= 255 && !/\s/.test(explicit)) {
     return explicit;
   }
 
