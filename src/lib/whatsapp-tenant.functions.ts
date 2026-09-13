@@ -203,6 +203,7 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
         configured: Boolean(
           metaWhatsAppConfig(savedConnection?.provider_phone_number_id ?? undefined),
         ),
+        provider: "meta" as const,
         base64: null as string | null,
         code: null as string | null,
         pairingCode: null as string | null,
@@ -213,6 +214,7 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
     if (!gateway) {
       return {
         configured: false,
+        provider: "evolution" as const,
         base64: null as string | null,
         code: null as string | null,
         pairingCode: null as string | null,
@@ -223,6 +225,7 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
     if (!instance) {
       return {
         configured: true,
+        provider: "evolution" as const,
         base64: null as string | null,
         code: null as string | null,
         pairingCode: null as string | null,
@@ -236,7 +239,11 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
       { method: "GET" },
     );
     if (!response.ok) throw new Error("Não foi possível gerar o QR Code do WhatsApp.");
-    return { configured: true, ...qrValues(await response.json().catch(() => ({}))) };
+    return {
+      configured: true,
+      provider: "evolution" as const,
+      ...qrValues(await response.json().catch(() => ({}))),
+    };
   });
 
 export const listWhatsAppConversations = createServerFn({ method: "GET" })

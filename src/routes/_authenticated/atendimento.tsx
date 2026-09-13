@@ -384,10 +384,10 @@ function AtendimentoPage() {
       toast.success("WhatsApp conectado com sucesso.");
       void conversations.refetch();
     }
-  }, [showQr, connection.data?.connected]);
+  }, [showQr, connection.data?.connected, connection.data?.provider]);
 
   useEffect(() => {
-    if (!showQr || connection.data?.connected) return;
+    if (!showQr || connection.data?.connected || connection.data?.provider === "meta") return;
     let cancelled = false;
     const refresh = async () => {
       try {
@@ -406,9 +406,20 @@ function AtendimentoPage() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [showQr, connection.data?.connected]);
+  }, [showQr, connection.data?.connected, connection.data?.provider]);
 
   const selected = (conversations.data ?? []).find((item) => item.id === selectedId) ?? null;
+  const isMetaWhatsApp = connection.data?.provider === "meta";
+  const isWhatsAppConnected = Boolean(connection.data?.connected);
+  const whatsAppStatusLabel = isMetaWhatsApp
+    ? isWhatsAppConnected
+      ? "WhatsApp API Oficial"
+      : connection.data?.configured
+        ? "API Oficial em validação"
+        : "API Oficial pendente"
+    : isWhatsAppConnected
+      ? "WhatsApp online"
+      : "WhatsApp offline";
   const queueCounts = useMemo(() => {
     const result: Record<QueueTab, number> = { waiting: 0, in_service: 0, automatic: 0 };
     for (const conversation of conversations.data ?? []) {
@@ -448,6 +459,12 @@ function AtendimentoPage() {
     setQrLoading(true);
     try {
       const qr = await qrFn();
+      if (qr.provider === "meta") {
+        setShowQr(false);
+        await connection.refetch();
+        toast.info("A WhatsApp API Oficial da Meta não usa QR Code.");
+        return;
+      }
       setQrBase64(qr.base64);
       setQrCode(qr.code);
       setPairingCode(qr.pairingCode);
@@ -460,7 +477,7 @@ function AtendimentoPage() {
   };
 
   const connect = async () => {
-    setShowQr(true);
+    setShowQr(false);
     setQrLoading(true);
     setQrBase64(null);
     setQrCode(null);
@@ -472,12 +489,22 @@ function AtendimentoPage() {
         toast.info("O gateway do WhatsApp ainda precisa ser ativado no servidor.");
         return;
       }
+      if (prepared.provider === "meta") {
+        await connection.refetch();
+        if (prepared.connected) {
+          toast.success("WhatsApp API Oficial da Meta ativa.");
+        } else {
+          toast.error("A API Oficial da Meta está configurada, mas ainda não validou no servidor.");
+        }
+        return;
+      }
       if (prepared.connected) {
         setShowQr(false);
         await connection.refetch();
         toast.success("Seu WhatsApp já está conectado.");
         return;
       }
+      setShowQr(true);
       if (prepared.qrBase64) setQrBase64(prepared.qrBase64);
       if (prepared.qrCode) setQrCode(prepared.qrCode);
       if (prepared.pairingCode) setPairingCode(prepared.pairingCode);
@@ -506,7 +533,7 @@ function AtendimentoPage() {
       setQrCode(null);
       setPairingCode(null);
       await connection.refetch();
-      toast.success("WhatsApp desconectado. Você pode conectar novamente por QR Code.");
+      toast.success("WhatsApp desconectado.");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Não foi possível desconectar o WhatsApp.",
@@ -823,7 +850,31 @@ function AtendimentoPage() {
                   Configurações do atendimento
                 </summary>
                 <div className="border-t border-[var(--mi-border)] p-3">
-                  {connection.data?.connected ? (
+                  {isMetaWhatsApp ? (
+                    <>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900">
+                        <div className="flex items-center gap-2 font-black">
+                          <CheckCheck className="h-4 w-4" />
+                          WhatsApp API Oficial da Meta
+                        </div>
+                        <p className="mt-1 text-emerald-800">
+                          {isWhatsAppConnected
+                            ? "Conexão oficial ativa para este atendimento."
+                            : "Configuração oficial encontrada. Valide a conexão para atualizar o status."}
+                        </p>
+                        {connection.data?.phoneNumber && (
+                          <p className="mt-1 font-bold">{connection.data.phoneNumber}</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => void connect()}
+                        className="mt-2 h-10 w-full rounded-xl border-emerald-300/70 font-black text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" /> Validar API Oficial
+                      </Button>
+                    </>
+                  ) : connection.data?.connected ? (
                     <Button
                       variant="outline"
                       disabled={disconnecting}
@@ -1021,13 +1072,13 @@ function AtendimentoPage() {
                     </Button>
                   )}
                   <div className="hidden items-center gap-2 text-xs font-bold text-[var(--mi-text-soft)] lg:flex">
-                    {connection.data?.connected ? (
+                    {isWhatsAppConnected ? (
                       <>
-                        <Wifi className="h-4 w-4 text-emerald-600" /> WhatsApp online
+                        <Wifi className="h-4 w-4 text-emerald-600" /> {whatsAppStatusLabel}
                       </>
                     ) : (
                       <>
-                        <WifiOff className="h-4 w-4 text-amber-600" /> WhatsApp offline
+                        <WifiOff className="h-4 w-4 text-amber-600" /> {whatsAppStatusLabel}
                       </>
                     )}
                   </div>
@@ -1651,7 +1702,7 @@ function AtendimentoPage() {
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-950 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black">Conectar meu WhatsApp</h2>
+              <h2 className="text-lg font-black">Conectar WhatsApp por QR Code</h2>
               <button type="button" onClick={() => setShowQr(false)} aria-label="Fechar">
                 <X className="h-5 w-5" />
               </button>

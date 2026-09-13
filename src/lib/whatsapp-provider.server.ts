@@ -106,7 +106,7 @@ export function shouldUseMetaWhatsApp(connection: TenantWhatsAppConnection | nul
   if (mode === "meta") return true;
   if (mode === "evolution") return false;
   if (connection && connectionProvider(connection) === "meta") return true;
-  return Boolean(metaWhatsAppConfig() && !evolutionGatewayConfig());
+  return Boolean(metaWhatsAppConfig());
 }
 
 function metaPhoneNumberId(connection: TenantWhatsAppConnection | null) {
