@@ -49,8 +49,8 @@ export const getMetaSocialStatus = createServerFn({ method: "GET" })
         config?.pages.map((page) => ({
           pageId: page.pageId,
           pageName: page.pageName,
-          instagramUserId: page.instagramUserId,
           instagramUsername: page.instagramUsername,
+          hasInstagram: Boolean(page.instagramUserId),
         })) ?? [],
     };
   });

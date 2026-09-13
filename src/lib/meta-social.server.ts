@@ -16,11 +16,11 @@ const META_OAUTH_DEFAULT_SCOPES = [
   "pages_messaging",
   "instagram_basic",
   "instagram_manage_comments",
+  "instagram_manage_messages",
 ] as const;
 const META_OAUTH_LEGACY_INVALID_SCOPES = new Set([
   "pages_read_user_content",
   "pages_manage_engagement",
-  "instagram_manage_messages",
 ]);
 
 export type SocialChannel = "facebook" | "instagram";
@@ -160,6 +160,25 @@ export function getMetaOAuthScopes(configuredScopes = process.env["META_OAUTH_SC
     .filter(Boolean)
     .filter((scope) => !META_OAUTH_LEGACY_INVALID_SCOPES.has(scope));
   return [...new Set([...META_OAUTH_DEFAULT_SCOPES, ...configured])].join(",");
+}
+
+function configuredIdSet(name: string) {
+  return new Set(
+    String(process.env[name] ?? "")
+      .split(/[,\s]+/)
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function allowedMetaPage(page: MetaPageConnection) {
+  const allowedPageIds = configuredIdSet("META_SOCIAL_ALLOWED_PAGE_IDS");
+  const allowedInstagramIds = configuredIdSet("META_SOCIAL_ALLOWED_INSTAGRAM_IDS");
+  if (!allowedPageIds.size && !allowedInstagramIds.size) return true;
+  return (
+    allowedPageIds.has(page.pageId) ||
+    Boolean(page.instagramUserId && allowedInstagramIds.has(page.instagramUserId))
+  );
 }
 
 export function getMetaOAuthUrl(input: {
@@ -560,11 +579,18 @@ export async function completeMetaOAuth(input: { code: string; state: string }) 
         ? String(page.instagram_business_account.username)
         : null,
     }))
-    .filter((page: MetaPageConnection) => page.pageId && page.pageAccessToken);
+    .filter((page: MetaPageConnection) => page.pageId && page.pageAccessToken)
+    .filter(allowedMetaPage);
 
   if (!pages.length) throw new Error("META_NO_MANAGED_PAGES");
   const config: MetaSocialConfig = { connectedAt: new Date().toISOString(), pages };
   await writeIntegrationSecret(owner.tenantId, owner.userId, SECRET_NAME, config);
+  try {
+    const { registerMetaSocialConnections } = await import("@/lib/meta-social-automation.server");
+    await registerMetaSocialConnections(owner);
+  } catch {
+    // The OAuth connection is still valid even if audit registration is temporarily unavailable.
+  }
   return {
     ...owner,
     pageCount: pages.length,
@@ -577,6 +603,14 @@ export async function getMetaSocialConfig(tenantId: string, userId: string) {
 }
 
 export async function disconnectMetaSocial(tenantId: string, userId: string) {
+  try {
+    const { unregisterMetaSocialConnections } = await import(
+      "@/lib/meta-social-automation.server"
+    );
+    await unregisterMetaSocialConnections({ tenantId, userId });
+  } catch {
+    // The secret removal below must not be blocked by audit registration failures.
+  }
   await deleteIntegrationSecret(tenantId, userId, SECRET_NAME);
 }
 
@@ -703,14 +737,32 @@ export async function sendMetaSocialText(input: {
   if (input.channel === "instagram" && !page.instagramUserId) {
     throw new Error("INSTAGRAM_NOT_CONNECTED");
   }
-  // Messenger Platform sends both Facebook and Instagram replies through the Page edge.
-  const endpoint = `https://graph.facebook.com/${encodeURIComponent(page.pageId)}/messages`;
   const body: Record<string, unknown> = {
     recipient: { id: input.recipientId },
     message: { text: input.text },
   };
   if (input.channel === "facebook") body["messaging_type"] = "RESPONSE";
-  return metaJson(endpoint, {
+
+  const pageEndpoint = `https://graph.facebook.com/${encodeURIComponent(page.pageId)}/messages`;
+  const send = (endpoint: string) =>
+    metaJson(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${page.pageAccessToken}` },
+      body: JSON.stringify(body),
+    });
+
+  if (input.channel === "instagram" && page.instagramUserId) {
+    try {
+      return await send(pageEndpoint);
+    } catch {
+      const instagramEndpoint = `https://graph.facebook.com/${encodeURIComponent(
+        page.instagramUserId,
+      )}/messages`;
+      return send(instagramEndpoint);
+    }
+  }
+
+  return metaJson(pageEndpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${page.pageAccessToken}` },
     body: JSON.stringify(body),

@@ -5,6 +5,7 @@ import {
   PUBLIC_SUPABASE_URL,
 } from "@/integrations/supabase/public-config";
 import { evolutionGatewayDiagnostics } from "@/lib/evolution-instance.server";
+import { metaWhatsAppConfig } from "@/lib/meta-whatsapp.server";
 
 type SearchHealth = {
   count?: number;
@@ -77,8 +78,11 @@ async function checkSearchAvailability(): Promise<SearchAvailability> {
 function runtimeHealth() {
   const supabaseAdminConfigured = Boolean(process.env["SUPABASE_SERVICE_ROLE_KEY"]);
   const aiConfigured = Boolean(process.env["OPENAI_API_KEY"]);
-  const whatsappConfigured = evolutionGatewayDiagnostics().configured;
-  const whatsappWebhookProtected = Boolean(process.env["WHATSAPP_WEBHOOK_SECRET"]);
+  const whatsappConfigured =
+    evolutionGatewayDiagnostics().configured || Boolean(metaWhatsAppConfig());
+  const whatsappWebhookProtected = Boolean(
+    process.env["WHATSAPP_WEBHOOK_SECRET"] || process.env["META_WHATSAPP_VERIFY_TOKEN"],
+  );
   const googleMapsConfigured = Boolean(process.env["GOOGLE_MAPS_API_KEY"]);
   const propertyImportConfigured = Boolean(process.env["PROPERTY_IMPORT_WEBHOOK_SECRET"]);
   const propertyFeedSyncConfigured = Boolean(process.env["PROPERTY_FEED_SYNC_SECRET"]);

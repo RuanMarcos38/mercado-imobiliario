@@ -49,6 +49,7 @@ import { Route as ApiV1LeadsRouteImport } from './routes/api/v1/leads'
 import { Route as ApiV1PropertiesRouteImport } from './routes/api/v1/properties'
 import { Route as ApiPublicHooksAsaasRouteImport } from './routes/api/public/hooks/asaas'
 import { Route as ApiPublicHooksLeadsRouteImport } from './routes/api/public/hooks/leads'
+import { Route as ApiPublicHooksMetaSocialRouteImport } from './routes/api/public/hooks/meta-social'
 import { Route as ApiPublicHooksN8nWebhookRouteImport } from './routes/api/public/hooks/n8n-webhook'
 import { Route as ApiPublicHooksPropertiesRouteImport } from './routes/api/public/hooks/properties'
 import { Route as ApiPublicHooksStripeRouteImport } from './routes/api/public/hooks/stripe'
@@ -279,6 +280,12 @@ const ApiPublicHooksLeadsRoute = ApiPublicHooksLeadsRouteImport.update({
   path: '/api/public/hooks/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksMetaSocialRoute =
+  ApiPublicHooksMetaSocialRouteImport.update({
+    id: '/api/public/hooks/meta-social',
+    path: '/api/public/hooks/meta-social',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksN8nWebhookRoute =
   ApiPublicHooksN8nWebhookRouteImport.update({
     id: '/api/public/hooks/n8n-webhook',
@@ -393,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/properties': typeof ApiV1PropertiesRoute
   '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
+  '/api/public/hooks/meta-social': typeof ApiPublicHooksMetaSocialRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
@@ -447,6 +455,7 @@ export interface FileRoutesByTo {
   '/api/v1/properties': typeof ApiV1PropertiesRoute
   '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
+  '/api/public/hooks/meta-social': typeof ApiPublicHooksMetaSocialRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
@@ -503,6 +512,7 @@ export interface FileRoutesById {
   '/api/v1/properties': typeof ApiV1PropertiesRoute
   '/api/public/hooks/asaas': typeof ApiPublicHooksAsaasRoute
   '/api/public/hooks/leads': typeof ApiPublicHooksLeadsRoute
+  '/api/public/hooks/meta-social': typeof ApiPublicHooksMetaSocialRoute
   '/api/public/hooks/n8n-webhook': typeof ApiPublicHooksN8nWebhookRoute
   '/api/public/hooks/properties': typeof ApiPublicHooksPropertiesRoute
   '/api/public/hooks/stripe': typeof ApiPublicHooksStripeRoute
@@ -559,6 +569,7 @@ export interface FileRouteTypes {
     | '/api/v1/properties'
     | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
+    | '/api/public/hooks/meta-social'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
@@ -613,6 +624,7 @@ export interface FileRouteTypes {
     | '/api/v1/properties'
     | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
+    | '/api/public/hooks/meta-social'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
@@ -668,6 +680,7 @@ export interface FileRouteTypes {
     | '/api/v1/properties'
     | '/api/public/hooks/asaas'
     | '/api/public/hooks/leads'
+    | '/api/public/hooks/meta-social'
     | '/api/public/hooks/n8n-webhook'
     | '/api/public/hooks/properties'
     | '/api/public/hooks/stripe'
@@ -698,6 +711,7 @@ export interface RootRouteChildren {
   ApiV1PropertiesRoute: typeof ApiV1PropertiesRoute
   ApiPublicHooksAsaasRoute: typeof ApiPublicHooksAsaasRoute
   ApiPublicHooksLeadsRoute: typeof ApiPublicHooksLeadsRoute
+  ApiPublicHooksMetaSocialRoute: typeof ApiPublicHooksMetaSocialRoute
   ApiPublicHooksN8nWebhookRoute: typeof ApiPublicHooksN8nWebhookRoute
   ApiPublicHooksPropertiesRoute: typeof ApiPublicHooksPropertiesRoute
   ApiPublicHooksStripeRoute: typeof ApiPublicHooksStripeRoute
@@ -995,6 +1009,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/meta-social': {
+      id: '/api/public/hooks/meta-social'
+      path: '/api/public/hooks/meta-social'
+      fullPath: '/api/public/hooks/meta-social'
+      preLoaderRoute: typeof ApiPublicHooksMetaSocialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/n8n-webhook': {
       id: '/api/public/hooks/n8n-webhook'
       path: '/api/public/hooks/n8n-webhook'
@@ -1169,6 +1190,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1PropertiesRoute: ApiV1PropertiesRoute,
   ApiPublicHooksAsaasRoute: ApiPublicHooksAsaasRoute,
   ApiPublicHooksLeadsRoute: ApiPublicHooksLeadsRoute,
+  ApiPublicHooksMetaSocialRoute: ApiPublicHooksMetaSocialRoute,
   ApiPublicHooksN8nWebhookRoute: ApiPublicHooksN8nWebhookRoute,
   ApiPublicHooksPropertiesRoute: ApiPublicHooksPropertiesRoute,
   ApiPublicHooksStripeRoute: ApiPublicHooksStripeRoute,

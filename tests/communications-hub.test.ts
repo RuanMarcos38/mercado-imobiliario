@@ -26,15 +26,15 @@ describe("MercadoImobi communication hub security", () => {
     expect(url).toContain("pages_manage_metadata");
     expect(url).toContain("instagram_basic");
     expect(url).toContain("instagram_manage_comments");
+    expect(url).toContain("instagram_manage_messages");
     expect(url).not.toContain("pages_read_user_content");
     expect(url).not.toContain("pages_manage_engagement");
-    expect(url).not.toContain("instagram_manage_messages");
     expect(url).toContain(
       encodeURIComponent("https://mercadoimobi.example.com/api/public/oauth/meta"),
     );
   });
 
-  it("filters Meta legacy scopes that currently break Instagram OAuth", () => {
+  it("filters deprecated Meta scopes without removing Instagram Direct", () => {
     vi.stubEnv(
       "META_OAUTH_SCOPES",
       [
@@ -54,9 +54,9 @@ describe("MercadoImobi communication hub security", () => {
     expect(scopes).toContain("pages_messaging");
     expect(scopes).toContain("instagram_basic");
     expect(scopes).toContain("instagram_manage_comments");
+    expect(scopes).toContain("instagram_manage_messages");
     expect(scopes).not.toContain("pages_read_user_content");
     expect(scopes).not.toContain("pages_manage_engagement");
-    expect(scopes).not.toContain("instagram_manage_messages");
   });
 
   it("rejects tampered voice bridge tokens", () => {
@@ -78,8 +78,12 @@ describe("MercadoImobi communication hub security", () => {
 
     expect(env).toContain("META_APP_SECRET=");
     expect(env).toContain("instagram_manage_comments");
+    expect(env).toContain("instagram_manage_messages");
     expect(env).toContain("pages_messaging");
-    expect(env).not.toContain("instagram_manage_messages");
+    expect(env).toContain("META_GRAPH_VERSION=v26.0");
+    expect(env).toContain("META_SOCIAL_VERIFY_TOKEN=");
+    expect(env).toContain("META_SOCIAL_ALLOWED_PAGE_IDS=");
+    expect(env).toContain("META_SOCIAL_ALLOWED_INSTAGRAM_IDS=");
     expect(env).not.toContain("pages_read_user_content");
     expect(env).toContain("META_WHATSAPP_ACCESS_TOKEN=");
     expect(env).toContain("META_WHATSAPP_VERIFY_TOKEN=");
