@@ -604,9 +604,7 @@ export async function getMetaSocialConfig(tenantId: string, userId: string) {
 
 export async function disconnectMetaSocial(tenantId: string, userId: string) {
   try {
-    const { unregisterMetaSocialConnections } = await import(
-      "@/lib/meta-social-automation.server"
-    );
+    const { unregisterMetaSocialConnections } = await import("@/lib/meta-social-automation.server");
     await unregisterMetaSocialConnections({ tenantId, userId });
   } catch {
     // The secret removal below must not be blocked by audit registration failures.
