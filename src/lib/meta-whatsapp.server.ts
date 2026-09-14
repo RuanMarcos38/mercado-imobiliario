@@ -112,6 +112,26 @@ async function metaJson(url: string, config: MetaWhatsAppConfig, init?: RequestI
   return payload as JsonObject;
 }
 
+function metaApiErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "META_WHATSAPP_TEST_FAILED";
+}
+
+export function isMetaWhatsAppAccessTokenFailure(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase();
+  return (
+    normalized.includes("session has expired") ||
+    normalized.includes("error validating access token") ||
+    normalized.includes("invalid oauth access token") ||
+    normalized.includes("oauth access token cannot be parsed") ||
+    normalized.includes("access token could not be decrypted") ||
+    (normalized.includes("access token") &&
+      (normalized.includes("expired") ||
+        normalized.includes("invalid") ||
+        normalized.includes("malformed") ||
+        normalized.includes("cannot be parsed")))
+  );
+}
+
 export function extractMetaWhatsAppMessageId(payload: JsonObject) {
   const messages = Array.isArray(payload["messages"]) ? payload["messages"] : [];
   const first = messages[0] && typeof messages[0] === "object" ? (messages[0] as JsonObject) : {};
@@ -239,7 +259,7 @@ export async function sendMetaWhatsAppMediaMessage(input: {
 export async function testMetaWhatsAppConnection(phoneNumberId?: string) {
   const config = metaWhatsAppConfig(phoneNumberId);
   if (!config) {
-    return { configured: false, ok: false, connected: false };
+    return { configured: false, ok: false, connected: false, metadataValidated: false };
   }
   try {
     const params = new URLSearchParams({
@@ -254,6 +274,7 @@ export async function testMetaWhatsAppConnection(phoneNumberId?: string) {
       configured: true,
       ok: true,
       connected: true,
+      metadataValidated: true,
       phoneNumberId: String(payload["id"] ?? config.phoneNumberId),
       displayPhoneNumber:
         typeof payload["display_phone_number"] === "string"
@@ -264,11 +285,28 @@ export async function testMetaWhatsAppConnection(phoneNumberId?: string) {
         typeof payload["quality_rating"] === "string" ? payload["quality_rating"] : null,
     };
   } catch (error) {
+    const message = metaApiErrorMessage(error);
+    if (!isMetaWhatsAppAccessTokenFailure(message)) {
+      return {
+        configured: true,
+        ok: true,
+        connected: true,
+        metadataValidated: false,
+        phoneNumberId: config.phoneNumberId,
+        displayPhoneNumber: config.displayPhoneNumber,
+        verifiedName: null,
+        qualityRating: null,
+        warning: message,
+      };
+    }
     return {
       configured: true,
       ok: false,
       connected: false,
-      error: error instanceof Error ? error.message : "META_WHATSAPP_TEST_FAILED",
+      metadataValidated: false,
+      phoneNumberId: config.phoneNumberId,
+      displayPhoneNumber: config.displayPhoneNumber,
+      error: message,
     };
   }
 }

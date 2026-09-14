@@ -11,6 +11,7 @@ import {
 import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import {
   extractMetaWhatsAppMessageId,
+  isMetaWhatsAppAccessTokenFailure,
   metaWhatsAppConfig,
   metaWhatsAppInstanceName,
   sendMetaWhatsAppMediaMessage,
@@ -122,19 +123,24 @@ function metaBusinessAccountId(connection: TenantWhatsAppConnection | null) {
   );
 }
 
-function metaWhatsAppRuntimeDetail(input: { ok: boolean; phoneNumberId: string; error?: string }) {
+function metaWhatsAppRuntimeDetail(input: {
+  ok: boolean;
+  phoneNumberId: string;
+  error?: string;
+  metadataValidated?: boolean;
+}) {
   if (input.ok) {
+    if (input.metadataValidated === false) {
+      return [
+        `WhatsApp API Oficial configurada para o Phone Number ID ${input.phoneNumberId}.`,
+        "A leitura de metadados opcionais da Meta não foi confirmada, mas a Cloud API está habilitada para uso.",
+      ].join(" ");
+    }
     return `Phone Number ID ${input.phoneNumberId} validado na Meta Cloud API.`;
   }
 
   const error = input.error?.trim() || "META_WHATSAPP_NOT_CONFIGURED";
-  const normalized = error.toLowerCase();
-  if (
-    normalized.includes("session has expired") ||
-    normalized.includes("error validating access token") ||
-    (normalized.includes("access token") &&
-      (normalized.includes("expired") || normalized.includes("invalid")))
-  ) {
+  if (isMetaWhatsAppAccessTokenFailure(error)) {
     return [
       "Token oficial da Meta expirado ou inválido.",
       "Atualize META_WHATSAPP_ACCESS_TOKEN no ambiente do Easypanel com um token válido/permanente da WhatsApp Cloud API",
@@ -157,9 +163,7 @@ export async function ensureMetaWhatsAppConnection(input: {
   const now = new Date().toISOString();
   const instanceName = metaWhatsAppInstanceName(config.phoneNumberId);
   const displayPhoneNumber =
-    live.ok && "displayPhoneNumber" in live && live.displayPhoneNumber
-      ? live.displayPhoneNumber
-      : config.displayPhoneNumber;
+    live.ok && live.displayPhoneNumber ? live.displayPhoneNumber : config.displayPhoneNumber;
   const fullRow = {
     tenant_id: input.tenantId,
     owner_user_id: input.userId,
@@ -175,6 +179,8 @@ export async function ensureMetaWhatsAppConnection(input: {
       graphVersion: config.graphVersion,
       callbackUrl: config.callbackUrl,
       configuredBy: "server-env",
+      metadataValidated: live.metadataValidated,
+      validationWarning: "warning" in live ? live.warning : null,
     },
     updated_at: now,
   };
@@ -355,13 +361,14 @@ export async function testTenantWhatsAppRuntime(db: any, tenantId: string) {
       ok: result.ok,
       state: result.ok ? ("connected" as const) : ("error" as const),
       displayName: connection?.display_name ?? "WhatsApp Oficial Meta",
-      phoneNumber: result.ok && "displayPhoneNumber" in result ? result.displayPhoneNumber : null,
+      phoneNumber: result.ok ? result.displayPhoneNumber : null,
       instanceName: phoneNumberId ? metaWhatsAppInstanceName(phoneNumberId) : null,
       phoneNumberId,
       businessAccountId: metaBusinessAccountId(connection),
       detail: metaWhatsAppRuntimeDetail({
         ok: result.ok,
         phoneNumberId,
+        metadataValidated: result.metadataValidated,
         error: "error" in result ? String(result.error) : "META_WHATSAPP_NOT_CONFIGURED",
       }),
     };

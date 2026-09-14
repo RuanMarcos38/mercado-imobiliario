@@ -5,6 +5,7 @@ import {
   metaWhatsAppWebhookSignatureValid,
   sendMetaWhatsAppMediaMessage,
   sendMetaWhatsAppTextMessage,
+  testMetaWhatsAppConnection,
   verifyMetaWhatsAppWebhookChallenge,
 } from "@/lib/meta-whatsapp.server";
 
@@ -100,6 +101,63 @@ describe("official Meta WhatsApp Cloud API", () => {
       document: { id: "media-id", filename: "proposta.pdf", caption: "Proposta" },
     });
     expect(extractMetaWhatsAppMessageId(payload)).toBe("wamid.media-message");
+  });
+
+  it("keeps the official API active when optional phone metadata cannot be read", async () => {
+    vi.stubEnv("META_WHATSAPP_ACCESS_TOKEN", "meta-token");
+    vi.stubEnv("META_WHATSAPP_PHONE_NUMBER_ID", "123456789");
+    vi.stubEnv("META_WHATSAPP_DISPLAY_PHONE_NUMBER", "+55 83 9365-7471");
+    vi.stubEnv("META_WHATSAPP_GRAPH_VERSION", "v26.0");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              message:
+                "Unsupported get request. Object with ID '123456789' cannot be loaded due to missing permissions.",
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    const result = await testMetaWhatsAppConnection();
+
+    expect(result.configured).toBe(true);
+    expect(result.ok).toBe(true);
+    expect(result.connected).toBe(true);
+    expect(result.metadataValidated).toBe(false);
+    expect(result.phoneNumberId).toBe("123456789");
+    expect(result.displayPhoneNumber).toBe("+55 83 9365-7471");
+  });
+
+  it("keeps invalid or expired Meta tokens as a connection error", async () => {
+    vi.stubEnv("META_WHATSAPP_ACCESS_TOKEN", "expired-token");
+    vi.stubEnv("META_WHATSAPP_PHONE_NUMBER_ID", "123456789");
+    vi.stubEnv("META_WHATSAPP_GRAPH_VERSION", "v26.0");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              message: "Error validating access token: Session has expired on Monday.",
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    const result = await testMetaWhatsAppConnection();
+
+    expect(result.configured).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.connected).toBe(false);
+    expect(result.metadataValidated).toBe(false);
+    expect(result.error).toContain("Error validating access token");
   });
 
   it("validates signed Meta webhook payloads when an app secret is configured", () => {
