@@ -39,6 +39,10 @@ import {
   getMetaWhatsAppOfficialSettings,
   saveMetaWhatsAppOfficialSettings,
 } from "@/lib/whatsapp-connection.functions";
+import {
+  getMetaSocialAccountSettings,
+  selectMetaSocialAccountForTenant,
+} from "@/lib/meta-social.functions";
 
 export const Route = createFileRoute("/_authenticated/central-integracoes")({
   component: IntegrationsHubPage,
@@ -61,6 +65,8 @@ function IntegrationsHubPage() {
   const syncLinkFn = useServerFn(syncExternalPropertyLinkNow);
   const whatsappOfficialFn = useServerFn(getMetaWhatsAppOfficialSettings);
   const saveWhatsappOfficialFn = useServerFn(saveMetaWhatsAppOfficialSettings);
+  const metaSocialSettingsFn = useServerFn(getMetaSocialAccountSettings);
+  const selectMetaSocialAccountFn = useServerFn(selectMetaSocialAccountForTenant);
 
   const overview = useQuery({
     queryKey: ["integration-hub"],
@@ -77,12 +83,19 @@ function IntegrationsHubPage() {
     queryFn: () => whatsappOfficialFn(),
     refetchInterval: 60_000,
   });
+  const metaSocial = useQuery({
+    queryKey: ["meta-social-account-settings"],
+    queryFn: () => metaSocialSettingsFn(),
+    refetchInterval: 60_000,
+  });
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [tokenName, setTokenName] = useState("Minha integração");
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [propertyUrl, setPropertyUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [savingMetaWhatsApp, setSavingMetaWhatsApp] = useState(false);
+  const [savingMetaSocial, setSavingMetaSocial] = useState(false);
+  const [selectedMetaPageId, setSelectedMetaPageId] = useState("");
   const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
   const [metaBusinessAccountId, setMetaBusinessAccountId] = useState("");
   const [metaDisplayPhoneNumber, setMetaDisplayPhoneNumber] = useState("");
@@ -112,6 +125,15 @@ function IntegrationsHubPage() {
   const resolvedMetaDisplayPhoneNumber =
     metaDisplayPhoneNumber || whatsappSettings?.displayPhoneNumber || "";
   const resolvedMetaGraphVersion = metaGraphVersion || whatsappSettings?.graphVersion || "v26.0";
+  const metaSocialSettings = metaSocial.data;
+  const metaSocialAccounts = metaSocialSettings?.accounts ?? [];
+  const activeMetaAccount =
+    metaSocialAccounts.find((account) => account.isActive) ??
+    metaSocialAccounts.find((account) => account.pageId === selectedMetaPageId) ??
+    null;
+  const selectedMetaAccount =
+    metaSocialAccounts.find((account) => account.pageId === selectedMetaPageId) ??
+    activeMetaAccount;
 
   useEffect(() => {
     if (!whatsappSettings) return;
@@ -135,6 +157,18 @@ function IntegrationsHubPage() {
     whatsappSettings?.graphVersion,
     whatsappSettings?.phoneNumberId,
   ]);
+
+  useEffect(() => {
+    const accounts = metaSocialSettings?.accounts ?? [];
+    if (!accounts.length) {
+      setSelectedMetaPageId("");
+      return;
+    }
+    const preferred = metaSocialSettings?.activePageId || accounts[0]?.pageId || "";
+    if (!selectedMetaPageId || !accounts.some((account) => account.pageId === selectedMetaPageId)) {
+      setSelectedMetaPageId(preferred);
+    }
+  }, [metaSocialSettings?.accounts, metaSocialSettings?.activePageId, selectedMetaPageId]);
 
   const connectGoogle = async () => {
     try {
@@ -211,6 +245,35 @@ function IntegrationsHubPage() {
     }
   };
 
+  const connectMetaSocial = (forceAccountSelection = false) => {
+    const targetUrl = forceAccountSelection
+      ? metaSocialSettings?.switchAccountUrl || metaSocialSettings?.connectUrl
+      : metaSocialSettings?.connectUrl;
+    if (!metaSocialSettings?.configured || !targetUrl) {
+      toast.info("Configure META_APP_ID e META_APP_SECRET no servidor para liberar a conexão.");
+      return;
+    }
+    window.location.assign(targetUrl);
+  };
+
+  const saveMetaSocialAccount = async () => {
+    if (savingMetaSocial) return;
+    if (!selectedMetaPageId) {
+      toast.error("Escolha a conta Meta de atendimento deste cliente.");
+      return;
+    }
+    setSavingMetaSocial(true);
+    try {
+      await selectMetaSocialAccountFn({ data: { pageId: selectedMetaPageId } });
+      await Promise.all([metaSocial.refetch(), overview.refetch()]);
+      toast.success("Conta Direct/Messenger salva para este cliente.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a conta Meta.");
+    } finally {
+      setSavingMetaSocial(false);
+    }
+  };
+
   if (overview.isLoading) {
     return <div className="p-8 text-sm text-[var(--mi-text-muted)]">Carregando integrações...</div>;
   }
@@ -245,7 +308,14 @@ function IntegrationsHubPage() {
             </span>
             <Button
               variant="outline"
-              onClick={() => void Promise.all([overview.refetch(), links.refetch()])}
+              onClick={() =>
+                void Promise.all([
+                  overview.refetch(),
+                  links.refetch(),
+                  whatsappOfficial.refetch(),
+                  metaSocial.refetch(),
+                ])
+              }
             >
               <RefreshCw className="h-4 w-4" /> Atualizar
             </Button>
@@ -436,6 +506,138 @@ function IntegrationsHubPage() {
                   >
                     <RefreshCw
                       className={`h-4 w-4 ${whatsappOfficial.isFetching ? "animate-spin" : ""}`}
+                    />
+                    Atualizar status
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-500/10 text-blue-600">
+                      <MessageCircle className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h2 className="font-black">Direct e Messenger da Meta</h2>
+                      <p className="mt-1 text-xs text-[var(--mi-text-muted)]">
+                        Escolha a conta de atendimento deste cliente. A caixa de conversas não exibe
+                        estruturas empresariais nem lista de páginas.
+                      </p>
+                    </div>
+                  </div>
+                  <StatusBadge
+                    status={
+                      metaSocialSettings?.connected
+                        ? "configured"
+                        : metaSocialSettings?.configured
+                          ? "available"
+                          : "error"
+                    }
+                  />
+                </div>
+
+                <div className="mt-4 grid gap-2 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 text-xs">
+                  <IntegrationRow
+                    label="Status"
+                    value={
+                      metaSocial.isLoading
+                        ? "Carregando..."
+                        : metaSocialSettings?.connected
+                          ? "Conta ativa definida para este cliente."
+                          : "Aguardando conexão Meta."
+                    }
+                  />
+                  <IntegrationRow label="Conta ativa" value={activeMetaAccount?.label || "—"} />
+                  <IntegrationRow
+                    label="Canais"
+                    value={
+                      metaSocialSettings?.connected
+                        ? [
+                            metaSocialSettings.channels.messenger ? "Messenger" : null,
+                            metaSocialSettings.channels.instagramDirect ? "Instagram Direct" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" + ") || "Messenger"
+                        : "—"
+                    }
+                  />
+                </div>
+
+                {metaSocial.error && (
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/50 bg-amber-500/[0.06] p-3 text-xs text-amber-800">
+                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {metaSocial.error instanceof Error
+                        ? metaSocial.error.message
+                        : "Não foi possível carregar a conexão Meta."}
+                    </span>
+                  </div>
+                )}
+
+                {metaSocialAccounts.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    <label className="space-y-1 text-xs font-bold">
+                      <span>Conta deste cliente</span>
+                      <select
+                        value={selectedMetaPageId}
+                        onChange={(event) => setSelectedMetaPageId(event.target.value)}
+                        className="h-11 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] px-3 text-sm font-bold outline-none focus:border-blue-500"
+                      >
+                        {metaSocialAccounts.map((account) => (
+                          <option key={account.pageId} value={account.pageId}>
+                            {account.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="grid gap-2 text-[11px] text-[var(--mi-text-muted)] sm:grid-cols-2">
+                      <div className="rounded-xl bg-[var(--mi-bg)] p-3">
+                        <strong className="text-[var(--mi-text)]">Messenger:</strong>{" "}
+                        {selectedMetaAccount?.hasMessenger ? "Disponível" : "Não conectado"}
+                      </div>
+                      <div className="rounded-xl bg-[var(--mi-bg)] p-3">
+                        <strong className="text-[var(--mi-text)]">Instagram Direct:</strong>{" "}
+                        {selectedMetaAccount?.hasInstagramDirect ? "Disponível" : "Não conectado"}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs leading-5 text-[var(--mi-text-muted)]">
+                    Conecte o login Meta do cliente para liberar Direct e Messenger oficiais.
+                  </p>
+                )}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {metaSocialAccounts.length > 0 && (
+                    <Button
+                      onClick={() => void saveMetaSocialAccount()}
+                      disabled={savingMetaSocial || metaSocial.isLoading}
+                      className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
+                    >
+                      {savingMetaSocial ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="h-4 w-4" />
+                      )}
+                      Salvar conta do cliente
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() => connectMetaSocial(true)}
+                    disabled={metaSocial.isLoading || metaSocialSettings?.configured === false}
+                  >
+                    <Link2 className="h-4 w-4" /> Escolher login Meta
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void metaSocial.refetch()}
+                    disabled={metaSocial.isFetching}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${metaSocial.isFetching ? "animate-spin" : ""}`}
                     />
                     Atualizar status
                   </Button>

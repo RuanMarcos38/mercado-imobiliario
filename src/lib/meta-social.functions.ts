@@ -26,14 +26,18 @@ const scanCommentsSchema = z.object({
   whatsappNumber: z.string().trim().max(24).optional(),
   inviteMessage: z.string().trim().max(700).optional(),
 });
+const selectAccountSchema = z.object({
+  pageId: z.string().trim().min(1).max(100),
+});
 
 export const getMetaSocialStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
-    const { getMetaOAuthUrl, getMetaSocialConfig } = await import("@/lib/meta-social.server");
+    const { activeMetaSocialPages, getMetaOAuthUrl, getMetaSocialConfig } =
+      await import("@/lib/meta-social.server");
     const config = await getMetaSocialConfig(tenantId, context.userId);
-    const pages = config?.pages ?? [];
+    const pages = activeMetaSocialPages(config);
     const messengerConnected = pages.length > 0;
     const instagramDirectConnected = pages.some((page) => Boolean(page.instagramUserId));
     const connectUrl = getMetaOAuthUrl({ tenantId, userId: context.userId });
@@ -55,6 +59,27 @@ export const getMetaSocialStatus = createServerFn({ method: "GET" })
     };
   });
 
+export const getMetaSocialAccountSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const { getMetaOAuthUrl, getMetaSocialAccountSettings: readAccountSettings } =
+      await import("@/lib/meta-social.server");
+    const settings = await readAccountSettings(tenantId, context.userId);
+    const connectUrl = getMetaOAuthUrl({ tenantId, userId: context.userId });
+    const switchAccountUrl = getMetaOAuthUrl({
+      tenantId,
+      userId: context.userId,
+      forceAccountSelection: true,
+    });
+    return {
+      configured: Boolean(connectUrl),
+      connectUrl,
+      switchAccountUrl,
+      ...settings,
+    };
+  });
+
 export const disconnectMetaSocialAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -62,6 +87,20 @@ export const disconnectMetaSocialAccount = createServerFn({ method: "POST" })
     const { disconnectMetaSocial } = await import("@/lib/meta-social.server");
     await disconnectMetaSocial(tenantId, context.userId);
     return { success: true };
+  });
+
+export const selectMetaSocialAccountForTenant = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => selectAccountSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const { selectActiveMetaSocialAccount } = await import("@/lib/meta-social.server");
+    const result = await selectActiveMetaSocialAccount({
+      tenantId,
+      userId: context.userId,
+      pageId: data.pageId,
+    });
+    return { success: true, ...result };
   });
 
 export const listSocialConversations = createServerFn({ method: "POST" })

@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai-conversation-policy";
 import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-parameters.server";
 import {
+  activeMetaSocialPages,
   getMetaSocialConfig,
   sendMetaSocialText,
   type MetaPageConnection,
@@ -198,9 +199,10 @@ async function subscribeMetaPageToApp(page: MetaPageConnection) {
 
 export async function registerMetaSocialConnections(input: { tenantId: string; userId: string }) {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
-  if (!config?.pages.length) return { registered: 0 };
-  const subscriptions = await Promise.all(config.pages.map((page) => subscribeMetaPageToApp(page)));
-  const rows = config.pages.map((page, index) => ({
+  const pages = activeMetaSocialPages(config);
+  if (!pages.length) return { registered: 0 };
+  const subscriptions = await Promise.all(pages.map((page) => subscribeMetaPageToApp(page)));
+  const rows = pages.map((page, index) => ({
     tenant_id: input.tenantId,
     event_type: CONNECTION_EVENT,
     severity: "info",
@@ -218,8 +220,9 @@ export async function registerMetaSocialConnections(input: { tenantId: string; u
 
 export async function unregisterMetaSocialConnections(input: { tenantId: string; userId: string }) {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
-  if (!config?.pages.length) return { unregistered: 0 };
-  const rows = config.pages.map((page) => ({
+  const pages = activeMetaSocialPages(config);
+  if (!pages.length) return { unregistered: 0 };
+  const rows = pages.map((page) => ({
     tenant_id: input.tenantId,
     event_type: DISCONNECTION_EVENT,
     severity: "info",
@@ -249,6 +252,9 @@ async function resolveOwner(accountId: string): Promise<MetaSocialOwner | null> 
     const tenantId = String(row.tenant_id ?? "");
     const userId = String(metadata["userId"] ?? "");
     if (!tenantId || !userId || !pageId) return null;
+    const config = await getMetaSocialConfig(tenantId, userId);
+    const active = activeMetaSocialPages(config).some((page) => page.pageId === pageId);
+    if (!active) return null;
     return { tenantId, userId, pageId, instagramUserId };
   }
   return null;
@@ -370,7 +376,7 @@ async function classifyInterestWithAI(text: string) {
 
 async function pageForOwner(owner: MetaSocialOwner) {
   const config = await getMetaSocialConfig(owner.tenantId, owner.userId);
-  return config?.pages.find((page) => page.pageId === owner.pageId) ?? null;
+  return activeMetaSocialPages(config).find((page) => page.pageId === owner.pageId) ?? null;
 }
 
 async function graphJson(url: string, token: string, body: JsonObject) {

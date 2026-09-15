@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  activeMetaSocialPages,
   createMetaOAuthState,
   getMetaOAuthScopes,
   getMetaOAuthUrl,
+  metaSocialAccountOptions,
   verifyMetaOAuthState,
+  type MetaSocialConfig,
 } from "@/lib/meta-social.server";
 import { createVoiceBridgeToken, verifyVoiceBridgeToken } from "@/lib/dialer.functions";
 
@@ -59,6 +62,60 @@ describe("MercadoImobi communication hub security", () => {
     expect(scopes).not.toContain("pages_manage_engagement");
   });
 
+  it("isolates Meta social conversations to the active account", () => {
+    const config: MetaSocialConfig = {
+      connectedAt: "2026-09-15T00:00:00.000Z",
+      activePageId: "page-client-b",
+      activeInstagramUserId: "ig-client-b",
+      pages: [
+        {
+          pageId: "page-client-a",
+          pageName: "Cliente A",
+          pageAccessToken: "token-a",
+          instagramUserId: "ig-client-a",
+          instagramUsername: "clientea",
+        },
+        {
+          pageId: "page-client-b",
+          pageName: "Cliente B",
+          pageAccessToken: "token-b",
+          instagramUserId: "ig-client-b",
+          instagramUsername: "clienteb",
+        },
+      ],
+    };
+
+    expect(activeMetaSocialPages(config).map((page) => page.pageId)).toEqual(["page-client-b"]);
+    expect(metaSocialAccountOptions(config).filter((account) => account.isActive)).toEqual([
+      expect.objectContaining({ pageId: "page-client-b", hasInstagramDirect: true }),
+    ]);
+  });
+
+  it("fails closed to one Meta account for legacy social configs", () => {
+    const config: MetaSocialConfig = {
+      connectedAt: "2026-09-15T00:00:00.000Z",
+      pages: [
+        {
+          pageId: "legacy-first",
+          pageName: "Primeira conta",
+          pageAccessToken: "token-a",
+          instagramUserId: null,
+          instagramUsername: null,
+        },
+        {
+          pageId: "legacy-second",
+          pageName: "Segunda conta",
+          pageAccessToken: "token-b",
+          instagramUserId: "ig-second",
+          instagramUsername: "segunda",
+        },
+      ],
+    };
+
+    expect(activeMetaSocialPages(config).map((page) => page.pageId)).toEqual(["legacy-first"]);
+    expect(metaSocialAccountOptions(config).filter((account) => account.isActive)).toHaveLength(1);
+  });
+
   it("rejects tampered voice bridge tokens", () => {
     vi.stubEnv("VOICE_WEBHOOK_SECRET", "voice-test-secret");
     const token = createVoiceBridgeToken("47999999999");
@@ -71,6 +128,8 @@ describe("MercadoImobi communication hub security", () => {
     const nav = readFileSync("src/routes/_authenticated.tsx", "utf8");
     const social = readFileSync("src/routes/_authenticated/midias-sociais.tsx", "utf8");
     const socialServer = readFileSync("src/lib/meta-social.server.ts", "utf8");
+    const socialFunctions = readFileSync("src/lib/meta-social.functions.ts", "utf8");
+    const central = readFileSync("src/routes/_authenticated/central-integracoes.tsx", "utf8");
     const whatsappProvider = readFileSync("src/lib/whatsapp-provider.server.ts", "utf8");
     const email = readFileSync("src/routes/_authenticated/email-cca.tsx", "utf8");
     const dialer = readFileSync("src/routes/_authenticated/discador.tsx", "utf8");
@@ -103,7 +162,11 @@ describe("MercadoImobi communication hub security", () => {
     expect(social).toContain("IA de comentários");
     expect(social).not.toContain("Todas as páginas");
     expect(social).not.toContain("page.pageName");
+    expect(central).toContain("Direct e Messenger da Meta");
+    expect(central).toContain("Salvar conta do cliente");
     expect(socialServer).toContain("scanMetaSocialComments");
+    expect(socialServer).toContain("activeMetaSocialPages(config)");
+    expect(socialFunctions).toContain("selectMetaSocialAccountForTenant");
     expect(socialServer).toContain("/private_replies");
     expect(socialServer).toContain("recipient: { comment_id");
     expect(socialServer).toContain(

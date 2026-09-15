@@ -36,6 +36,17 @@ export type MetaPageConnection = {
 export type MetaSocialConfig = {
   connectedAt: string;
   pages: MetaPageConnection[];
+  activePageId?: string | null;
+  activeInstagramUserId?: string | null;
+};
+
+export type MetaSocialAccountOption = {
+  pageId: string;
+  label: string;
+  instagramUserId: string | null;
+  hasMessenger: boolean;
+  hasInstagramDirect: boolean;
+  isActive: boolean;
 };
 
 export type SocialConversation = {
@@ -179,6 +190,34 @@ function allowedMetaPage(page: MetaPageConnection) {
     allowedPageIds.has(page.pageId) ||
     Boolean(page.instagramUserId && allowedInstagramIds.has(page.instagramUserId))
   );
+}
+
+export function activeMetaSocialPages(config: MetaSocialConfig | null | undefined) {
+  const pages = config?.pages ?? [];
+  if (!pages.length) return [] as MetaPageConnection[];
+  const active =
+    (config?.activePageId ? pages.find((page) => page.pageId === config.activePageId) : null) ??
+    (config?.activeInstagramUserId
+      ? pages.find((page) => page.instagramUserId === config.activeInstagramUserId)
+      : null) ??
+    pages[0];
+  return active ? [active] : [];
+}
+
+export function activeMetaSocialPage(config: MetaSocialConfig | null | undefined) {
+  return activeMetaSocialPages(config)[0] ?? null;
+}
+
+export function metaSocialAccountOptions(config: MetaSocialConfig | null | undefined) {
+  const active = activeMetaSocialPage(config);
+  return (config?.pages ?? []).map((page): MetaSocialAccountOption => ({
+    pageId: page.pageId,
+    label: page.instagramUsername ? `${page.pageName} / @${page.instagramUsername}` : page.pageName,
+    instagramUserId: page.instagramUserId,
+    hasMessenger: true,
+    hasInstagramDirect: Boolean(page.instagramUserId),
+    isActive: page.pageId === active?.pageId,
+  }));
 }
 
 export function getMetaOAuthUrl(input: {
@@ -581,7 +620,17 @@ export async function completeMetaOAuth(input: { code: string; state: string }) 
     .filter(allowedMetaPage);
 
   if (!pages.length) throw new Error("META_NO_MANAGED_PAGES");
-  const config: MetaSocialConfig = { connectedAt: new Date().toISOString(), pages };
+  const previousConfig = await getMetaSocialConfig(owner.tenantId, owner.userId);
+  const activePage =
+    pages.find((page) => page.pageId === previousConfig?.activePageId) ??
+    pages.find((page) => page.instagramUserId === previousConfig?.activeInstagramUserId) ??
+    pages[0]!;
+  const config: MetaSocialConfig = {
+    connectedAt: new Date().toISOString(),
+    pages,
+    activePageId: activePage.pageId,
+    activeInstagramUserId: activePage.instagramUserId,
+  };
   await writeIntegrationSecret(owner.tenantId, owner.userId, SECRET_NAME, config);
   try {
     const { registerMetaSocialConnections } = await import("@/lib/meta-social-automation.server");
@@ -598,6 +647,56 @@ export async function completeMetaOAuth(input: { code: string; state: string }) 
 
 export async function getMetaSocialConfig(tenantId: string, userId: string) {
   return readIntegrationSecret<MetaSocialConfig>(tenantId, userId, SECRET_NAME);
+}
+
+export async function getMetaSocialAccountSettings(tenantId: string, userId: string) {
+  const config = await getMetaSocialConfig(tenantId, userId);
+  const active = activeMetaSocialPage(config);
+  return {
+    connected: Boolean(active),
+    connectedAt: config?.connectedAt ?? null,
+    activePageId: active?.pageId ?? null,
+    activeInstagramUserId: active?.instagramUserId ?? null,
+    accounts: metaSocialAccountOptions(config),
+    channels: {
+      messenger: Boolean(active),
+      instagramDirect: Boolean(active?.instagramUserId),
+    },
+  };
+}
+
+export async function selectActiveMetaSocialAccount(input: {
+  tenantId: string;
+  userId: string;
+  pageId: string;
+}) {
+  const config = await getMetaSocialConfig(input.tenantId, input.userId);
+  if (!config?.pages.length) throw new Error("META_CONNECTION_NOT_FOUND");
+  const activePage = config.pages.find((page) => page.pageId === input.pageId);
+  if (!activePage) throw new Error("META_ACCOUNT_NOT_AVAILABLE_FOR_THIS_USER");
+
+  const nextConfig: MetaSocialConfig = {
+    ...config,
+    activePageId: activePage.pageId,
+    activeInstagramUserId: activePage.instagramUserId,
+  };
+  await writeIntegrationSecret(input.tenantId, input.userId, SECRET_NAME, nextConfig);
+
+  try {
+    const { registerMetaSocialConnections } = await import("@/lib/meta-social-automation.server");
+    await registerMetaSocialConnections(input);
+  } catch {
+    // The selected account is still saved even if webhook registration is temporarily unavailable.
+  }
+
+  return {
+    activePageId: activePage.pageId,
+    activeInstagramUserId: activePage.instagramUserId,
+    channels: {
+      messenger: true,
+      instagramDirect: Boolean(activePage.instagramUserId),
+    },
+  };
 }
 
 export async function disconnectMetaSocial(tenantId: string, userId: string) {
@@ -663,9 +762,11 @@ export async function listMetaSocialConversations(input: {
 }) {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
   if (!config) return [] as SocialConversation[];
+  const pages = activeMetaSocialPages(config);
+  if (!pages.length) return [] as SocialConversation[];
   const channels: SocialChannel[] =
     !input.channel || input.channel === "all" ? ["facebook", "instagram"] : [input.channel];
-  const jobs = config.pages.flatMap((page) =>
+  const jobs = pages.flatMap((page) =>
     channels.map((channel) => fetchConversationsForPage(page, channel)),
   );
   const settled = await Promise.allSettled(jobs);
@@ -682,7 +783,7 @@ export async function listMetaSocialMessages(input: {
   channel: SocialChannel;
 }) {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
-  const page = config?.pages.find((item) => item.pageId === input.pageId);
+  const page = activeMetaSocialPages(config).find((item) => item.pageId === input.pageId);
   if (!page) throw new Error("META_CONNECTION_NOT_FOUND");
   const params = new URLSearchParams({
     fields: "messages.limit(100){id,message,from,to,created_time,attachments}",
@@ -723,7 +824,7 @@ export async function sendMetaSocialText(input: {
   text: string;
 }) {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
-  const page = config?.pages.find((item) => item.pageId === input.pageId);
+  const page = activeMetaSocialPages(config).find((item) => item.pageId === input.pageId);
   if (!page) throw new Error("META_CONNECTION_NOT_FOUND");
   if (input.channel === "instagram" && !page.instagramUserId) {
     throw new Error("INSTAGRAM_NOT_CONNECTED");
@@ -760,6 +861,17 @@ export async function sendMetaSocialText(input: {
   });
 }
 
+function metaSocialFriendlyError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  if (
+    /pages_read_user_content|page public content access|permission/i.test(message) ||
+    /permiss[aã]o/i.test(message)
+  ) {
+    return "A Meta não liberou leitura de posts/comentários para este canal. As conversas do Direct/Messenger continuam isoladas na conta ativa.";
+  }
+  return message;
+}
+
 export async function scanMetaSocialComments(input: {
   tenantId: string;
   userId: string;
@@ -774,13 +886,14 @@ export async function scanMetaSocialComments(input: {
   inviteMessage?: string;
 }) {
   const config = await getMetaSocialConfig(input.tenantId, input.userId);
-  if (!config?.pages.length) throw new Error("META_CONNECTION_NOT_FOUND");
+  const activePages = activeMetaSocialPages(config);
+  if (!activePages.length) throw new Error("META_CONNECTION_NOT_FOUND");
 
   const channels: SocialChannel[] =
     !input.channel || input.channel === "all" ? ["facebook", "instagram"] : [input.channel];
   const pages = input.pageId
-    ? config.pages.filter((page) => page.pageId === input.pageId)
-    : config.pages;
+    ? activePages.filter((page) => page.pageId === input.pageId)
+    : activePages;
   if (!pages.length) throw new Error("META_CONNECTION_NOT_FOUND");
 
   const result: SocialCommentScanResult = {
@@ -891,11 +1004,11 @@ export async function scanMetaSocialComments(input: {
               }
             }
           } catch (error) {
-            result.errors.push(error instanceof Error ? error.message : "META_COMMENTS_FAILED");
+            result.errors.push(metaSocialFriendlyError(error, "META_COMMENTS_FAILED"));
           }
         }
       } catch (error) {
-        result.errors.push(error instanceof Error ? error.message : "META_SOURCES_FAILED");
+        result.errors.push(metaSocialFriendlyError(error, "META_SOURCES_FAILED"));
       }
     }
   }
@@ -906,9 +1019,8 @@ export async function scanMetaSocialComments(input: {
 
 export async function testMetaConnection(tenantId: string, userId: string) {
   const config = await getMetaSocialConfig(tenantId, userId);
-  if (!config?.pages.length)
-    return { configured: Boolean(metaAppConfig()), connected: false, ok: false };
-  const page = config.pages[0];
+  const page = activeMetaSocialPage(config);
+  if (!page) return { configured: Boolean(metaAppConfig()), connected: false, ok: false };
   try {
     const params = new URLSearchParams({
       fields: "id,name",
