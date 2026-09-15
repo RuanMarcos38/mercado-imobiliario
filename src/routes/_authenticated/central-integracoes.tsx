@@ -88,6 +88,7 @@ function IntegrationsHubPage() {
   const [metaDisplayPhoneNumber, setMetaDisplayPhoneNumber] = useState("");
   const [metaGraphVersion, setMetaGraphVersion] = useState("v26.0");
   const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaFieldNonce, setMetaFieldNonce] = useState(0);
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -108,11 +109,26 @@ function IntegrationsHubPage() {
 
   useEffect(() => {
     if (!whatsappSettings) return;
-    setMetaPhoneNumberId((current) => current || whatsappSettings.phoneNumberId || "");
-    setMetaBusinessAccountId((current) => current || whatsappSettings.businessAccountId || "");
-    setMetaDisplayPhoneNumber((current) => current || whatsappSettings.displayPhoneNumber || "");
-    setMetaGraphVersion((current) => current || whatsappSettings.graphVersion || "v26.0");
-  }, [whatsappSettings]);
+    const syncOfficialFields = () => {
+      setMetaPhoneNumberId(whatsappSettings.phoneNumberId || "");
+      setMetaBusinessAccountId(whatsappSettings.businessAccountId || "");
+      setMetaDisplayPhoneNumber(whatsappSettings.displayPhoneNumber || "");
+      setMetaGraphVersion(whatsappSettings.graphVersion || "v26.0");
+      setMetaFieldNonce((current) => current + 1);
+    };
+    syncOfficialFields();
+    const firstTimer = window.setTimeout(syncOfficialFields, 250);
+    const secondTimer = window.setTimeout(syncOfficialFields, 1200);
+    return () => {
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(secondTimer);
+    };
+  }, [
+    whatsappSettings?.businessAccountId,
+    whatsappSettings?.displayPhoneNumber,
+    whatsappSettings?.graphVersion,
+    whatsappSettings?.phoneNumberId,
+  ]);
 
   const connectGoogle = async () => {
     try {
@@ -335,38 +351,52 @@ function IntegrationsHubPage() {
                   <label className="space-y-1 text-xs font-bold">
                     <span>Phone Number ID</span>
                     <Input
+                      key={`meta-phone-number-id-${metaFieldNonce}`}
+                      name={`meta_phone_number_id_${metaFieldNonce}`}
                       value={metaPhoneNumberId}
                       onChange={(event) => setMetaPhoneNumberId(event.target.value)}
                       placeholder="1234567890"
+                      autoComplete="off"
                     />
                   </label>
                   <label className="space-y-1 text-xs font-bold">
                     <span>ID da conta WhatsApp</span>
                     <Input
+                      key={`meta-business-account-id-${metaFieldNonce}`}
+                      name={`meta_whatsapp_account_id_${metaFieldNonce}`}
                       value={metaBusinessAccountId}
                       onChange={(event) => setMetaBusinessAccountId(event.target.value)}
                       placeholder="Opcional"
+                      autoComplete="off"
                     />
                   </label>
                   <label className="space-y-1 text-xs font-bold">
                     <span>Número exibido</span>
                     <Input
+                      key={`meta-display-phone-number-${metaFieldNonce}`}
+                      name={`meta_display_phone_number_${metaFieldNonce}`}
                       value={metaDisplayPhoneNumber}
                       onChange={(event) => setMetaDisplayPhoneNumber(event.target.value)}
                       placeholder="+55..."
+                      autoComplete="off"
                     />
                   </label>
                   <label className="space-y-1 text-xs font-bold">
                     <span>Versão Graph</span>
                     <Input
+                      key={`meta-graph-version-${metaFieldNonce}`}
+                      name={`meta_graph_version_${metaFieldNonce}`}
                       value={metaGraphVersion}
                       onChange={(event) => setMetaGraphVersion(event.target.value)}
                       placeholder="v26.0"
+                      autoComplete="off"
                     />
                   </label>
                   <label className="space-y-1 text-xs font-bold md:col-span-2">
                     <span>Token permanente</span>
                     <Input
+                      key={`meta-access-token-${metaFieldNonce}`}
+                      name={`meta_access_token_${metaFieldNonce}`}
                       type="password"
                       value={metaAccessToken}
                       onChange={(event) => setMetaAccessToken(event.target.value)}
