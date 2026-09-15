@@ -106,6 +106,12 @@ function IntegrationsHubPage() {
       : whatsappSettings?.source === "server_env"
         ? "Servidor"
         : "Não configurado";
+  const resolvedMetaPhoneNumberId = metaPhoneNumberId || whatsappSettings?.phoneNumberId || "";
+  const resolvedMetaBusinessAccountId =
+    metaBusinessAccountId || whatsappSettings?.businessAccountId || "";
+  const resolvedMetaDisplayPhoneNumber =
+    metaDisplayPhoneNumber || whatsappSettings?.displayPhoneNumber || "";
+  const resolvedMetaGraphVersion = metaGraphVersion || whatsappSettings?.graphVersion || "v26.0";
 
   useEffect(() => {
     if (!whatsappSettings) return;
@@ -176,7 +182,7 @@ function IntegrationsHubPage() {
 
   const saveMetaWhatsApp = async () => {
     if (savingMetaWhatsApp) return;
-    if (!metaPhoneNumberId.trim()) {
+    if (!resolvedMetaPhoneNumberId.trim()) {
       toast.error("Informe o Phone Number ID da WhatsApp Cloud API.");
       return;
     }
@@ -185,10 +191,10 @@ function IntegrationsHubPage() {
       await saveWhatsappOfficialFn({
         data: {
           accessToken: metaAccessToken.trim() || undefined,
-          phoneNumberId: metaPhoneNumberId.trim(),
-          businessAccountId: metaBusinessAccountId.trim() || undefined,
-          displayPhoneNumber: metaDisplayPhoneNumber.trim() || undefined,
-          graphVersion: metaGraphVersion.trim() || undefined,
+          phoneNumberId: resolvedMetaPhoneNumberId.trim(),
+          businessAccountId: resolvedMetaBusinessAccountId.trim() || undefined,
+          displayPhoneNumber: resolvedMetaDisplayPhoneNumber.trim() || undefined,
+          graphVersion: resolvedMetaGraphVersion.trim() || undefined,
         },
       });
       setMetaAccessToken("");
@@ -353,7 +359,7 @@ function IntegrationsHubPage() {
                     <Input
                       key={`meta-phone-number-id-${metaFieldNonce}`}
                       name={`meta_phone_number_id_${metaFieldNonce}`}
-                      value={metaPhoneNumberId}
+                      value={resolvedMetaPhoneNumberId}
                       onChange={(event) => setMetaPhoneNumberId(event.target.value)}
                       placeholder="1234567890"
                       autoComplete="off"
@@ -364,7 +370,7 @@ function IntegrationsHubPage() {
                     <Input
                       key={`meta-business-account-id-${metaFieldNonce}`}
                       name={`meta_whatsapp_account_id_${metaFieldNonce}`}
-                      value={metaBusinessAccountId}
+                      value={resolvedMetaBusinessAccountId}
                       onChange={(event) => setMetaBusinessAccountId(event.target.value)}
                       placeholder="Opcional"
                       autoComplete="off"
@@ -375,7 +381,7 @@ function IntegrationsHubPage() {
                     <Input
                       key={`meta-display-phone-number-${metaFieldNonce}`}
                       name={`meta_display_phone_number_${metaFieldNonce}`}
-                      value={metaDisplayPhoneNumber}
+                      value={resolvedMetaDisplayPhoneNumber}
                       onChange={(event) => setMetaDisplayPhoneNumber(event.target.value)}
                       placeholder="+55..."
                       autoComplete="off"
@@ -386,7 +392,7 @@ function IntegrationsHubPage() {
                     <Input
                       key={`meta-graph-version-${metaFieldNonce}`}
                       name={`meta_graph_version_${metaFieldNonce}`}
-                      value={metaGraphVersion}
+                      value={resolvedMetaGraphVersion}
                       onChange={(event) => setMetaGraphVersion(event.target.value)}
                       placeholder="v26.0"
                       autoComplete="off"
