@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bot,
   CalendarClock,
   CheckCircle2,
+  CircleAlert,
   Cloud,
   Code2,
   DatabaseBackup,
   ExternalLink,
   KeyRound,
   Link2,
+  MessageCircle,
   Plug,
   RefreshCw,
   ShieldCheck,
@@ -33,6 +35,10 @@ import {
   registerExternalPropertyLink,
   syncExternalPropertyLinkNow,
 } from "@/lib/property-links.functions";
+import {
+  getMetaWhatsAppOfficialSettings,
+  saveMetaWhatsAppOfficialSettings,
+} from "@/lib/whatsapp-connection.functions";
 
 export const Route = createFileRoute("/_authenticated/central-integracoes")({
   component: IntegrationsHubPage,
@@ -53,6 +59,8 @@ function IntegrationsHubPage() {
   const listLinksFn = useServerFn(listExternalPropertyLinks);
   const registerLinkFn = useServerFn(registerExternalPropertyLink);
   const syncLinkFn = useServerFn(syncExternalPropertyLinkNow);
+  const whatsappOfficialFn = useServerFn(getMetaWhatsAppOfficialSettings);
+  const saveWhatsappOfficialFn = useServerFn(saveMetaWhatsAppOfficialSettings);
 
   const overview = useQuery({
     queryKey: ["integration-hub"],
@@ -64,11 +72,22 @@ function IntegrationsHubPage() {
     queryFn: () => listLinksFn(),
     refetchInterval: 60_000,
   });
+  const whatsappOfficial = useQuery({
+    queryKey: ["meta-whatsapp-official-settings"],
+    queryFn: () => whatsappOfficialFn(),
+    refetchInterval: 60_000,
+  });
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [tokenName, setTokenName] = useState("Minha integração");
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [propertyUrl, setPropertyUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [savingMetaWhatsApp, setSavingMetaWhatsApp] = useState(false);
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
+  const [metaBusinessAccountId, setMetaBusinessAccountId] = useState("");
+  const [metaDisplayPhoneNumber, setMetaDisplayPhoneNumber] = useState("");
+  const [metaGraphVersion, setMetaGraphVersion] = useState("v26.0");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -79,6 +98,21 @@ function IntegrationsHubPage() {
   const providers = (overview.data?.catalog ?? []).filter(
     (item) => !selectedCategory || item.categoryKey === selectedCategory,
   );
+  const whatsappSettings = whatsappOfficial.data;
+  const whatsappSourceLabel =
+    whatsappSettings?.source === "platform"
+      ? "Plataforma"
+      : whatsappSettings?.source === "server_env"
+        ? "Servidor"
+        : "Não configurado";
+
+  useEffect(() => {
+    if (!whatsappSettings) return;
+    setMetaPhoneNumberId((current) => current || whatsappSettings.phoneNumberId || "");
+    setMetaBusinessAccountId((current) => current || whatsappSettings.businessAccountId || "");
+    setMetaDisplayPhoneNumber((current) => current || whatsappSettings.displayPhoneNumber || "");
+    setMetaGraphVersion((current) => current || whatsappSettings.graphVersion || "v26.0");
+  }, [whatsappSettings]);
 
   const connectGoogle = async () => {
     try {
@@ -121,6 +155,37 @@ function IntegrationsHubPage() {
       toast.error(error instanceof Error ? error.message : "Não foi possível consultar o anúncio.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const saveMetaWhatsApp = async () => {
+    if (savingMetaWhatsApp) return;
+    if (!metaPhoneNumberId.trim()) {
+      toast.error("Informe o Phone Number ID da WhatsApp Cloud API.");
+      return;
+    }
+    setSavingMetaWhatsApp(true);
+    try {
+      await saveWhatsappOfficialFn({
+        data: {
+          accessToken: metaAccessToken.trim() || undefined,
+          phoneNumberId: metaPhoneNumberId.trim(),
+          businessAccountId: metaBusinessAccountId.trim() || undefined,
+          displayPhoneNumber: metaDisplayPhoneNumber.trim() || undefined,
+          graphVersion: metaGraphVersion.trim() || undefined,
+        },
+      });
+      setMetaAccessToken("");
+      await Promise.all([whatsappOfficial.refetch(), overview.refetch()]);
+      toast.success("WhatsApp API Oficial validada e salva para esta organização.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a configuração oficial da Meta.",
+      );
+    } finally {
+      setSavingMetaWhatsApp(false);
     }
   };
 
@@ -210,6 +275,137 @@ function IntegrationsHubPage() {
             </section>
 
             <section className="grid gap-6 2xl:grid-cols-2">
+              <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-500/10 text-emerald-700">
+                      <MessageCircle className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h2 className="font-black">WhatsApp API Oficial da Meta</h2>
+                      <p className="mt-1 text-xs text-[var(--mi-text-muted)]">
+                        Cloud API por organização, sem QR Code e sem alterar o OpenAI.
+                      </p>
+                    </div>
+                  </div>
+                  <StatusBadge
+                    status={
+                      whatsappSettings?.connected
+                        ? "configured"
+                        : whatsappSettings?.configured
+                          ? "error"
+                          : "available"
+                    }
+                  />
+                </div>
+
+                <div className="mt-4 grid gap-2 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 text-xs">
+                  <IntegrationRow
+                    label="Status"
+                    value={
+                      whatsappOfficial.isLoading
+                        ? "Validando..."
+                        : whatsappSettings?.detail || "Aguardando configuração."
+                    }
+                  />
+                  <IntegrationRow label="Origem" value={whatsappSourceLabel} />
+                  <IntegrationRow
+                    label="Phone Number ID"
+                    value={whatsappSettings?.phoneNumberId || "—"}
+                  />
+                  <IntegrationRow
+                    label="Número"
+                    value={whatsappSettings?.displayPhoneNumber || "—"}
+                  />
+                  <IntegrationRow label="Webhook" value={whatsappSettings?.callbackUrl || "—"} />
+                </div>
+
+                {whatsappOfficial.error && (
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/50 bg-amber-500/[0.06] p-3 text-xs text-amber-800">
+                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {whatsappOfficial.error instanceof Error
+                        ? whatsappOfficial.error.message
+                        : "Não foi possível carregar a configuração da Meta."}
+                    </span>
+                  </div>
+                )}
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="space-y-1 text-xs font-bold">
+                    <span>Phone Number ID</span>
+                    <Input
+                      value={metaPhoneNumberId}
+                      onChange={(event) => setMetaPhoneNumberId(event.target.value)}
+                      placeholder="1234567890"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-bold">
+                    <span>ID da conta WhatsApp</span>
+                    <Input
+                      value={metaBusinessAccountId}
+                      onChange={(event) => setMetaBusinessAccountId(event.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-bold">
+                    <span>Número exibido</span>
+                    <Input
+                      value={metaDisplayPhoneNumber}
+                      onChange={(event) => setMetaDisplayPhoneNumber(event.target.value)}
+                      placeholder="+55..."
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-bold">
+                    <span>Versão Graph</span>
+                    <Input
+                      value={metaGraphVersion}
+                      onChange={(event) => setMetaGraphVersion(event.target.value)}
+                      placeholder="v26.0"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-bold md:col-span-2">
+                    <span>Token permanente</span>
+                    <Input
+                      type="password"
+                      value={metaAccessToken}
+                      onChange={(event) => setMetaAccessToken(event.target.value)}
+                      placeholder={
+                        whatsappSettings?.hasToken
+                          ? "Deixe vazio para manter o token salvo"
+                          : "Cole o token oficial da WhatsApp Cloud API"
+                      }
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => void saveMetaWhatsApp()}
+                    disabled={savingMetaWhatsApp || whatsappOfficial.isLoading}
+                    className="rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
+                  >
+                    {savingMetaWhatsApp ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4" />
+                    )}
+                    Salvar e validar API Oficial
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void whatsappOfficial.refetch()}
+                    disabled={whatsappOfficial.isFetching}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${whatsappOfficial.isFetching ? "animate-spin" : ""}`}
+                    />
+                    Atualizar status
+                  </Button>
+                </div>
+              </div>
+
               <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
@@ -512,5 +708,14 @@ function StatusBadge({ status }: { status: string }) {
       {normalized === "configured" && <CheckCircle2 className="mr-1 inline h-3 w-3" />}
       {label}
     </span>
+  );
+}
+
+function IntegrationRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="shrink-0 text-[var(--mi-text-soft)]">{label}</span>
+      <span className="min-w-0 break-words text-right font-bold">{value}</span>
+    </div>
   );
 }

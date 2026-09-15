@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  Settings,
   Smile,
   Tag,
   Trash2,
@@ -873,6 +874,13 @@ function AtendimentoPage() {
                       >
                         <RefreshCw className="mr-2 h-4 w-4" /> Validar API Oficial
                       </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => void navigate({ to: "/central-integracoes" })}
+                        className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                      >
+                        <Settings className="mr-2 h-4 w-4" /> Configurar API Oficial
+                      </Button>
                     </>
                   ) : connection.data?.connected ? (
                     <Button
@@ -885,12 +893,21 @@ function AtendimentoPage() {
                       {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
                     </Button>
                   ) : (
-                    <Button
-                      onClick={() => void connect()}
-                      className="h-10 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
-                    >
-                      <Link2 className="mr-2 h-4 w-4" /> Conectar WhatsApp por QR Code
-                    </Button>
+                    <div className="space-y-2">
+                      <Button
+                        onClick={() => void navigate({ to: "/central-integracoes" })}
+                        className="h-10 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
+                      >
+                        <Settings className="mr-2 h-4 w-4" /> Configurar WhatsApp API Oficial
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => void connect()}
+                        className="h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                      >
+                        <Link2 className="mr-2 h-4 w-4" /> Conectar por QR Code
+                      </Button>
+                    </div>
                   )}
                   <Button
                     variant="outline"

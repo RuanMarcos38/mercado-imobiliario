@@ -217,6 +217,12 @@ const toolItems = [
     feature: "atendimento",
   },
   {
+    to: "/central-integracoes",
+    label: "Central de Integrações",
+    icon: Settings,
+    feature: "central_integracoes",
+  },
+  {
     to: "/midias-sociais",
     label: "Facebook / Instagram",
     icon: Camera,

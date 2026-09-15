@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   evolutionGatewayConfig,
@@ -7,12 +8,20 @@ import {
   getTenantEvolutionInstance,
   type EvolutionGatewayConfig,
 } from "@/lib/evolution-instance.server";
-import { metaWhatsAppConfig } from "@/lib/meta-whatsapp.server";
+import {
+  metaWhatsAppConfigFromStored,
+  metaWhatsAppInstanceName,
+  metaWhatsAppWebhookCallbackUrl,
+  testMetaWhatsAppConfig,
+  writeStoredMetaWhatsAppConfig,
+  type MetaWhatsAppConfig,
+} from "@/lib/meta-whatsapp.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import {
   ensureMetaWhatsAppConnection,
   getTenantWhatsAppConnection,
   shouldUseMetaWhatsApp,
+  tenantMetaWhatsAppConfig,
   testTenantWhatsAppRuntime,
 } from "@/lib/whatsapp-provider.server";
 
@@ -26,6 +35,80 @@ type QrPayload = {
 };
 
 const DEFAULT_MERCADOIMOBI_URL = "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host";
+
+const metaOfficialSettingsSchema = z.object({
+  accessToken: z.string().max(12000).optional(),
+  phoneNumberId: z.string().trim().min(4).max(80),
+  businessAccountId: z.string().trim().max(80).optional(),
+  displayPhoneNumber: z.string().trim().max(40).optional(),
+  graphVersion: z.string().trim().max(12).optional(),
+});
+
+type MetaWhatsAppSettingsSource = "platform" | "server_env" | "not_configured";
+
+function optionalText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed || null;
+}
+
+function graphVersionValue(value: string | null | undefined, fallback?: string) {
+  const raw = value?.trim() || fallback || "v26.0";
+  const normalized = raw.startsWith("v") ? raw : `v${raw}`;
+  return /^v\d+\.\d+$/.test(normalized) ? normalized : "v26.0";
+}
+
+async function canManageTenantIntegrations(db: any, tenantId: string, userId: string) {
+  const [{ data: platformRole }, { data: member }] = await Promise.all([
+    db.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+    db
+      .from("tenant_members")
+      .select("member_role")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+  const memberRole = String(member?.member_role ?? "").toLowerCase();
+  return Boolean(
+    platformRole ||
+    memberRole === "owner" ||
+    memberRole === "admin" ||
+    memberRole === "administrator",
+  );
+}
+
+async function requireTenantIntegrationManager(db: any, tenantId: string, userId: string) {
+  if (!(await canManageTenantIntegrations(db, tenantId, userId))) {
+    throw new Error("Somente administradores podem configurar integrações oficiais.");
+  }
+}
+
+function publicMetaSettings(input: {
+  configured: boolean;
+  connected: boolean;
+  source: MetaWhatsAppSettingsSource;
+  config: MetaWhatsAppConfig | null;
+  hasToken: boolean;
+  detail: string;
+  metadataValidated?: boolean;
+  verifiedName?: string | null;
+  qualityRating?: string | null;
+}) {
+  return {
+    configured: input.configured,
+    connected: input.connected,
+    source: input.source,
+    hasToken: input.hasToken,
+    phoneNumberId: input.config?.phoneNumberId ?? null,
+    businessAccountId: input.config?.businessAccountId ?? null,
+    displayPhoneNumber: input.config?.displayPhoneNumber ?? null,
+    graphVersion: input.config?.graphVersion ?? "v26.0",
+    callbackUrl: input.config?.callbackUrl ?? metaWhatsAppWebhookCallbackUrl(),
+    detail: input.detail,
+    metadataValidated: Boolean(input.metadataValidated),
+    verifiedName: input.verifiedName ?? null,
+    qualityRating: input.qualityRating ?? null,
+  };
+}
 
 function normalizeState(payload: unknown): EvolutionState {
   if (!payload || typeof payload !== "object") return "error";
@@ -178,6 +261,136 @@ async function ensureTenantInstance(input: {
   return { instance, created, qr };
 }
 
+export const getMetaWhatsAppOfficialSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+    const config = await tenantMetaWhatsAppConfig({
+      tenantId,
+      userId: context.userId,
+      connection: savedConnection,
+    });
+
+    if (!config) {
+      return publicMetaSettings({
+        configured: false,
+        connected: false,
+        source: "not_configured",
+        config: null,
+        hasToken: false,
+        detail: "WhatsApp API Oficial da Meta ainda não configurada nesta organização.",
+      });
+    }
+
+    const source =
+      savedConnection?.provider === "meta" && savedConnection.owner_user_id
+        ? ("platform" as const)
+        : ("server_env" as const);
+    const result = await testMetaWhatsAppConfig(config);
+    const liveDisplayPhone =
+      result.ok && result.displayPhoneNumber
+        ? result.displayPhoneNumber
+        : config.displayPhoneNumber;
+    return publicMetaSettings({
+      configured: true,
+      connected: result.ok,
+      source,
+      config: { ...config, displayPhoneNumber: liveDisplayPhone },
+      hasToken: true,
+      detail: result.ok
+        ? `Phone Number ID ${config.phoneNumberId} validado na Meta Cloud API.`
+        : "error" in result
+          ? String(result.error)
+          : "A conexão oficial ainda não foi validada.",
+      metadataValidated: result.metadataValidated,
+      verifiedName: result.ok ? result.verifiedName : null,
+      qualityRating: result.ok ? result.qualityRating : null,
+    });
+  });
+
+export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => metaOfficialSettingsSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    await requireTenantIntegrationManager(db, tenantId, context.userId);
+
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+    const previous = await tenantMetaWhatsAppConfig({
+      tenantId,
+      userId: context.userId,
+      connection: savedConnection,
+    });
+    const accessToken = data.accessToken?.trim() || previous?.accessToken || "";
+    if (!accessToken) {
+      throw new Error("Informe o token permanente da WhatsApp Cloud API.");
+    }
+
+    const config = metaWhatsAppConfigFromStored({
+      graphVersion: graphVersionValue(data.graphVersion, previous?.graphVersion),
+      phoneNumberId: data.phoneNumberId,
+      businessAccountId: optionalText(data.businessAccountId) ?? previous?.businessAccountId,
+      accessToken,
+      displayPhoneNumber: optionalText(data.displayPhoneNumber) ?? previous?.displayPhoneNumber,
+    });
+    if (!config) throw new Error("Configuração oficial da Meta incompleta.");
+
+    const result = await testMetaWhatsAppConfig(config);
+    if (!result.ok) {
+      throw new Error(
+        "error" in result
+          ? `A Meta recusou a validação: ${String(result.error).slice(0, 220)}`
+          : "A Meta recusou a validação da WhatsApp Cloud API.",
+      );
+    }
+
+    const displayPhoneNumber = result.displayPhoneNumber || config.displayPhoneNumber;
+    const savedConfig = { ...config, displayPhoneNumber };
+    await writeStoredMetaWhatsAppConfig(tenantId, context.userId, savedConfig);
+
+    const now = new Date().toISOString();
+    const { error } = await db.from("whatsapp_connections").upsert(
+      {
+        tenant_id: tenantId,
+        owner_user_id: context.userId,
+        instance_name: metaWhatsAppInstanceName(config.phoneNumberId),
+        display_name: "WhatsApp Oficial Meta",
+        phone_number: displayPhoneNumber,
+        status: "connected",
+        last_connected_at: now,
+        provider: "meta",
+        provider_phone_number_id: config.phoneNumberId,
+        provider_business_account_id: config.businessAccountId,
+        provider_metadata: {
+          graphVersion: config.graphVersion,
+          callbackUrl: config.callbackUrl,
+          configuredBy: "platform-ui",
+          metadataValidated: result.metadataValidated,
+          verifiedName: result.verifiedName,
+          qualityRating: result.qualityRating,
+        },
+        updated_at: now,
+      },
+      { onConflict: "tenant_id" },
+    );
+    if (error) throw new Error(error.message);
+
+    return publicMetaSettings({
+      configured: true,
+      connected: true,
+      source: "platform",
+      config: savedConfig,
+      hasToken: true,
+      detail: `Phone Number ID ${config.phoneNumberId} validado na Meta Cloud API.`,
+      metadataValidated: result.metadataValidated,
+      verifiedName: result.verifiedName,
+      qualityRating: result.qualityRating,
+    });
+  });
+
 export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -186,10 +399,12 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
     const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
 
     if (shouldUseMetaWhatsApp(savedConnection)) {
-      const configured = Boolean(
-        metaWhatsAppConfig(savedConnection?.provider_phone_number_id ?? undefined),
-      );
-      if (!configured) {
+      const officialConfig = await tenantMetaWhatsAppConfig({
+        tenantId,
+        userId: context.userId,
+        connection: savedConnection,
+      });
+      if (!officialConfig) {
         return {
           configured: false,
           ready: false,
@@ -208,7 +423,13 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
 
       await ensureMetaWhatsAppConnection({ db, tenantId, userId: context.userId });
       const runtime = await testTenantWhatsAppRuntime(db, tenantId);
-      const config = metaWhatsAppConfig(runtime.phoneNumberId || undefined);
+      const refreshedConnection = await getTenantWhatsAppConnection(db, tenantId);
+      const config =
+        (await tenantMetaWhatsAppConfig({
+          tenantId,
+          userId: context.userId,
+          connection: refreshedConnection ?? savedConnection,
+        })) ?? officialConfig;
       return {
         configured: runtime.configured,
         ready: runtime.configured,

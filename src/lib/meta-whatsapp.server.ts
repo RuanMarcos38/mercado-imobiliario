@@ -16,6 +16,15 @@ export type MetaWhatsAppConfig = {
   callbackUrl: string;
 };
 
+export type StoredMetaWhatsAppConfig = {
+  graphVersion?: string | null;
+  phoneNumberId: string;
+  businessAccountId?: string | null;
+  accessToken: string;
+  displayPhoneNumber?: string | null;
+  updatedAt?: string | null;
+};
+
 function firstEnv(names: string[]) {
   for (const name of names) {
     const value = process.env[name]?.trim();
@@ -26,6 +35,10 @@ function firstEnv(names: string[]) {
 
 function graphVersion() {
   const raw = firstEnv(["META_WHATSAPP_GRAPH_VERSION", "WHATSAPP_CLOUD_GRAPH_VERSION"]);
+  return normalizeGraphVersion(raw);
+}
+
+function normalizeGraphVersion(raw: string | null | undefined) {
   if (!raw) return DEFAULT_GRAPH_VERSION;
   const normalized = raw.startsWith("v") ? raw : `v${raw}`;
   return /^v\d+\.\d+$/.test(normalized) ? normalized : DEFAULT_GRAPH_VERSION;
@@ -76,6 +89,48 @@ export function metaWhatsAppConfig(phoneNumberIdOverride?: string): MetaWhatsApp
     displayPhoneNumber: firstEnv(["META_WHATSAPP_DISPLAY_PHONE_NUMBER"]) || null,
     callbackUrl: metaWhatsAppWebhookCallbackUrl(),
   };
+}
+
+export function metaWhatsAppConfigFromStored(
+  stored: StoredMetaWhatsAppConfig | null,
+): MetaWhatsAppConfig | null {
+  const accessToken = stored?.accessToken?.trim();
+  const phoneNumberId = stored?.phoneNumberId?.trim();
+  if (!accessToken || !phoneNumberId) return null;
+  return {
+    graphVersion: normalizeGraphVersion(stored.graphVersion),
+    phoneNumberId,
+    businessAccountId: stored.businessAccountId?.trim() || null,
+    accessToken,
+    displayPhoneNumber: stored.displayPhoneNumber?.trim() || null,
+    callbackUrl: metaWhatsAppWebhookCallbackUrl(),
+  };
+}
+
+export async function readStoredMetaWhatsAppConfig(tenantId: string, userId: string) {
+  const { readIntegrationSecret } = await import("@/lib/integration-secrets.server");
+  const stored = await readIntegrationSecret<StoredMetaWhatsAppConfig>(
+    tenantId,
+    userId,
+    "meta-whatsapp",
+  );
+  return metaWhatsAppConfigFromStored(stored);
+}
+
+export async function writeStoredMetaWhatsAppConfig(
+  tenantId: string,
+  userId: string,
+  config: MetaWhatsAppConfig,
+) {
+  const { writeIntegrationSecret } = await import("@/lib/integration-secrets.server");
+  await writeIntegrationSecret(tenantId, userId, "meta-whatsapp", {
+    graphVersion: config.graphVersion,
+    phoneNumberId: config.phoneNumberId,
+    businessAccountId: config.businessAccountId,
+    accessToken: config.accessToken,
+    displayPhoneNumber: config.displayPhoneNumber,
+    updatedAt: new Date().toISOString(),
+  } satisfies StoredMetaWhatsAppConfig);
 }
 
 export function metaWhatsAppInstanceName(phoneNumberId: string) {
@@ -146,8 +201,9 @@ export async function sendMetaWhatsAppTextMessage(input: {
   phone: string;
   text: string;
   phoneNumberId?: string;
+  config?: MetaWhatsAppConfig;
 }) {
-  const config = metaWhatsAppConfig(input.phoneNumberId);
+  const config = input.config ?? metaWhatsAppConfig(input.phoneNumberId);
   if (!config) throw new Error("META_WHATSAPP_NOT_CONFIGURED");
   return metaJson(
     endpoint(config, `/${encodeURIComponent(config.phoneNumberId)}/messages`),
@@ -215,8 +271,9 @@ export async function sendMetaWhatsAppMediaMessage(input: {
   base64: string;
   caption?: string;
   phoneNumberId?: string;
+  config?: MetaWhatsAppConfig;
 }) {
-  const config = metaWhatsAppConfig(input.phoneNumberId);
+  const config = input.config ?? metaWhatsAppConfig(input.phoneNumberId);
   if (!config) throw new Error("META_WHATSAPP_NOT_CONFIGURED");
 
   const mediaId = await uploadMetaWhatsAppMedia({
@@ -257,7 +314,10 @@ export async function sendMetaWhatsAppMediaMessage(input: {
 }
 
 export async function testMetaWhatsAppConnection(phoneNumberId?: string) {
-  const config = metaWhatsAppConfig(phoneNumberId);
+  return testMetaWhatsAppConfig(metaWhatsAppConfig(phoneNumberId));
+}
+
+export async function testMetaWhatsAppConfig(config: MetaWhatsAppConfig | null) {
   if (!config) {
     return { configured: false, ok: false, connected: false, metadataValidated: false };
   }

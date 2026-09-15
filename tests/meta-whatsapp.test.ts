@@ -2,9 +2,11 @@ import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   extractMetaWhatsAppMessageId,
+  metaWhatsAppConfigFromStored,
   metaWhatsAppWebhookSignatureValid,
   sendMetaWhatsAppMediaMessage,
   sendMetaWhatsAppTextMessage,
+  testMetaWhatsAppConfig,
   testMetaWhatsAppConnection,
   verifyMetaWhatsAppWebhookChallenge,
 } from "@/lib/meta-whatsapp.server";
@@ -65,6 +67,35 @@ describe("official Meta WhatsApp Cloud API", () => {
       text: { body: "Olá pelo WhatsApp oficial", preview_url: false },
     });
     expect(extractMetaWhatsAppMessageId(payload)).toBe("wamid.test-message");
+  });
+
+  it("sends text through a platform-saved Meta configuration without env credentials", async () => {
+    const config = metaWhatsAppConfigFromStored({
+      accessToken: "stored-meta-token",
+      phoneNumberId: "987654321",
+      graphVersion: "26.0",
+      displayPhoneNumber: "+55 83 9365-7471",
+    });
+    const fetchMock = vi.fn(async () =>
+      Response.json({ messages: [{ id: "wamid.stored-config" }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = await sendMetaWhatsAppTextMessage({
+      phone: "558393657471",
+      text: "Mensagem pela configuração salva",
+      config: config!,
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(url).toBe("https://graph.facebook.com/v26.0/987654321/messages");
+    expect(init.headers).toMatchObject({
+      Authorization: "Bearer stored-meta-token",
+      "Content-Type": "application/json",
+    });
+    expect(extractMetaWhatsAppMessageId(payload)).toBe("wamid.stored-config");
   });
 
   it("uploads media before sending a Meta document message", async () => {
@@ -131,6 +162,35 @@ describe("official Meta WhatsApp Cloud API", () => {
     expect(result.metadataValidated).toBe(false);
     expect(result.phoneNumberId).toBe("123456789");
     expect(result.displayPhoneNumber).toBe("+55 83 9365-7471");
+  });
+
+  it("validates a platform-saved Meta configuration", async () => {
+    const config = metaWhatsAppConfigFromStored({
+      accessToken: "stored-meta-token",
+      phoneNumberId: "987654321",
+      graphVersion: "v26.0",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          id: "987654321",
+          display_phone_number: "+55 83 9365-7471",
+          verified_name: "MercadoImobi",
+          quality_rating: "GREEN",
+        }),
+      ),
+    );
+
+    const result = await testMetaWhatsAppConfig(config);
+
+    expect(result.configured).toBe(true);
+    expect(result.ok).toBe(true);
+    expect(result.connected).toBe(true);
+    expect(result.phoneNumberId).toBe("987654321");
+    expect(result.displayPhoneNumber).toBe("+55 83 9365-7471");
+    expect(result.verifiedName).toBe("MercadoImobi");
+    expect(result.qualityRating).toBe("GREEN");
   });
 
   it("keeps invalid or expired Meta tokens as a connection error", async () => {

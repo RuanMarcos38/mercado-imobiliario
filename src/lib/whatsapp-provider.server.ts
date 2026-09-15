@@ -14,9 +14,12 @@ import {
   isMetaWhatsAppAccessTokenFailure,
   metaWhatsAppConfig,
   metaWhatsAppInstanceName,
+  readStoredMetaWhatsAppConfig,
   sendMetaWhatsAppMediaMessage,
   sendMetaWhatsAppTextMessage,
+  testMetaWhatsAppConfig,
   testMetaWhatsAppConnection,
+  type MetaWhatsAppConfig,
   type MetaWhatsAppMediaType,
 } from "@/lib/meta-whatsapp.server";
 
@@ -123,6 +126,19 @@ function metaBusinessAccountId(connection: TenantWhatsAppConnection | null) {
   );
 }
 
+export async function tenantMetaWhatsAppConfig(input: {
+  tenantId: string;
+  userId?: string | null;
+  connection?: TenantWhatsAppConnection | null;
+}): Promise<MetaWhatsAppConfig | null> {
+  const ownerUserId = input.connection?.owner_user_id?.trim() || input.userId?.trim() || "";
+  if (ownerUserId) {
+    const stored = await readStoredMetaWhatsAppConfig(input.tenantId, ownerUserId);
+    if (stored) return stored;
+  }
+  return metaWhatsAppConfig(input.connection?.provider_phone_number_id ?? undefined);
+}
+
 function metaWhatsAppRuntimeDetail(input: {
   ok: boolean;
   phoneNumberId: string;
@@ -156,10 +172,15 @@ export async function ensureMetaWhatsAppConnection(input: {
   tenantId: string;
   userId: string;
 }) {
-  const config = metaWhatsAppConfig();
+  const existing = await getTenantWhatsAppConnection(input.db, input.tenantId);
+  const config = await tenantMetaWhatsAppConfig({
+    tenantId: input.tenantId,
+    userId: input.userId,
+    connection: existing,
+  });
   if (!config) return null;
 
-  const live = await testMetaWhatsAppConnection(config.phoneNumberId);
+  const live = await testMetaWhatsAppConfig(config);
   const now = new Date().toISOString();
   const instanceName = metaWhatsAppInstanceName(config.phoneNumberId);
   const displayPhoneNumber =
@@ -178,7 +199,7 @@ export async function ensureMetaWhatsAppConnection(input: {
     provider_metadata: {
       graphVersion: config.graphVersion,
       callbackUrl: config.callbackUrl,
-      configuredBy: "server-env",
+      configuredBy: existing?.provider === "meta" ? "platform-or-env" : "server-env",
       metadataValidated: live.metadataValidated,
       validationWarning: "warning" in live ? live.warning : null,
     },
@@ -241,14 +262,18 @@ export async function sendTenantWhatsAppText(input: {
   }
 
   if (shouldUseMetaWhatsApp(connection)) {
-    const phoneNumberId = metaPhoneNumberId(connection);
-    if (!phoneNumberId || !metaWhatsAppConfig(phoneNumberId)) {
+    const config = await tenantMetaWhatsAppConfig({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      connection,
+    });
+    if (!config) {
       throw new Error("META_WHATSAPP_NOT_CONFIGURED");
     }
     const payload = await sendMetaWhatsAppTextMessage({
       phone: input.phone,
       text: input.text,
-      phoneNumberId,
+      config,
     });
     return {
       provider: "meta" as const,
@@ -298,8 +323,12 @@ export async function sendTenantWhatsAppMedia(input: {
   }
 
   if (shouldUseMetaWhatsApp(connection)) {
-    const phoneNumberId = metaPhoneNumberId(connection);
-    if (!phoneNumberId || !metaWhatsAppConfig(phoneNumberId)) {
+    const config = await tenantMetaWhatsAppConfig({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      connection,
+    });
+    if (!config) {
       throw new Error("META_WHATSAPP_NOT_CONFIGURED");
     }
     const payload = await sendMetaWhatsAppMediaMessage({
@@ -309,7 +338,7 @@ export async function sendTenantWhatsAppMedia(input: {
       fileName: input.fileName,
       base64: input.base64,
       caption: input.caption,
-      phoneNumberId,
+      config,
     });
     return {
       provider: "meta" as const,
@@ -353,8 +382,11 @@ export async function sendTenantWhatsAppMedia(input: {
 export async function testTenantWhatsAppRuntime(db: any, tenantId: string) {
   const connection = await getTenantWhatsAppConnection(db, tenantId);
   if (shouldUseMetaWhatsApp(connection)) {
-    const phoneNumberId = metaPhoneNumberId(connection);
-    const result = await testMetaWhatsAppConnection(phoneNumberId);
+    const config = await tenantMetaWhatsAppConfig({ tenantId, connection });
+    const phoneNumberId = config?.phoneNumberId || metaPhoneNumberId(connection);
+    const result = config
+      ? await testMetaWhatsAppConfig(config)
+      : await testMetaWhatsAppConnection(phoneNumberId);
     return {
       provider: "meta" as const,
       configured: result.configured,

@@ -7,7 +7,6 @@ import {
   evolutionRequest,
   getTenantEvolutionInstance,
 } from "@/lib/evolution-instance.server";
-import { metaWhatsAppConfig } from "@/lib/meta-whatsapp.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
@@ -15,6 +14,7 @@ import {
   getTenantWhatsAppConnection,
   sendTenantWhatsAppText,
   shouldUseMetaWhatsApp,
+  tenantMetaWhatsAppConfig,
   testTenantWhatsAppRuntime,
   type WhatsAppProvider,
 } from "@/lib/whatsapp-provider.server";
@@ -199,10 +199,13 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
     const db = context.supabase as any;
     const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
     if (shouldUseMetaWhatsApp(savedConnection)) {
+      const config = await tenantMetaWhatsAppConfig({
+        tenantId,
+        userId: context.userId,
+        connection: savedConnection,
+      });
       return {
-        configured: Boolean(
-          metaWhatsAppConfig(savedConnection?.provider_phone_number_id ?? undefined),
-        ),
+        configured: Boolean(config),
         provider: "meta" as const,
         base64: null as string | null,
         code: null as string | null,
