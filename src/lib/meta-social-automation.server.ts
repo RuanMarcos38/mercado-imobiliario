@@ -175,9 +175,7 @@ function registryMetadata(page: MetaPageConnection, userId: string) {
   return {
     userId,
     pageId: page.pageId,
-    pageName: page.pageName,
     instagramUserId: page.instagramUserId,
-    instagramUsername: page.instagramUsername,
   };
 }
 

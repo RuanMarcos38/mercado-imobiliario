@@ -224,7 +224,7 @@ const toolItems = [
   },
   {
     to: "/midias-sociais",
-    label: "Facebook / Instagram",
+    label: "Direct / Messenger",
     icon: Camera,
     feature: "midias",
   },
@@ -402,7 +402,7 @@ function AuthenticatedLayout() {
               <Link
                 to="/midias-sociais"
                 className="mi-icon-button hidden sm:grid"
-                title="Facebook / Instagram"
+                title="Direct / Messenger"
               >
                 <Camera className="h-4 w-4" />
               </Link>

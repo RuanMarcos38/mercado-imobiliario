@@ -276,10 +276,8 @@ function clampInteger(value: number | undefined, fallback: number, min: number, 
   return Math.max(min, Math.min(max, Math.trunc(value ?? fallback)));
 }
 
-function accountNameForPage(page: MetaPageConnection, channel: SocialChannel) {
-  if (channel === "instagram")
-    return page.instagramUsername ? `@${page.instagramUsername}` : page.pageName;
-  return page.pageName;
+function socialChannelLabel(channel: SocialChannel) {
+  return channel === "instagram" ? "Instagram Direct" : "Messenger";
 }
 
 function matchedInterestKeywords(text: string, keywords?: string[]) {
@@ -366,7 +364,7 @@ async function fetchSocialSources(input: {
         id: String(item?.id ?? input.sourceId),
         channel,
         pageId: page.pageId,
-        accountName: accountNameForPage(page, channel),
+        accountName: socialChannelLabel(channel),
         caption:
           channel === "instagram" ? String(item?.caption ?? "") : String(item?.message ?? ""),
         permalinkUrl: item?.permalink
@@ -402,7 +400,7 @@ async function fetchSocialSources(input: {
         id: String(item?.id ?? ""),
         channel,
         pageId: page.pageId,
-        accountName: accountNameForPage(page, channel),
+        accountName: socialChannelLabel(channel),
         caption:
           channel === "instagram" ? String(item?.caption ?? "") : String(item?.message ?? ""),
         permalinkUrl: item?.permalink
@@ -649,12 +647,7 @@ async function fetchConversationsForPage(page: MetaPageConnection, channel: Soci
       conversationId: String(conversation.id),
       channel,
       pageId: page.pageId,
-      accountName:
-        channel === "instagram"
-          ? page.instagramUsername
-            ? `@${page.instagramUsername}`
-            : page.pageName
-          : page.pageName,
+      accountName: socialChannelLabel(channel),
       contactId: participant.id,
       contactName: participant.name,
       lastMessage: String(latest?.message ?? ""),

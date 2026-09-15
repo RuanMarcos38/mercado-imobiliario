@@ -32,7 +32,7 @@ import type { SocialCommentScanResult, SocialInterestComment } from "@/lib/meta-
 
 export const Route = createFileRoute("/_authenticated/midias-sociais")({
   component: SocialInboxPage,
-  head: () => ({ title: "Atendimento Facebook e Instagram | MercadoImobi" }),
+  head: () => ({ title: "Atendimento Direct e Messenger | MercadoImobi" }),
 });
 
 type Channel = "all" | "facebook" | "instagram";
@@ -55,6 +55,9 @@ type SocialMessageView = {
   createdTime: string | null;
   attachments: Array<{ type: string; url: string | null }>;
 };
+
+const channelLabel = (channel: "facebook" | "instagram") =>
+  channel === "instagram" ? "Instagram Direct" : "Messenger";
 
 function ChannelIcon({
   channel,
@@ -80,7 +83,6 @@ function SocialInboxPage() {
 
   const [channel, setChannel] = useState<Channel>("all");
   const [scanChannel, setScanChannel] = useState<Channel>("all");
-  const [scanPageId, setScanPageId] = useState("all");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [sendPrivateReplies, setSendPrivateReplies] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -120,7 +122,7 @@ function SocialInboxPage() {
     const params = new URLSearchParams(window.location.search);
     const meta = params.get("meta");
     if (meta === "connected") {
-      toast.success("Facebook/Instagram conectados com sucesso.");
+      toast.success("Direct e Messenger conectados com sucesso.");
       window.history.replaceState({}, "", "/midias-sociais");
       void status.refetch();
     } else if (meta === "error") {
@@ -137,7 +139,7 @@ function SocialInboxPage() {
     const needle = search.trim().toLowerCase();
     if (!needle) return conversations.data ?? [];
     return (conversations.data ?? []).filter((item) =>
-      [item.contactName, item.accountName, item.lastMessage, item.channel]
+      [item.contactName, channelLabel(item.channel), item.lastMessage, item.channel]
         .join(" ")
         .toLowerCase()
         .includes(needle),
@@ -156,7 +158,7 @@ function SocialInboxPage() {
   };
 
   const disconnect = async () => {
-    if (!window.confirm("Desconectar Facebook e Instagram desta conta?")) return;
+    if (!window.confirm("Desconectar Direct e Messenger desta conta?")) return;
     try {
       await disconnectFn();
       setSelectedId(null);
@@ -177,7 +179,6 @@ function SocialInboxPage() {
       sourceLimit: 5,
       commentLimit: 30,
       sendPrivateReplies,
-      ...(scanPageId !== "all" ? { pageId: scanPageId } : {}),
       ...(whatsappNumber.trim() ? { whatsappNumber: whatsappNumber.trim() } : {}),
     };
     setScanning(true);
@@ -219,6 +220,15 @@ function SocialInboxPage() {
     }
   };
 
+  const connectedChannelText = status.data?.connected
+    ? [
+        status.data.channels.messenger ? "Messenger" : null,
+        status.data.channels.instagramDirect ? "Instagram Direct" : null,
+      ]
+        .filter(Boolean)
+        .join(" + ") || "Canais Meta conectados"
+    : "Nenhum canal conectado";
+
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">
       <div className="mx-auto max-w-[1500px]">
@@ -227,14 +237,14 @@ function SocialInboxPage() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
               Omnichannel
             </p>
-            <h1 className="mt-1 text-2xl font-black">Atendimento Facebook e Instagram</h1>
+            <h1 className="mt-1 text-2xl font-black">Atendimento Direct e Messenger</h1>
             <p className="mt-1 text-sm text-[var(--mi-text-muted)]">
-              Conecte qualquer conta Meta que administre as páginas e perfis profissionais que serão
-              atendidos aqui, sem depender de um perfil próprio do MercadoImobi.
+              Atenda conversas do Instagram Direct e Messenger em uma caixa única, sem expor páginas
+              ou estruturas de conta para a operação.
             </p>
             <p className="mt-1 text-xs font-bold text-[var(--mi-text-soft)]">
-              Para usar outra conta, escolha o login correto no Facebook/Instagram durante a
-              autorização ou use a opção de trocar conta.
+              A autorização Meta permanece segura no servidor; o atendimento trabalha somente por
+              canal.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -250,14 +260,14 @@ function SocialInboxPage() {
                   onClick={() => connect(true)}
                   className="rounded-xl border-[var(--mi-border)]"
                 >
-                  <Link2 className="mr-2 h-4 w-4" /> Trocar conta Meta
+                  <Link2 className="mr-2 h-4 w-4" /> Reconectar canais Meta
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => void disconnect()}
                   className="rounded-xl border-[var(--mi-border)] text-rose-600"
                 >
-                  <LogOut className="mr-2 h-4 w-4" /> Desconectar Meta
+                  <LogOut className="mr-2 h-4 w-4" /> Desconectar canais
                 </Button>
               </>
             ) : (
@@ -267,13 +277,13 @@ function SocialInboxPage() {
                   onClick={() => connect(true)}
                   className="rounded-xl border-[var(--mi-border)]"
                 >
-                  <Link2 className="mr-2 h-4 w-4" /> Escolher conta Meta
+                  <Link2 className="mr-2 h-4 w-4" /> Escolher login Meta
                 </Button>
                 <Button
                   onClick={() => connect()}
                   className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
                 >
-                  <Link2 className="mr-2 h-4 w-4" /> Conectar Facebook e Instagram
+                  <Link2 className="mr-2 h-4 w-4" /> Conectar Direct e Messenger
                 </Button>
               </>
             )}
@@ -287,9 +297,7 @@ function SocialInboxPage() {
                 <div>
                   <p className="font-black">Conversas</p>
                   <p className="mt-0.5 text-[11px] text-[var(--mi-text-soft)]">
-                    {status.data?.connected
-                      ? `${status.data.pages.length} página(s) conectada(s)`
-                      : "Nenhuma conta conectada"}
+                    {connectedChannelText}
                   </p>
                 </div>
                 <span
@@ -313,13 +321,13 @@ function SocialInboxPage() {
                 <ChannelButton
                   active={channel === "facebook"}
                   onClick={() => setChannel("facebook")}
-                  label="Facebook"
+                  label="Messenger"
                   icon={<MessageCircle className="h-3.5 w-3.5" />}
                 />
                 <ChannelButton
                   active={channel === "instagram"}
                   onClick={() => setChannel("instagram")}
-                  label="Instagram"
+                  label="Direct"
                   icon={<Camera className="h-3.5 w-3.5" />}
                 />
               </div>
@@ -359,29 +367,15 @@ function SocialInboxPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3">
                   <select
                     value={scanChannel}
                     onChange={(event) => setScanChannel(event.target.value as Channel)}
-                    className="h-10 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-xs font-bold outline-none focus:border-blue-500"
+                    className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-xs font-bold outline-none focus:border-blue-500"
                   >
-                    <option value="all">Todos</option>
-                    <option value="facebook">Facebook</option>
-                    <option value="instagram">Instagram</option>
-                  </select>
-                  <select
-                    value={scanPageId}
-                    onChange={(event) => setScanPageId(event.target.value)}
-                    className="h-10 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-3 text-xs font-bold outline-none focus:border-blue-500"
-                  >
-                    <option value="all">Todas as páginas</option>
-                    {(status.data?.pages ?? []).map((page) => (
-                      <option key={page.pageId} value={page.pageId}>
-                        {page.instagramUsername
-                          ? `${page.pageName} / @${page.instagramUsername}`
-                          : page.pageName}
-                      </option>
-                    ))}
+                    <option value="all">Todos os canais</option>
+                    <option value="facebook">Messenger</option>
+                    <option value="instagram">Instagram Direct</option>
                   </select>
                 </div>
 
@@ -478,7 +472,7 @@ function SocialInboxPage() {
                       )}
                     </span>
                     <span className="mt-0.5 block truncate text-[10px] font-bold uppercase tracking-wide text-[var(--mi-text-soft)]">
-                      {conversation.accountName}
+                      {channelLabel(conversation.channel)}
                     </span>
                     <span className="mt-1 block truncate text-xs text-[var(--mi-text-muted)]">
                       {conversation.lastMessage || "Mensagem de mídia"}
@@ -497,7 +491,7 @@ function SocialInboxPage() {
                     <p className="truncate font-black">{selected.contactName || "Contato"}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--mi-text-soft)]">
                       <ChannelIcon channel={selected.channel} className="h-3.5 w-3.5" />{" "}
-                      {selected.accountName}
+                      {channelLabel(selected.channel)}
                     </p>
                   </div>
                   <Button
@@ -578,7 +572,7 @@ function SocialInboxPage() {
                         }
                       }}
                       rows={1}
-                      placeholder={`Responder pelo ${selected.channel === "instagram" ? "Instagram" : "Facebook"}`}
+                      placeholder={`Responder pelo ${channelLabel(selected.channel)}`}
                       className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
                     />
                     <Button
@@ -655,7 +649,7 @@ function InterestCommentPreview({ item }: { item: SocialInterestComment }) {
       </div>
       <p className="mt-1 line-clamp-2 text-[11px] text-[var(--mi-text-muted)]">{item.text}</p>
       <p className="mt-1 text-[10px] font-bold text-blue-600">
-        {item.channel === "instagram" ? "Instagram" : "Facebook"} · {item.interestScore}%
+        {item.channel === "instagram" ? "Direct" : "Messenger"} · {item.interestScore}%
       </p>
     </div>
   );

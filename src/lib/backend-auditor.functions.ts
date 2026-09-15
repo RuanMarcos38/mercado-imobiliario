@@ -414,7 +414,7 @@ async function testMeta(tenantId: string, userId: string) {
     const result = await testMetaConnection(tenantId, userId);
     return {
       key: "meta-live",
-      label: "Facebook / Instagram",
+      label: "Direct / Messenger",
       category: "Comunicação",
       critical: false,
       configured: result.configured && result.connected !== false,

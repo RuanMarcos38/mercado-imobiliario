@@ -33,6 +33,9 @@ export const getMetaSocialStatus = createServerFn({ method: "GET" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { getMetaOAuthUrl, getMetaSocialConfig } = await import("@/lib/meta-social.server");
     const config = await getMetaSocialConfig(tenantId, context.userId);
+    const pages = config?.pages ?? [];
+    const messengerConnected = pages.length > 0;
+    const instagramDirectConnected = pages.some((page) => Boolean(page.instagramUserId));
     const connectUrl = getMetaOAuthUrl({ tenantId, userId: context.userId });
     const switchAccountUrl = getMetaOAuthUrl({
       tenantId,
@@ -41,17 +44,14 @@ export const getMetaSocialStatus = createServerFn({ method: "GET" })
     });
     return {
       configured: Boolean(connectUrl),
-      connected: Boolean(config?.pages.length),
+      connected: messengerConnected || instagramDirectConnected,
       connectUrl,
       switchAccountUrl,
       connectedAt: config?.connectedAt ?? null,
-      pages:
-        config?.pages.map((page) => ({
-          pageId: page.pageId,
-          pageName: page.pageName,
-          instagramUsername: page.instagramUsername,
-          hasInstagram: Boolean(page.instagramUserId),
-        })) ?? [],
+      channels: {
+        messenger: messengerConnected,
+        instagramDirect: instagramDirectConnected,
+      },
     };
   });
 

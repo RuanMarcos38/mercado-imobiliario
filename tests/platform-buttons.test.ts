@@ -55,7 +55,7 @@ describe("MercadoImobi platform controls", () => {
   it("keeps the real estate CRM and social attendance visible while unrelated tools stay out", () => {
     const layout = source("src/routes/_authenticated.tsx");
     expect(layout).toContain('label: "CRM / Oportunidades"');
-    expect(layout).toContain('label: "Facebook / Instagram"');
+    expect(layout).toContain('label: "Direct / Messenger"');
     expect(layout).not.toContain('label: "E-mail / CCA"');
     expect(layout).not.toContain('label: "Discador"');
     expect(layout).toContain('label: "Atendimento WhatsApp"');

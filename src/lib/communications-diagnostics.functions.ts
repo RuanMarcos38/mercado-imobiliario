@@ -127,7 +127,7 @@ export const runCommunicationDiagnostics = createServerFn({ method: "POST" })
 
     const meta: DiagnosticItem = {
       key: "meta",
-      label: "Facebook / Instagram",
+      label: "Direct / Messenger",
       configured: metaResult.configured,
       ok: metaResult.ok,
       detail: metaResult.ok

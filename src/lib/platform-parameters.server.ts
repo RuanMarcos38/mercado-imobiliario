@@ -345,7 +345,7 @@ export function integrationReadiness() {
     },
     {
       key: "meta",
-      label: "Facebook / Instagram",
+      label: "Direct / Messenger",
       configured: Boolean(
         process.env["META_APP_ID"]?.trim() && process.env["META_APP_SECRET"]?.trim(),
       ),
