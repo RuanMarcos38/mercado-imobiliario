@@ -32,6 +32,16 @@ function firstEnv(names: string[]) {
   return "";
 }
 
+function publicPlatformUrl() {
+  const publicUrl = process.env["MERCADOIMOBI_PUBLIC_BASE_URL"]?.trim();
+  if (publicUrl) return publicUrl;
+
+  const baseUrl = process.env["MERCADOIMOBI_BASE_URL"]?.trim();
+  if (baseUrl && !/easypanel\.host/i.test(baseUrl)) return baseUrl;
+
+  return "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br";
+}
+
 function whatsappProviderValue() {
   const normalized = firstEnv(["WHATSAPP_PROVIDER", "WHATSAPP_MODE"]).toLowerCase();
   if (["meta", "official", "oficial", "cloud", "cloud_api"].includes(normalized)) return "meta";
@@ -119,10 +129,7 @@ export function externalServiceParameters() {
 }
 
 export function platformBaseUrl() {
-  return stringEnv(
-    "MERCADOIMOBI_PUBLIC_BASE_URL",
-    stringEnv("MERCADOIMOBI_BASE_URL", "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"),
-  ).replace(/\/$/, "");
+  return publicPlatformUrl().replace(/\/$/, "");
 }
 
 export function platformParameterDefinitions(): PlatformParameterDefinition[] {

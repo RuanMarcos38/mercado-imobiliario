@@ -145,4 +145,12 @@ describe("platform parameters", () => {
 
     expect(platformBaseUrl()).toBe("https://mercadoimobi.rdmconsultoriaimobiliaria.com.br");
   });
+
+  it("does not expose the EasyPanel host as the public platform URL", () => {
+    process.env["MERCADOIMOBI_BASE_URL"] =
+      "https://r2rmarketingdigital-mercadomobi.ke4n49.easypanel.host";
+    process.env["MERCADOIMOBI_PUBLIC_BASE_URL"] = "";
+
+    expect(platformBaseUrl()).toBe("https://mercadoimobi.rdmconsultoriaimobiliaria.com.br");
+  });
 });
