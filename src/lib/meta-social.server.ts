@@ -16,12 +16,12 @@ const META_OAUTH_DEFAULT_SCOPES = [
   "pages_messaging",
   "instagram_basic",
   "instagram_manage_comments",
-  "instagram_business_manage_messages",
 ] as const;
 const META_OAUTH_LEGACY_INVALID_SCOPES = new Set([
   "pages_read_user_content",
   "pages_manage_engagement",
   "instagram_manage_messages",
+  "instagram_business_manage_messages",
 ]);
 
 export type SocialChannel = "facebook" | "instagram";

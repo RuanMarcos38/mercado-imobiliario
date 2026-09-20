@@ -29,7 +29,7 @@ describe("MercadoImobi communication hub security", () => {
     expect(url).toContain("pages_manage_metadata");
     expect(url).toContain("instagram_basic");
     expect(url).toContain("instagram_manage_comments");
-    expect(url).toContain("instagram_business_manage_messages");
+    expect(url).not.toContain("instagram_business_manage_messages");
     expect(url).not.toContain("instagram_manage_messages");
     expect(url).not.toContain("pages_read_user_content");
     expect(url).not.toContain("pages_manage_engagement");
@@ -38,7 +38,7 @@ describe("MercadoImobi communication hub security", () => {
     );
   });
 
-  it("filters deprecated Meta scopes without removing Instagram Direct", () => {
+  it("filters Meta scopes that are invalid for the Facebook OAuth flow", () => {
     vi.stubEnv(
       "META_OAUTH_SCOPES",
       [
@@ -59,7 +59,7 @@ describe("MercadoImobi communication hub security", () => {
     expect(scopes).toContain("pages_messaging");
     expect(scopes).toContain("instagram_basic");
     expect(scopes).toContain("instagram_manage_comments");
-    expect(scopes).toContain("instagram_business_manage_messages");
+    expect(scopes).not.toContain("instagram_business_manage_messages");
     expect(scopes).not.toContain("instagram_manage_messages");
     expect(scopes).not.toContain("pages_read_user_content");
     expect(scopes).not.toContain("pages_manage_engagement");
@@ -142,7 +142,7 @@ describe("MercadoImobi communication hub security", () => {
 
     expect(env).toContain("META_APP_SECRET=");
     expect(env).toContain("instagram_manage_comments");
-    expect(env).toContain("instagram_business_manage_messages");
+    expect(env).not.toContain("instagram_business_manage_messages");
     expect(env).not.toContain("instagram_manage_messages");
     expect(env).toContain("pages_messaging");
     expect(env).toContain("META_GRAPH_VERSION=v26.0");
