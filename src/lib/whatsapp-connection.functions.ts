@@ -92,6 +92,7 @@ function publicMetaSettings(input: {
   metadataValidated?: boolean;
   verifiedName?: string | null;
   qualityRating?: string | null;
+  businessAccountMatched?: boolean | null;
 }) {
   return {
     configured: input.configured,
@@ -107,6 +108,7 @@ function publicMetaSettings(input: {
     metadataValidated: Boolean(input.metadataValidated),
     verifiedName: input.verifiedName ?? null,
     qualityRating: input.qualityRating ?? null,
+    businessAccountMatched: input.businessAccountMatched ?? null,
   };
 }
 
@@ -293,6 +295,8 @@ export const getMetaWhatsAppOfficialSettings = createServerFn({ method: "GET" })
       result.ok && result.displayPhoneNumber
         ? result.displayPhoneNumber
         : config.displayPhoneNumber;
+    const businessAccountMatched =
+      "businessAccountMatched" in result ? result.businessAccountMatched : null;
     return publicMetaSettings({
       configured: true,
       connected: result.ok,
@@ -300,13 +304,16 @@ export const getMetaWhatsAppOfficialSettings = createServerFn({ method: "GET" })
       config: { ...config, displayPhoneNumber: liveDisplayPhone },
       hasToken: true,
       detail: result.ok
-        ? `Phone Number ID ${config.phoneNumberId} validado na Meta Cloud API.`
+        ? businessAccountMatched === true && config.businessAccountId
+          ? `Phone Number ID ${config.phoneNumberId} validado na conta WhatsApp Business ${config.businessAccountId}.`
+          : `Phone Number ID ${config.phoneNumberId} validado na Meta Cloud API.`
         : "error" in result
           ? String(result.error)
           : "A conexão oficial ainda não foi validada.",
       metadataValidated: result.metadataValidated,
       verifiedName: result.ok ? result.verifiedName : null,
       qualityRating: result.ok ? result.qualityRating : null,
+      businessAccountMatched,
     });
   });
 
@@ -349,6 +356,8 @@ export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" 
 
     const displayPhoneNumber = result.displayPhoneNumber || config.displayPhoneNumber;
     const savedConfig = { ...config, displayPhoneNumber };
+    const businessAccountMatched =
+      "businessAccountMatched" in result ? result.businessAccountMatched : null;
     await writeStoredMetaWhatsAppConfig(tenantId, context.userId, savedConfig);
 
     const now = new Date().toISOString();
@@ -371,6 +380,12 @@ export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" 
           metadataValidated: result.metadataValidated,
           verifiedName: result.verifiedName,
           qualityRating: result.qualityRating,
+          businessAccountMatched,
+          codeVerificationStatus:
+            "codeVerificationStatus" in result ? result.codeVerificationStatus : null,
+          platformType: "platformType" in result ? result.platformType : null,
+          nameStatus: "nameStatus" in result ? result.nameStatus : null,
+          phoneStatus: "phoneStatus" in result ? result.phoneStatus : null,
         },
         updated_at: now,
       },
@@ -384,10 +399,14 @@ export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" 
       source: "platform",
       config: savedConfig,
       hasToken: true,
-      detail: `Phone Number ID ${config.phoneNumberId} validado na Meta Cloud API.`,
+      detail:
+        businessAccountMatched === true && config.businessAccountId
+          ? `Phone Number ID ${config.phoneNumberId} validado na conta WhatsApp Business ${config.businessAccountId}.`
+          : `Phone Number ID ${config.phoneNumberId} validado na Meta Cloud API.`,
       metadataValidated: result.metadataValidated,
       verifiedName: result.verifiedName,
       qualityRating: result.qualityRating,
+      businessAccountMatched,
     });
   });
 

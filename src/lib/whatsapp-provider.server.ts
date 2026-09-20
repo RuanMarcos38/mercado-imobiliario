@@ -134,7 +134,14 @@ export async function tenantMetaWhatsAppConfig(input: {
   const ownerUserId = input.connection?.owner_user_id?.trim() || input.userId?.trim() || "";
   if (ownerUserId) {
     const stored = await readStoredMetaWhatsAppConfig(input.tenantId, ownerUserId);
-    if (stored) return stored;
+    if (stored) {
+      return {
+        ...stored,
+        phoneNumberId: metaPhoneNumberId(input.connection) || stored.phoneNumberId,
+        businessAccountId: metaBusinessAccountId(input.connection) ?? stored.businessAccountId,
+        displayPhoneNumber: input.connection?.phone_number?.trim() || stored.displayPhoneNumber,
+      };
+    }
   }
   return metaWhatsAppConfig(input.connection?.provider_phone_number_id ?? undefined);
 }
@@ -142,10 +149,15 @@ export async function tenantMetaWhatsAppConfig(input: {
 function metaWhatsAppRuntimeDetail(input: {
   ok: boolean;
   phoneNumberId: string;
+  businessAccountId?: string | null;
+  businessAccountMatched?: boolean | null;
   error?: string;
   metadataValidated?: boolean;
 }) {
   if (input.ok) {
+    if (input.businessAccountId && input.businessAccountMatched === true) {
+      return `Phone Number ID ${input.phoneNumberId} validado na conta WhatsApp Business ${input.businessAccountId}.`;
+    }
     if (input.metadataValidated === false) {
       return [
         `WhatsApp API Oficial configurada para o Phone Number ID ${input.phoneNumberId}.`,
@@ -185,6 +197,8 @@ export async function ensureMetaWhatsAppConnection(input: {
   const instanceName = metaWhatsAppInstanceName(config.phoneNumberId);
   const displayPhoneNumber =
     live.ok && live.displayPhoneNumber ? live.displayPhoneNumber : config.displayPhoneNumber;
+  const businessAccountMatched =
+    "businessAccountMatched" in live ? live.businessAccountMatched : null;
   const fullRow = {
     tenant_id: input.tenantId,
     owner_user_id: input.userId,
@@ -201,7 +215,13 @@ export async function ensureMetaWhatsAppConnection(input: {
       callbackUrl: config.callbackUrl,
       configuredBy: existing?.provider === "meta" ? "platform-or-env" : "server-env",
       metadataValidated: live.metadataValidated,
+      businessAccountMatched,
       validationWarning: "warning" in live ? live.warning : null,
+      validationError: "error" in live ? live.error : null,
+      codeVerificationStatus: "codeVerificationStatus" in live ? live.codeVerificationStatus : null,
+      platformType: "platformType" in live ? live.platformType : null,
+      nameStatus: "nameStatus" in live ? live.nameStatus : null,
+      phoneStatus: "phoneStatus" in live ? live.phoneStatus : null,
     },
     updated_at: now,
   };
@@ -400,6 +420,9 @@ export async function testTenantWhatsAppRuntime(db: any, tenantId: string) {
       detail: metaWhatsAppRuntimeDetail({
         ok: result.ok,
         phoneNumberId,
+        businessAccountId: metaBusinessAccountId(connection),
+        businessAccountMatched:
+          "businessAccountMatched" in result ? result.businessAccountMatched : null,
         metadataValidated: result.metadataValidated,
         error: "error" in result ? String(result.error) : "META_WHATSAPP_NOT_CONFIGURED",
       }),

@@ -168,18 +168,34 @@ describe("official Meta WhatsApp Cloud API", () => {
     const config = metaWhatsAppConfigFromStored({
       accessToken: "stored-meta-token",
       phoneNumberId: "987654321",
+      businessAccountId: "waba-123",
       graphVersion: "v26.0",
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json({
-          id: "987654321",
-          display_phone_number: "+55 83 9365-7471",
-          verified_name: "MercadoImobi",
-          quality_rating: "GREEN",
-        }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          Response.json({
+            id: "987654321",
+            display_phone_number: "+55 83 9365-7471",
+            verified_name: "MercadoImobi",
+            quality_rating: "GREEN",
+          }),
+        )
+        .mockResolvedValueOnce(
+          Response.json({
+            data: [
+              {
+                id: "987654321",
+                display_phone_number: "+55 83 9365-7471",
+                verified_name: "MercadoImobi",
+                quality_rating: "GREEN",
+                status: "CONNECTED",
+              },
+            ],
+          }),
+        ),
     );
 
     const result = await testMetaWhatsAppConfig(config);
@@ -191,6 +207,38 @@ describe("official Meta WhatsApp Cloud API", () => {
     expect(result.displayPhoneNumber).toBe("+55 83 9365-7471");
     expect(result.verifiedName).toBe("MercadoImobi");
     expect(result.qualityRating).toBe("GREEN");
+    expect(result.businessAccountMatched).toBe(true);
+  });
+
+  it("rejects a Meta WhatsApp business account that does not contain the phone number", async () => {
+    const config = metaWhatsAppConfigFromStored({
+      accessToken: "stored-meta-token",
+      phoneNumberId: "987654321",
+      businessAccountId: "empty-waba",
+      graphVersion: "v26.0",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          Response.json({
+            id: "987654321",
+            display_phone_number: "+55 83 9365-7471",
+            verified_name: "MercadoImobi",
+            quality_rating: "GREEN",
+          }),
+        )
+        .mockResolvedValueOnce(Response.json({ data: [] })),
+    );
+
+    const result = await testMetaWhatsAppConfig(config);
+
+    expect(result.configured).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.connected).toBe(false);
+    expect(result.businessAccountMatched).toBe(false);
+    expect(result.error).toContain("não contém o Phone Number ID 987654321");
   });
 
   it("keeps invalid or expired Meta tokens as a connection error", async () => {

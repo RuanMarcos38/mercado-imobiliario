@@ -4,6 +4,16 @@ import { externalServiceParameters, platformBaseUrl } from "@/lib/platform-param
 type JsonObject = Record<string, unknown>;
 
 const DEFAULT_GRAPH_VERSION = "v26.0";
+const META_WHATSAPP_PHONE_FIELDS = [
+  "id",
+  "display_phone_number",
+  "verified_name",
+  "quality_rating",
+  "code_verification_status",
+  "platform_type",
+  "name_status",
+  "status",
+].join(",");
 
 export type MetaWhatsAppMediaType = "image" | "video" | "audio" | "document";
 
@@ -140,6 +150,14 @@ export function metaWhatsAppInstanceName(phoneNumberId: string) {
 
 function endpoint(config: MetaWhatsAppConfig, path: string) {
   return `https://graph.facebook.com/${config.graphVersion}${path}`;
+}
+
+function object(value: unknown): JsonObject {
+  return value && typeof value === "object" ? (value as JsonObject) : {};
+}
+
+function textField(value: JsonObject, key: string) {
+  return typeof value[key] === "string" ? (value[key] as string) : null;
 }
 
 async function metaJson(url: string, config: MetaWhatsAppConfig, init?: RequestInit) {
@@ -323,26 +341,85 @@ export async function testMetaWhatsAppConfig(config: MetaWhatsAppConfig | null) 
   }
   try {
     const params = new URLSearchParams({
-      fields: "id,display_phone_number,verified_name,quality_rating",
+      fields: META_WHATSAPP_PHONE_FIELDS,
     });
     const payload = await metaJson(
       endpoint(config, `/${encodeURIComponent(config.phoneNumberId)}?${params.toString()}`),
       config,
       { method: "GET" },
     );
+    let businessAccountMatched: boolean | null = config.businessAccountId ? null : true;
+    let businessAccountWarning: string | null = null;
+    let matchedBusinessPhone: JsonObject | null = null;
+
+    if (config.businessAccountId) {
+      try {
+        const accountParams = new URLSearchParams({
+          fields: META_WHATSAPP_PHONE_FIELDS,
+          limit: "100",
+        });
+        const accountPayload = await metaJson(
+          endpoint(
+            config,
+            `/${encodeURIComponent(config.businessAccountId)}/phone_numbers?${accountParams.toString()}`,
+          ),
+          config,
+          { method: "GET" },
+        );
+        const phones = Array.isArray(accountPayload["data"]) ? accountPayload["data"] : [];
+        matchedBusinessPhone =
+          phones
+            .map((phone) => object(phone))
+            .find((phone) => String(phone["id"] ?? "") === config.phoneNumberId) ?? null;
+        businessAccountMatched = Boolean(matchedBusinessPhone);
+
+        if (!businessAccountMatched) {
+          return {
+            configured: true,
+            ok: false,
+            connected: false,
+            metadataValidated: true,
+            phoneNumberId: String(payload["id"] ?? config.phoneNumberId),
+            businessAccountId: config.businessAccountId,
+            businessAccountMatched: false,
+            displayPhoneNumber:
+              textField(payload, "display_phone_number") ?? config.displayPhoneNumber,
+            verifiedName: textField(payload, "verified_name"),
+            qualityRating: textField(payload, "quality_rating"),
+            codeVerificationStatus: textField(payload, "code_verification_status"),
+            platformType: textField(payload, "platform_type"),
+            nameStatus: textField(payload, "name_status"),
+            phoneStatus: textField(payload, "status"),
+            error: `A conta WhatsApp Business ${config.businessAccountId} não contém o Phone Number ID ${config.phoneNumberId}.`,
+          };
+        }
+      } catch (businessError) {
+        businessAccountWarning = metaApiErrorMessage(businessError);
+      }
+    }
+
+    const phone = matchedBusinessPhone ?? payload;
     return {
       configured: true,
       ok: true,
       connected: true,
       metadataValidated: true,
       phoneNumberId: String(payload["id"] ?? config.phoneNumberId),
+      businessAccountId: config.businessAccountId,
+      businessAccountMatched,
       displayPhoneNumber:
-        typeof payload["display_phone_number"] === "string"
-          ? payload["display_phone_number"]
-          : config.displayPhoneNumber,
-      verifiedName: typeof payload["verified_name"] === "string" ? payload["verified_name"] : null,
-      qualityRating:
-        typeof payload["quality_rating"] === "string" ? payload["quality_rating"] : null,
+        textField(phone, "display_phone_number") ??
+        textField(payload, "display_phone_number") ??
+        config.displayPhoneNumber,
+      verifiedName: textField(phone, "verified_name") ?? textField(payload, "verified_name"),
+      qualityRating: textField(phone, "quality_rating") ?? textField(payload, "quality_rating"),
+      codeVerificationStatus:
+        textField(phone, "code_verification_status") ??
+        textField(payload, "code_verification_status"),
+      platformType: textField(phone, "platform_type") ?? textField(payload, "platform_type"),
+      nameStatus: textField(phone, "name_status") ?? textField(payload, "name_status"),
+      phoneStatus: textField(phone, "status") ?? textField(payload, "status"),
+      ...(businessAccountWarning ? { warning: businessAccountWarning } : {}),
     };
   } catch (error) {
     const message = metaApiErrorMessage(error);
@@ -353,9 +430,15 @@ export async function testMetaWhatsAppConfig(config: MetaWhatsAppConfig | null) 
         connected: true,
         metadataValidated: false,
         phoneNumberId: config.phoneNumberId,
+        businessAccountId: config.businessAccountId,
+        businessAccountMatched: null,
         displayPhoneNumber: config.displayPhoneNumber,
         verifiedName: null,
         qualityRating: null,
+        codeVerificationStatus: null,
+        platformType: null,
+        nameStatus: null,
+        phoneStatus: null,
         warning: message,
       };
     }
@@ -365,6 +448,8 @@ export async function testMetaWhatsAppConfig(config: MetaWhatsAppConfig | null) 
       connected: false,
       metadataValidated: false,
       phoneNumberId: config.phoneNumberId,
+      businessAccountId: config.businessAccountId,
+      businessAccountMatched: null,
       displayPhoneNumber: config.displayPhoneNumber,
       error: message,
     };

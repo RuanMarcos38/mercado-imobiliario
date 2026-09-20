@@ -250,6 +250,56 @@ async function metaConnectionForPhoneNumber(db: any, phoneNumberId: string) {
   return null;
 }
 
+function metaStatusErrors(status: JsonObject) {
+  const errors = Array.isArray(status["errors"]) ? status["errors"] : [];
+  return errors.map((error) => object(error));
+}
+
+function metaErrorSummary(errors: JsonObject[]) {
+  const first = errors[0];
+  if (!first) return "";
+  const code = String(first["code"] ?? "").trim();
+  const title = String(first["title"] ?? "").trim();
+  const message = String(first["message"] ?? first["error_data"] ?? "").trim();
+  return [code ? `código ${code}` : "", title, message].filter(Boolean).join(" - ");
+}
+
+async function logMetaStatusFailure(input: {
+  db: any;
+  tenantId: string;
+  phoneNumberId: string;
+  externalMessageId: string;
+  status: string;
+  statusPayload: JsonObject;
+}) {
+  const errors = metaStatusErrors(input.statusPayload);
+  if (input.status !== "failed" && errors.length === 0) return;
+
+  const summary = metaErrorSummary(errors);
+  try {
+    await input.db.from("system_events").insert({
+      tenant_id: input.tenantId,
+      event_type: "meta_whatsapp_delivery_failed",
+      severity: input.status === "failed" ? "error" : "warning",
+      message: [
+        `Meta WhatsApp retornou status ${input.status} para a mensagem ${input.externalMessageId}.`,
+        summary,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      metadata: {
+        provider: "meta",
+        phoneNumberId: input.phoneNumberId,
+        externalMessageId: input.externalMessageId,
+        status: input.status,
+        errors,
+      },
+    });
+  } catch {
+    // O webhook não pode falhar só porque o registro de diagnóstico não foi salvo.
+  }
+}
+
 async function applyMetaStatuses(db: any, payload: JsonObject) {
   let updated = 0;
   for (const value of metaWebhookValues(payload)) {
@@ -270,6 +320,14 @@ async function applyMetaStatuses(db: any, payload: JsonObject) {
         .update({ status: rawStatus })
         .eq("tenant_id", connection.tenant_id)
         .eq("external_message_id", externalMessageId);
+      await logMetaStatusFailure({
+        db,
+        tenantId: connection.tenant_id,
+        phoneNumberId,
+        externalMessageId,
+        status: rawStatus,
+        statusPayload: status,
+      });
       updated += 1;
     }
   }
