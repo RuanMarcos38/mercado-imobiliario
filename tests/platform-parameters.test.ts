@@ -4,6 +4,7 @@ import {
   documentParameters,
   externalServiceParameters,
   integrationReadiness,
+  platformBaseUrl,
   speedToLeadParameters,
   whatsappParameters,
 } from "@/lib/platform-parameters.server";
@@ -30,6 +31,8 @@ const KEYS = [
   "META_WHATSAPP_PHONE_NUMBER_ID",
   "WHATSAPP_CLOUD_ACCESS_TOKEN",
   "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+  "MERCADOIMOBI_BASE_URL",
+  "MERCADOIMOBI_PUBLIC_BASE_URL",
 ] as const;
 
 const originals = new Map(KEYS.map((key) => [key, process.env[key]]));
@@ -133,5 +136,13 @@ describe("platform parameters", () => {
 
     expect(whatsapp?.configured).toBe(true);
     expect(whatsappParameters().provider).toBe("meta");
+  });
+
+  it("prefers the official public MercadoImobi domain over the internal host", () => {
+    process.env["MERCADOIMOBI_BASE_URL"] = "https://r2rmarketingdigital-mercadomobi.internal";
+    process.env["MERCADOIMOBI_PUBLIC_BASE_URL"] =
+      "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br/";
+
+    expect(platformBaseUrl()).toBe("https://mercadoimobi.rdmconsultoriaimobiliaria.com.br");
   });
 });

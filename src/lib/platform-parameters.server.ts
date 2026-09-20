@@ -120,8 +120,11 @@ export function externalServiceParameters() {
 
 export function platformBaseUrl() {
   return stringEnv(
-    "MERCADOIMOBI_BASE_URL",
-    "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br",
+    "MERCADOIMOBI_PUBLIC_BASE_URL",
+    stringEnv(
+      "MERCADOIMOBI_BASE_URL",
+      "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br",
+    ),
   ).replace(/\/$/, "");
 }
 
