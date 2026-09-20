@@ -5,7 +5,6 @@ export type TenantMemberRole = "owner" | "admin" | "member";
 export interface TenantContext {
   tenantId: string;
   tenantName: string;
-  tenantSlug: string;
   memberRole: TenantMemberRole;
 }
 
@@ -20,7 +19,7 @@ export interface TenantContext {
 export async function resolveTenantContext(userId: string): Promise<TenantContext | null> {
   const { data, error } = await supabase
     .from("tenant_members")
-    .select("member_role, tenant_id, tenants(id, name, slug)")
+    .select("member_role, tenant_id, tenants(id, name)")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
@@ -36,7 +35,6 @@ export async function resolveTenantContext(userId: string): Promise<TenantContex
   return {
     tenantId: tenant.id,
     tenantName: tenant.name,
-    tenantSlug: tenant.slug,
     memberRole: (data.member_role as TenantMemberRole) ?? "member",
   };
 }
