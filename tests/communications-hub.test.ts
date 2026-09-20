@@ -132,6 +132,7 @@ describe("MercadoImobi communication hub security", () => {
     const social = readFileSync("src/routes/_authenticated/midias-sociais.tsx", "utf8");
     const socialServer = readFileSync("src/lib/meta-social.server.ts", "utf8");
     const socialFunctions = readFileSync("src/lib/meta-social.functions.ts", "utf8");
+    const metaOAuthRoute = readFileSync("src/routes/api/public/oauth/meta.tsx", "utf8");
     const central = readFileSync("src/routes/_authenticated/central-integracoes.tsx", "utf8");
     const whatsappProvider = readFileSync("src/lib/whatsapp-provider.server.ts", "utf8");
     const email = readFileSync("src/routes/_authenticated/email-cca.tsx", "utf8");
@@ -176,6 +177,9 @@ describe("MercadoImobi communication hub security", () => {
     expect(socialServer).toContain(
       "https://graph.facebook.com/${encodeURIComponent(page.pageId)}/messages",
     );
+    expect(metaOAuthRoute).toContain("MERCADOIMOBI_PUBLIC_BASE_URL");
+    expect(metaOAuthRoute).toContain("mercadoimobi.rdmconsultoriaimobiliaria.com.br");
+    expect(metaOAuthRoute).not.toContain('process.env["MERCADOIMOBI_BASE_URL"]');
     expect(whatsappProvider).toContain("Token oficial da Meta expirado ou inválido.");
     expect(email).toContain("Enviar documentação por e-mail");
     expect(dialer).toContain("Ligar para o cliente");

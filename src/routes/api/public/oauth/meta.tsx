@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+const CANONICAL_APP_BASE_URL = "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br";
+
 function appBaseUrl() {
-  return (
-    process.env["MERCADOIMOBI_BASE_URL"]?.trim().replace(/\/$/, "") ||
-    "https://mercadoimobi.rdmconsultoriaimobiliaria.com.br"
-  );
+  const configured =
+    process.env["MERCADOIMOBI_PUBLIC_BASE_URL"]?.trim() ||
+    process.env["MERCADOIMOBI_APP_BASE_URL"]?.trim() ||
+    "";
+  const normalized = configured.replace(/\/$/, "");
+  if (normalized) return normalized;
+  return CANONICAL_APP_BASE_URL;
 }
 
 async function handleMetaOAuth(request: Request) {
