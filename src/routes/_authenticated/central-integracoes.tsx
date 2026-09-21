@@ -9,6 +9,7 @@ import {
   CircleAlert,
   Cloud,
   Code2,
+  Copy,
   DatabaseBackup,
   ExternalLink,
   KeyRound,
@@ -51,6 +52,44 @@ export const Route = createFileRoute("/_authenticated/central-integracoes")({
 
 function dateTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString("pt-BR") : "—";
+}
+
+const API_TOKEN_PLACEHOLDER = "mi_live_SEU_TOKEN";
+
+const N8N_HEADERS_EXAMPLE = `Authorization: Bearer ${API_TOKEN_PLACEHOLDER}
+Content-Type: application/json`;
+
+const N8N_LEAD_EXAMPLE = `{
+  "contactName": "Maria Souza",
+  "contactPhone": "+5547999999999",
+  "contactEmail": "maria@email.com",
+  "propertyReference": "MI-20260920-001098",
+  "source": "n8n",
+  "notes": "Lead importado por automacao N8N"
+}`;
+
+const N8N_APPOINTMENT_EXAMPLE = `{
+  "contactName": "Maria Souza",
+  "contactPhone": "+5547999999999",
+  "title": "Visita ao imovel",
+  "startsAt": "2026-09-21T14:00:00-03:00",
+  "endsAt": "2026-09-21T14:30:00-03:00",
+  "meetingType": "meet",
+  "notes": "Criado pelo fluxo N8N"
+}`;
+
+const N8N_PROPERTY_WEBHOOK_EXAMPLE = `{
+  "title": "Apartamento no Centro",
+  "price": 450000,
+  "source_url": "https://portal.com.br/anuncio/imovel",
+  "location_city": "Joinville",
+  "location_state": "SC",
+  "property_type": "apartamento",
+  "source_portal": "n8n"
+}`;
+
+function n8nWebhookUrlFromApiBase(apiBaseUrl: string) {
+  return apiBaseUrl.replace(/\/api\/v1\/?$/, "/api/public/hooks/n8n-webhook");
 }
 
 function IntegrationsHubPage() {
@@ -134,6 +173,30 @@ function IntegrationsHubPage() {
   const selectedMetaAccount =
     metaSocialAccounts.find((account) => account.pageId === selectedMetaPageId) ??
     activeMetaAccount;
+  const apiBaseUrl = overview.data?.apiBaseUrl ?? "";
+  const n8nWebhookUrl = apiBaseUrl ? n8nWebhookUrlFromApiBase(apiBaseUrl) : "";
+  const n8nEndpoints = useMemo(() => {
+    if (!apiBaseUrl) return [];
+    const baseUrl = apiBaseUrl.replace(/\/$/, "");
+    const endpoints = [
+      {
+        label: "Buscar imoveis",
+        method: "GET",
+        value: `${baseUrl}/properties?q=apartamento&city=Joinville&limit=20`,
+      },
+      { label: "Listar leads", method: "GET", value: `${baseUrl}/leads?limit=50` },
+      { label: "Criar lead", method: "POST", value: `${baseUrl}/leads` },
+      { label: "Criar agenda", method: "POST", value: `${baseUrl}/appointments` },
+    ];
+    if (n8nWebhookUrl) {
+      endpoints.push({
+        label: "Importar imovel",
+        method: "POST",
+        value: n8nWebhookUrl,
+      });
+    }
+    return endpoints;
+  }, [apiBaseUrl, n8nWebhookUrl]);
 
   useEffect(() => {
     if (!whatsappSettings) return;
@@ -188,6 +251,16 @@ function IntegrationsHubPage() {
       toast.success("Token individual criado. Copie agora: ele não será exibido novamente.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao criar token.");
+    }
+  };
+
+  const copyText = async (value: string, label: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copiado.`);
+    } catch {
+      toast.error("Nao foi possivel copiar automaticamente.");
     }
   };
 
@@ -792,6 +865,93 @@ function IntegrationsHubPage() {
                   <br />
                   Endpoints iniciais: <code>/properties</code>, <code>/leads</code> e{" "}
                   <code>/appointments</code>.
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-blue-200/70 bg-blue-500/[0.04] p-4">
+                  <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600/10 text-blue-700">
+                          <Plug className="h-4 w-4" />
+                        </span>
+                        <div>
+                          <h3 className="text-sm font-black">N8N pronto por usuario</h3>
+                          <p className="mt-1 text-xs leading-5 text-[var(--mi-text-muted)]">
+                            Use o token individual deste usuario no node HTTP Request. O webhook
+                            tambem aceita o mesmo token, sem trocar credenciais globais.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void copyText(N8N_HEADERS_EXAMPLE, "Cabecalho N8N")}
+                    >
+                      <Copy className="h-4 w-4" /> Copiar cabecalho
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                      Headers no N8N
+                    </p>
+                    <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--mi-bg)] p-3 font-mono text-[11px] leading-5 text-[var(--mi-text-muted)]">
+                      {N8N_HEADERS_EXAMPLE}
+                    </pre>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 md:grid-cols-2">
+                    {n8nEndpoints.map((endpoint) => (
+                      <button
+                        key={`${endpoint.method}-${endpoint.value}`}
+                        type="button"
+                        onClick={() => void copyText(endpoint.value, endpoint.label)}
+                        className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] px-3 py-2 text-left transition hover:border-blue-300"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-xs font-black text-[var(--mi-text)]">
+                            {endpoint.label}
+                          </span>
+                          <span className="block truncate font-mono text-[10px] text-[var(--mi-text-soft)]">
+                            {endpoint.method} {endpoint.value}
+                          </span>
+                        </span>
+                        <Copy className="h-4 w-4 shrink-0 text-blue-700" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                    {[
+                      ["Lead", N8N_LEAD_EXAMPLE],
+                      ["Agenda", N8N_APPOINTMENT_EXAMPLE],
+                      ["Imovel por webhook", N8N_PROPERTY_WEBHOOK_EXAMPLE],
+                    ].map(([label, payload]) => (
+                      <div
+                        key={label}
+                        className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                            {label}
+                          </p>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            title={`Copiar exemplo ${label}`}
+                            onClick={() => void copyText(payload, `Exemplo ${label}`)}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--mi-bg)] p-3 font-mono text-[10px] leading-5 text-[var(--mi-text-muted)]">
+                          {payload}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </section>
