@@ -187,6 +187,32 @@ function statusDot(status: AttendantPresenceStatus) {
   return "bg-slate-500";
 }
 
+function outboundMessageStatusLabel(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === "failed") return "Falhou";
+  if (normalized === "read") return "Lida";
+  if (normalized === "delivered") return "Entregue";
+  if (normalized === "sent") return "Enviada";
+  return "Enviando";
+}
+
+function latestInboundAt(messages: { direction: string; sent_at: string }[]) {
+  const latest = [...messages]
+    .reverse()
+    .find((message) => message.direction === "inbound" && message.sent_at);
+  return latest?.sent_at ?? null;
+}
+
+function isMetaFreeformWindowClosed(input: {
+  provider: string | null | undefined;
+  messages: { direction: string; sent_at: string }[];
+}) {
+  if (input.provider !== "meta") return false;
+  const inboundAt = latestInboundAt(input.messages);
+  if (!inboundAt) return true;
+  return Date.now() - new Date(inboundAt).getTime() > 24 * 60 * 60 * 1000;
+}
+
 function AtendimentoPage() {
   const navigate = useNavigate();
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
@@ -275,6 +301,13 @@ function AtendimentoPage() {
     enabled: showRealtimePanel,
     refetchInterval: showRealtimePanel ? 15_000 : false,
   });
+  const metaFreeformWindowClosed =
+    Boolean(selectedId) &&
+    !messages.isLoading &&
+    isMetaFreeformWindowClosed({
+      provider: connection.data?.provider,
+      messages: messages.data ?? [],
+    });
 
   useEffect(() => {
     if (selectedId || conversations.isLoading) return;
@@ -670,6 +703,12 @@ function AtendimentoPage() {
     if (!selectedId || sending || (!text.trim() && !pendingAttachment)) return;
     if (!connection.data?.connected) {
       toast.info("Conecte seu WhatsApp para enviar mensagens.");
+      return;
+    }
+    if (metaFreeformWindowClosed) {
+      toast.error(
+        "A janela de 24 horas desta conversa está fechada. Use um modelo aprovado da Meta ou peça para o cliente enviar uma nova mensagem.",
+      );
       return;
     }
     const outgoing = text.trim();
@@ -1129,33 +1168,59 @@ function AtendimentoPage() {
 
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
                 <div className="space-y-3">
-                  {(messages.data ?? []).map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
-                    >
+                  {(messages.data ?? []).map((message) => {
+                    const failed = message.direction === "outbound" && message.status === "failed";
+                    return (
                       <div
-                        className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${message.direction === "outbound" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"}`}
+                        key={message.id}
+                        className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
                       >
-                        {message.message_type === "text" ? (
-                          message.body ? (
-                            <p className="whitespace-pre-wrap">{message.body}</p>
-                          ) : null
-                        ) : (
-                          <WhatsAppMessageMedia message={message} />
-                        )}
                         <div
-                          className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${message.direction === "outbound" ? "text-blue-100" : "text-[var(--mi-text-soft)]"}`}
+                          className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${
+                            message.direction === "outbound"
+                              ? failed
+                                ? "rounded-br-md bg-rose-600 text-white"
+                                : "rounded-br-md bg-blue-600 text-white"
+                              : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"
+                          }`}
                         >
-                          {new Date(message.sent_at).toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {message.direction === "outbound" && <CheckCheck className="h-3 w-3" />}
+                          {message.message_type === "text" ? (
+                            message.body ? (
+                              <p className="whitespace-pre-wrap">{message.body}</p>
+                            ) : null
+                          ) : (
+                            <WhatsAppMessageMedia message={message} />
+                          )}
+                          <div
+                            className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                              message.direction === "outbound"
+                                ? failed
+                                  ? "text-rose-100"
+                                  : "text-blue-100"
+                                : "text-[var(--mi-text-soft)]"
+                            }`}
+                          >
+                            {new Date(message.sent_at).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {message.direction === "outbound" &&
+                              (failed ? (
+                                <>
+                                  <CircleAlert className="h-3 w-3" />
+                                  {outboundMessageStatusLabel(message.status)}
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCheck className="h-3 w-3" />
+                                  {outboundMessageStatusLabel(message.status)}
+                                </>
+                              ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {(messages.data?.length ?? 0) === 0 && (
                     <div className="py-20 text-center text-sm text-[var(--mi-text-soft)]">
                       Ainda não há mensagens nesta conversa.
@@ -1177,6 +1242,19 @@ function AtendimentoPage() {
                     {drafting ? "Gerando..." : "Sugerir resposta com IA"}
                   </Button>
                 </div>
+
+                {metaFreeformWindowClosed && (
+                  <div className="mb-2 rounded-xl border border-amber-300/60 bg-amber-500/[0.08] px-3 py-2 text-xs leading-5 text-amber-900">
+                    <div className="flex items-start gap-2">
+                      <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>
+                        A API Oficial permite mensagem livre somente até 24 horas após a última
+                        resposta do cliente. Para reabrir esta conversa, envie um modelo aprovado da
+                        Meta ou peça para o cliente mandar uma nova mensagem.
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {pendingAttachment && (
                   <div className="mb-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-slate-800">
@@ -1292,7 +1370,7 @@ function AtendimentoPage() {
                       variant="outline"
                       size="icon"
                       className="h-12 w-12 rounded-xl"
-                      disabled={sending || !connection.data?.connected}
+                      disabled={sending || !connection.data?.connected || metaFreeformWindowClosed}
                       onClick={() => fileInputRef.current?.click()}
                       title="Anexar foto, vídeo, áudio ou documento"
                     >
@@ -1318,20 +1396,25 @@ function AtendimentoPage() {
                         }
                       }}
                       rows={1}
+                      disabled={metaFreeformWindowClosed}
                       placeholder={
-                        pendingAttachment?.mimeType.startsWith("audio/")
-                          ? "Áudio pronto para enviar"
-                          : pendingAttachment
-                            ? "Adicione uma legenda (opcional)"
-                            : "Digite uma mensagem"
+                        metaFreeformWindowClosed
+                          ? "Use um modelo aprovado para reabrir esta conversa"
+                          : pendingAttachment?.mimeType.startsWith("audio/")
+                            ? "Áudio pronto para enviar"
+                            : pendingAttachment
+                              ? "Adicione uma legenda (opcional)"
+                              : "Digite uma mensagem"
                       }
-                      className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500"
+                      className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     {text.trim() || pendingAttachment ? (
                       <Button
                         size="icon"
                         onClick={() => void send()}
-                        disabled={sending || !connection.data?.connected}
+                        disabled={
+                          sending || !connection.data?.connected || metaFreeformWindowClosed
+                        }
                         className="h-12 w-12 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
                         title="Enviar"
                       >
@@ -1345,7 +1428,9 @@ function AtendimentoPage() {
                       <Button
                         size="icon"
                         onClick={() => void startRecording()}
-                        disabled={sending || !connection.data?.connected}
+                        disabled={
+                          sending || !connection.data?.connected || metaFreeformWindowClosed
+                        }
                         className="h-12 w-12 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
                         title="Gravar mensagem de voz"
                       >

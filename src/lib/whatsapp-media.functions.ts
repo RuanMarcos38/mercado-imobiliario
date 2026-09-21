@@ -6,7 +6,10 @@ import { type EvolutionMediaType } from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
-import { sendTenantWhatsAppMedia } from "@/lib/whatsapp-provider.server";
+import {
+  assertTenantWhatsAppFreeformWindow,
+  sendTenantWhatsAppMedia,
+} from "@/lib/whatsapp-provider.server";
 
 const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
 
@@ -75,6 +78,12 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
 
     const phone = normalizeWhatsAppPhone(String(conversation.phone_e164 ?? ""));
     if (!phone) throw new Error(whatsappPhoneErrorMessage(String(conversation.phone_e164 ?? "")));
+
+    await assertTenantWhatsAppFreeformWindow({
+      db,
+      tenantId,
+      conversationId: conversation.id,
+    });
 
     const isAudio = data.mimeType.toLowerCase().startsWith("audio/");
     const mediaType = isAudio ? "audio" : mediaTypeFromMime(data.mimeType);

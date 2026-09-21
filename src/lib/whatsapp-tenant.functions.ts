@@ -11,6 +11,7 @@ import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
 import {
+  assertTenantWhatsAppFreeformWindow,
   getTenantWhatsAppConnection,
   sendTenantWhatsAppText,
   shouldUseMetaWhatsApp,
@@ -366,6 +367,12 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
         .eq("tenant_id", tenantId);
       if (phoneUpdateError) throw new Error(phoneUpdateError.message);
     }
+
+    await assertTenantWhatsAppFreeformWindow({
+      db,
+      tenantId,
+      conversationId: conversation.id,
+    });
 
     const sent = await sendTenantWhatsAppText({
       db,

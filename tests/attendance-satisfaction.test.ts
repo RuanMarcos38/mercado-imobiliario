@@ -98,10 +98,14 @@ vi.mock("@/lib/evolution-instance.server", () => ({
   getTenantEvolutionInstance: vi.fn(async () => state.instanceName),
 }));
 
-vi.mock("@/lib/evolution-text.server", () => ({
-  sendEvolutionTextMessage: vi.fn(async (input: Record<string, unknown>) => {
+vi.mock("@/lib/whatsapp-provider.server", () => ({
+  sendTenantWhatsAppText: vi.fn(async (input: Record<string, unknown>) => {
     state.sentTexts.push(input);
-    return { key: { id: "survey-message-1" } };
+    return {
+      externalMessageId: "survey-message-1",
+      provider: "meta",
+      payload: { messages: [{ id: "survey-message-1" }] },
+    };
   }),
 }));
 
@@ -143,7 +147,7 @@ describe("attendance satisfaction survey", () => {
     expect(state.sentTexts[0]).toMatchObject({
       phone: "5547999999999",
       text: ATTENDANCE_SATISFACTION_SURVEY_TEXT,
-      instanceName: "mercadoimobi-test",
+      tenantId: "tenant-1",
     });
     expect(state.insertedMessages[0]).toMatchObject({
       direction: "outbound",

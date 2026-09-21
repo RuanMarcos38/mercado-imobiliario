@@ -1,11 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import {
-  evolutionGatewayConfig,
-  getTenantEvolutionInstance,
-} from "@/lib/evolution-instance.server";
-import { sendEvolutionTextMessage } from "@/lib/evolution-text.server";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
+import { sendTenantWhatsAppText } from "@/lib/whatsapp-provider.server";
 
 type JsonObject = Record<string, unknown>;
 
@@ -254,22 +250,16 @@ async function dispatchSurvey(row: SurveyRow, phoneOverride?: string | null) {
     return { sent: false, skipped: false, reason };
   }
 
-  const instanceName = await getTenantEvolutionInstance(database, row.tenant_id);
-  const gateway = evolutionGatewayConfig();
-  if (!gateway || !instanceName) {
-    const reason = "WHATSAPP_NOT_CONFIGURED";
-    await markSurveyFailure(row, "WhatsApp indisponível para a pesquisa de satisfação.");
-    return { sent: false, skipped: false, reason };
-  }
-
   try {
-    const payload = (await sendEvolutionTextMessage({
+    const sent = await sendTenantWhatsAppText({
+      db: database,
+      tenantId: row.tenant_id,
       phone,
       text: ATTENDANCE_SATISFACTION_SURVEY_TEXT,
       delay: whatsappParameters().sendDelayMs,
-      instanceName,
-    })) as JsonObject;
-    const messageId = externalMessageId(payload);
+    });
+    const payload = sent.payload as JsonObject;
+    const messageId = sent.externalMessageId ?? externalMessageId(payload);
     const now = new Date().toISOString();
 
     const messageInsert = await database.from("whatsapp_messages").insert({
@@ -283,6 +273,7 @@ async function dispatchSurvey(row: SurveyRow, phoneOverride?: string | null) {
       sent_at: now,
       raw_payload: {
         ...payload,
+        mercadoimobi_provider: sent.provider,
         mercadoimobi_kind: "attendance_satisfaction_request",
         attendance_survey_id: row.id,
         attendance_session_id: row.session_id,
@@ -360,31 +351,17 @@ async function sendSurveyWithoutQueue(input: {
     return { sent: false, skipped: false, reason };
   }
 
-  const instanceName = await getTenantEvolutionInstance(db(), input.tenantId);
-  const gateway = evolutionGatewayConfig();
-  if (!gateway || !instanceName) {
-    const reason = "WHATSAPP_NOT_CONFIGURED";
-    await recordEvent(
-      input.tenantId,
-      FAILED_EVENT,
-      "WhatsApp indisponível para pesquisa de satisfação",
-      {
-        ...baseMetadata,
-        reason,
-      },
-    ).catch(() => undefined);
-    return { sent: false, skipped: false, reason };
-  }
-
   try {
-    const payload = (await sendEvolutionTextMessage({
+    const sent = await sendTenantWhatsAppText({
+      db: db(),
+      tenantId: input.tenantId,
       phone,
       text: ATTENDANCE_SATISFACTION_SURVEY_TEXT,
       delay: whatsappParameters().sendDelayMs,
-      instanceName,
-    })) as JsonObject;
+    });
+    const payload = sent.payload as JsonObject;
     const now = new Date().toISOString();
-    const messageId = externalMessageId(payload);
+    const messageId = sent.externalMessageId ?? externalMessageId(payload);
     const insertResult = await db()
       .from("whatsapp_messages")
       .insert({
@@ -398,6 +375,7 @@ async function sendSurveyWithoutQueue(input: {
         sent_at: now,
         raw_payload: {
           ...payload,
+          mercadoimobi_provider: sent.provider,
           mercadoimobi_kind: "attendance_satisfaction_request",
           attendance_session_id: input.sessionId,
         },

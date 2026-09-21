@@ -47,6 +47,12 @@ const PROVIDER_COLUMNS =
   "id,tenant_id,owner_user_id,instance_name,display_name,phone_number,status,last_connected_at,provider,provider_phone_number_id,provider_business_account_id,provider_metadata";
 const LEGACY_COLUMNS =
   "id,tenant_id,owner_user_id,instance_name,display_name,phone_number,status,last_connected_at";
+const META_WHATSAPP_FREEFORM_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export const META_WHATSAPP_FREEFORM_WINDOW_ERROR = [
+  "A API Oficial do WhatsApp bloqueia mensagem livre após 24 horas sem resposta do cliente.",
+  "Envie um modelo aprovado da Meta para reabrir a conversa ou peça para o cliente enviar uma nova mensagem primeiro.",
+].join(" ");
 
 function isMissingProviderColumn(error: any) {
   const code = String(error?.code ?? "");
@@ -111,6 +117,33 @@ export function shouldUseMetaWhatsApp(connection: TenantWhatsAppConnection | nul
   if (mode === "evolution") return false;
   if (connection && connectionProvider(connection) === "meta") return true;
   return Boolean(metaWhatsAppConfig());
+}
+
+export async function assertTenantWhatsAppFreeformWindow(input: {
+  db: any;
+  tenantId: string;
+  conversationId: string;
+  connection?: TenantWhatsAppConnection | null;
+}) {
+  const connection =
+    input.connection ?? (await getTenantWhatsAppConnection(input.db, input.tenantId));
+  if (!shouldUseMetaWhatsApp(connection)) return;
+
+  const { data, error } = await input.db
+    .from("whatsapp_messages")
+    .select("sent_at")
+    .eq("tenant_id", input.tenantId)
+    .eq("conversation_id", input.conversationId)
+    .eq("direction", "inbound")
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  const lastInboundAt = data?.sent_at ? new Date(String(data.sent_at)).getTime() : 0;
+  if (lastInboundAt && Date.now() - lastInboundAt <= META_WHATSAPP_FREEFORM_WINDOW_MS) return;
+
+  throw new Error(META_WHATSAPP_FREEFORM_WINDOW_ERROR);
 }
 
 function metaPhoneNumberId(connection: TenantWhatsAppConnection | null) {
