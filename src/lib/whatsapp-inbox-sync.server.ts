@@ -231,7 +231,7 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
         .insert({
           tenant_id: tenantId,
           phone_e164: item.phone,
-          contact_name: item.contactName,
+          contact_name: item.fromMe ? null : item.contactName,
           last_message: item.body ?? (item.mediaUrl ? "Mídia recebida" : item.messageType),
           last_message_at: item.sentAt,
           unread_count: item.fromMe ? 0 : 1,
@@ -286,7 +286,7 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
       unread_count: nextUnread,
       updated_at: new Date().toISOString(),
     };
-    if (item.contactName && !conversation.contact_name) update.contact_name = item.contactName;
+    if (!item.fromMe && item.contactName) update.contact_name = item.contactName;
     if (isNewest) {
       update.last_message = item.body ?? (item.mediaUrl ? "Mídia" : item.messageType);
       update.last_message_at = item.sentAt;
