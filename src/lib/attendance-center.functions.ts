@@ -287,6 +287,29 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
     ]);
     if (conversationsResult.error) throw new Error(conversationsResult.error.message);
 
+    const conversationRows = (conversationsResult.data ?? []) as any[];
+    const conversationIds = conversationRows.map((row) => String(row.id)).filter(Boolean);
+    const latestInboundNames = new Map<string, string>();
+    if (conversationIds.length > 0) {
+      const { data: inboundMessages, error: inboundNamesError } = await db
+        .from("whatsapp_messages")
+        .select("conversation_id,sender_name,sent_at")
+        .eq("tenant_id", tenantId)
+        .eq("direction", "inbound")
+        .in("conversation_id", conversationIds)
+        .not("sender_name", "is", null)
+        .order("sent_at", { ascending: false })
+        .limit(3000);
+      if (inboundNamesError) throw new Error(inboundNamesError.message);
+      for (const message of inboundMessages ?? []) {
+        const conversationId = String(message.conversation_id ?? "");
+        const senderName = String(message.sender_name ?? "").trim();
+        if (conversationId && senderName && !latestInboundNames.has(conversationId)) {
+          latestInboundNames.set(conversationId, senderName);
+        }
+      }
+    }
+
     const latestState = new Map<string, SystemEventRow>();
     const latestTags = new Map<string, SystemEventRow>();
     const latestPermission = new Map<string, SystemEventRow>();
@@ -308,17 +331,24 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
     const permissionMetadata = metadata(permissionEvent);
     const canView = member.canManageSensitiveVisibility || permissionMetadata["allowed"] === true;
 
-    return (conversationsResult.data ?? []).map((row: any) => {
-      const state = stateFromEvent(latestState.get(String(row.id)), row.assigned_user_id ?? null);
-      const tagMetadata = metadata(latestTags.get(String(row.id)));
+    const visibleConversations: AttendanceConversation[] = [];
+    for (const row of conversationRows) {
+      const conversationId = String(row.id);
+      const state = stateFromEvent(latestState.get(conversationId), row.assigned_user_id ?? null);
+
+      // Encerrar um atendimento arquiva a conversa da Central sem apagar o histórico.
+      // Uma nova mensagem inbound cria um novo estado com closedAt=null e a conversa reaparece.
+      if (state.state === "automatic" && state.closedAt) continue;
+
+      const tagMetadata = metadata(latestTags.get(conversationId));
       const rawTags = Array.isArray(tagMetadata["tags"]) ? tagMetadata["tags"] : [];
       const rawPhone = String(row.phone_e164 ?? "");
-      return {
-        id: String(row.id),
+      visibleConversations.push({
+        id: conversationId,
         protocol_code: String(row.protocol_code ?? ""),
         phone_e164: canView ? rawPhone : maskPhone(rawPhone),
         phone_masked: !canView,
-        contact_name: row.contact_name ?? null,
+        contact_name: latestInboundNames.get(conversationId) ?? row.contact_name ?? null,
         avatar_url: row.avatar_url ?? null,
         last_message: row.last_message ?? null,
         last_message_at: row.last_message_at ?? null,
@@ -331,8 +361,9 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
         closed_at: state.closedAt,
         department_name: state.departmentName,
         tags: rawTags.map(String).slice(0, 8),
-      } satisfies AttendanceConversation;
-    });
+      });
+    }
+    return visibleConversations;
   });
 
 export const getAttendanceViewer = createServerFn({ method: "GET" })
