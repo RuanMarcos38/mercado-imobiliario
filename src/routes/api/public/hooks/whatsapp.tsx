@@ -588,10 +588,13 @@ async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
     const type = messageType(message);
     const mediaUrl = mediaUrlFromMessage(message);
     const sentAt = unixToIso(data["messageTimestamp"] ?? data["timestamp"]);
-    const contactName =
+    const senderName =
       typeof data["pushName"] === "string" && data["pushName"]
         ? (data["pushName"] as string)
         : null;
+    // Em mensagens fromMe o pushName pertence à própria conta conectada.
+    // Ele pode ser salvo na mensagem, mas nunca deve substituir o nome do cliente.
+    const contactName = fromMe ? null : senderName;
 
     let { data: conversation } = await db
       .from("whatsapp_conversations")
@@ -626,7 +629,7 @@ async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
       body,
       media_url: mediaUrl,
       status: fromMe ? "sent" : "received",
-      sender_name: contactName,
+      sender_name: senderName,
       sent_at: sentAt,
       raw_payload: data,
     });
