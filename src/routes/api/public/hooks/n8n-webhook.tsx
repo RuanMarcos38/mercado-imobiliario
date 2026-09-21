@@ -39,13 +39,13 @@ const handlers = {
 
     if (!principal) {
       if (hasBearerToken) {
-        return apiJson({ error: "Unauthorized" }, { status: 401 });
+        return apiJson({ error: "Unauthorized" }, 401);
       }
       if (!secret) {
-        return apiJson({ error: "n8n integration not configured" }, { status: 503 });
+        return apiJson({ error: "n8n integration not configured" }, 503);
       }
       if (!apiKey || apiKey !== secret) {
-        return apiJson({ error: "Unauthorized" }, { status: 401 });
+        return apiJson({ error: "Unauthorized" }, 401);
       }
     }
 
@@ -61,7 +61,7 @@ const handlers = {
 
       if (!tenantId) {
         if (!payload.tenant_id) {
-          return apiJson({ error: "tenant_id is required without bearer token" }, { status: 422 });
+          return apiJson({ error: "tenant_id is required without bearer token" }, 422);
         }
 
         const { data: tenantRow } = await supabase
@@ -82,7 +82,7 @@ const handlers = {
           if (!profileRow) {
             return apiJson(
               { error: "tenant_id nao corresponde a nenhuma organizacao ou usuario" },
-              { status: 400 },
+              400,
             );
           }
 
@@ -113,7 +113,7 @@ const handlers = {
 
       return apiJson({ success: true, data: { tenantId, ownerId } });
     } catch (err: any) {
-      return apiJson({ error: err.message }, { status: 400 });
+      return apiJson({ error: err.message }, 400);
     }
   },
   GET: async () => apiJson({ status: "ok", method: "POST expected" }),
