@@ -204,7 +204,11 @@ function latestPendingExecution(
       const flowId = String(eventMetadata["flowId"] ?? "");
       const nextPosition = Number(eventMetadata["nextPosition"] ?? 1);
       if (flowId && Number.isFinite(nextPosition) && nextPosition >= 1) {
-        return { flowId, nextPosition };
+        return {
+          flowId,
+          nextPosition,
+          inboundExternalMessageId: String(eventMetadata["inboundExternalMessageId"] ?? "") || null,
+        };
       }
     }
     if (["completed", "handoff", "failed"].includes(status)) {
@@ -502,6 +506,19 @@ export async function maybeRunNativeWhatsAppFlow(input: {
   }
 
   const pending = latestPendingExecution(events, input.conversationId);
+  if (
+    pending?.inboundExternalMessageId &&
+    input.inboundExternalMessageId &&
+    pending.inboundExternalMessageId === input.inboundExternalMessageId
+  ) {
+    return {
+      handled: true,
+      sent: false,
+      reason: "native_flow_duplicate_inbound",
+      flowId: pending.flowId,
+    };
+  }
+
   let flow = pending ? flows.find((candidate) => candidate.id === pending.flowId) : undefined;
   let startPosition = pending?.nextPosition ?? 1;
 
