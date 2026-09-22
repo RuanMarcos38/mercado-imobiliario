@@ -454,6 +454,218 @@ function FlowsPage() {
             </div>
           </section>
         </div>
+        <section className="mt-7 rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Code2 className="h-5 w-5 text-blue-600" />
+                <h2 className="font-black">Importar fluxo JSON · ChatGPT + n8n</h2>
+              </div>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--mi-text-soft)]">
+                Gere o fluxo no ChatGPT, cole ou carregue o arquivo JSON, valide e importe sem
+                substituir os fluxos já existentes. Workflows nativos do n8n também são aceitos.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => void copyChatGptPrompt()}>
+              <Copy className="mr-2 h-4 w-4" /> Copiar prompt para ChatGPT
+            </Button>
+          </div>
+
+          <div className="mt-5 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-3">
+              <Field label="JSON do fluxo">
+                <textarea
+                  value={jsonImport}
+                  onChange={(event) => {
+                    setJsonImport(event.target.value);
+                    setJsonPreview(null);
+                  }}
+                  rows={14}
+                  spellCheck={false}
+                  placeholder='Cole aqui o JSON gerado pelo ChatGPT ou exportado pelo n8n...'
+                  className="font-mono text-xs"
+                />
+              </Field>
+
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex h-10 cursor-pointer items-center rounded-xl border border-[var(--mi-border)] px-4 text-xs font-black hover:bg-[var(--mi-surface-soft)]">
+                  <Upload className="mr-2 h-4 w-4" /> Carregar arquivo .json
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={(event) => void selectJsonFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <Button
+                  variant="outline"
+                  onClick={() => void validateJson()}
+                  disabled={!jsonImport.trim() || validatingJson}
+                >
+                  {validatingJson ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  )}
+                  Validar JSON
+                </Button>
+              </div>
+
+              {jsonPreview && (
+                <div className="rounded-xl border border-emerald-300/40 bg-emerald-500/[0.06] p-3 text-xs leading-5">
+                  <p className="font-black text-emerald-700 dark:text-emerald-300">
+                    JSON válido · {jsonPreview.kind}
+                  </p>
+                  {jsonPreview.hasLocalFlow && (
+                    <p className="mt-1">
+                      MercadoImobi: {jsonPreview.flowName} · {jsonPreview.flowSteps} passo(s)
+                    </p>
+                  )}
+                  {jsonPreview.hasN8nWorkflow && (
+                    <p>
+                      n8n: {jsonPreview.n8nWorkflowName} · {jsonPreview.n8nNodes} node(s)
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid gap-2 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-3 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-xs font-bold">
+                  <input
+                    type="checkbox"
+                    checked={publishToN8n}
+                    onChange={(event) => {
+                      setPublishToN8n(event.target.checked);
+                      if (!event.target.checked) setActivateN8n(false);
+                    }}
+                  />
+                  Também publicar no n8n
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold">
+                  <input
+                    type="checkbox"
+                    checked={activateN8n}
+                    disabled={!publishToN8n}
+                    onChange={(event) => setActivateN8n(event.target.checked)}
+                  />
+                  Ativar workflow após importar
+                </label>
+              </div>
+
+              <Button
+                onClick={() => void importJson()}
+                disabled={!jsonImport.trim() || importingJson}
+                className="h-11 w-full rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
+              >
+                {importingJson ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Workflow className="mr-2 h-4 w-4" />
+                )}
+                {importingJson ? "Importando..." : "Importar fluxo JSON"}
+              </Button>
+              <p className="text-[10px] leading-4 text-[var(--mi-text-soft)]">
+                Fluxos importados no MercadoImobi começam pausados para revisão. O importador não
+                altera credenciais existentes e não executa código contido no JSON.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-violet-600" />
+                    <p className="text-sm font-black">Integração n8n</p>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-5 text-[var(--mi-text-soft)]">
+                    A API Key fica criptografada no servidor e nunca é exibida novamente.
+                  </p>
+                </div>
+                <span
+                  className={
+                    "rounded-full px-2.5 py-1 text-[10px] font-black " +
+                    (n8nSettings.data?.configured
+                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-300")
+                  }
+                >
+                  {n8nSettings.data?.configured ? "CONFIGURADO" : "PENDENTE"}
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <Field label="URL da instância n8n">
+                  <input
+                    value={n8nBaseUrl}
+                    onChange={(event) => setN8nBaseUrl(event.target.value)}
+                    placeholder="https://n8n.seudominio.com"
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field label="API Key do n8n">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 shrink-0 text-[var(--mi-text-soft)]" />
+                    <input
+                      type="password"
+                      value={n8nApiKey}
+                      onChange={(event) => setN8nApiKey(event.target.value)}
+                      placeholder={
+                        n8nSettings.data?.hasApiKey
+                          ? "Deixe vazio para manter a chave salva"
+                          : "Cole a API Key do n8n"
+                      }
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </Field>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => void saveN8n()}
+                    disabled={!n8nBaseUrl.trim() || savingN8n}
+                    className="bg-violet-600 font-black text-white hover:bg-violet-700"
+                  >
+                    {savingN8n ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeyRound className="mr-2 h-4 w-4" />
+                    )}
+                    Salvar e validar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void testN8n()}
+                    disabled={!n8nSettings.data?.configured || testingN8n}
+                  >
+                    {testingN8n ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="mr-2 h-4 w-4" />
+                    )}
+                    Testar conexão
+                  </Button>
+                </div>
+
+                <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 text-[11px] leading-5 text-[var(--mi-text-soft)]">
+                  <p>
+                    Fonte atual:{" "}
+                    <strong className="text-[var(--mi-text)]">
+                      {n8nSettings.data?.source === "user"
+                        ? "Configuração criptografada da conta"
+                        : n8nSettings.data?.source === "server"
+                          ? "Variáveis seguras do servidor"
+                          : "Não configurada"}
+                    </strong>
+                  </p>
+                  <p className="mt-1">
+                    A integração usa a API do n8n para criar workflows. Credenciais referenciadas
+                    pelos nodes precisam existir na própria instância n8n.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
