@@ -53,8 +53,18 @@ const metaBusinessProfileSchema = z
     about: z.string().max(139).optional(),
     address: z.string().max(256).optional(),
     description: z.string().max(256).optional(),
-    email: z.string().max(128).optional(),
-    websites: z.array(z.string().max(256)).max(2).optional(),
+    email: z
+      .union([z.literal(""), z.string().trim().email().max(128)])
+      .optional(),
+    websites: z
+      .array(
+        z.string().max(256).refine(
+          (value) => !value.trim() || /^https?:\/\//i.test(value.trim()),
+          "Use um site começando com http:// ou https://.",
+        ),
+      )
+      .max(2)
+      .optional(),
     vertical: z
       .enum([
         "UNDEFINED",
@@ -501,7 +511,8 @@ export const getMetaWhatsAppBusinessProfileSettings = createServerFn({ method: "
       configured: true,
       profile: profileResult.value,
       commerce: commerceResult.status === "fulfilled" ? commerceResult.value : null,
-      commerceAvailable: commerceResult.status === "fulfilled",
+      commerceAvailable:
+        commerceResult.status === "fulfilled" && Boolean(commerceResult.value.id),
       warning:
         commerceResult.status === "rejected"
           ? commerceResult.reason instanceof Error
@@ -546,10 +557,10 @@ export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: 
     if (hasProfileUpdate) {
       profile = await updateMetaWhatsAppBusinessProfile({
         config,
-        ...(data.about !== undefined ? { about: data.about.trim() } : {}),
+        ...(data.about?.trim() ? { about: data.about.trim() } : {}),
         ...(data.address !== undefined ? { address: data.address.trim() } : {}),
         ...(data.description !== undefined ? { description: data.description.trim() } : {}),
-        ...(data.email !== undefined ? { email: data.email.trim() } : {}),
+        ...(data.email?.trim() ? { email: data.email.trim() } : {}),
         ...(websites !== undefined ? { websites } : {}),
         ...(data.vertical !== undefined ? { vertical: data.vertical } : {}),
         ...(data.profilePictureBase64 &&
@@ -596,7 +607,7 @@ export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: 
       configured: true,
       profile,
       commerce,
-      commerceAvailable: Boolean(commerce),
+      commerceAvailable: Boolean(commerce?.id),
       warning,
     };
   });
