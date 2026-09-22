@@ -873,6 +873,16 @@ function AtendimentoPage() {
               >
                 <MessageCircle className="mr-2 h-4 w-4" /> Nova conversa
               </Button>
+              {isMetaWhatsApp && (
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.assign("/central-integracoes#whatsapp-profile")}
+                  className="h-10 rounded-xl border-blue-300/50 bg-blue-500/[0.05] px-3 font-black text-blue-600"
+                  title="Alterar foto e perfil do WhatsApp"
+                >
+                  <Settings className="mr-2 h-4 w-4" /> Foto e perfil
+                </Button>
+              )}
               <span
                 className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
               >

@@ -396,39 +396,44 @@ function IntegrationsHubPage() {
 
   const saveMetaProfile = async () => {
     if (savingMetaProfile) return;
-    if (!whatsappProfile.data?.configured) {
+    if (!whatsappSettings?.configured) {
       toast.error("Valide primeiro a WhatsApp Cloud API desta organização.");
       return;
     }
     setSavingMetaProfile(true);
     try {
+      const currentProfileLoaded = Boolean(whatsappProfile.data?.profile);
       const result = await saveWhatsappProfileFn({
         data: {
-          about: metaProfileAbout,
-          description: metaProfileDescription,
-          address: metaProfileAddress,
-          email: metaProfileEmail,
-          websites: [metaProfileWebsite1, metaProfileWebsite2],
-          vertical: metaProfileVertical as
-            | "UNDEFINED"
-            | "OTHER"
-            | "AUTO"
-            | "BEAUTY"
-            | "APPAREL"
-            | "EDU"
-            | "ENTERTAIN"
-            | "EVENT_PLAN"
-            | "FINANCE"
-            | "GROCERY"
-            | "GOVT"
-            | "HOTEL"
-            | "HEALTH"
-            | "NONPROFIT"
-            | "PROF_SERVICES"
-            | "RETAIL"
-            | "TRAVEL"
-            | "RESTAURANT"
-            | "NOT_A_BIZ",
+          ...(currentProfileLoaded
+            ? {
+                about: metaProfileAbout,
+                description: metaProfileDescription,
+                address: metaProfileAddress,
+                email: metaProfileEmail,
+                websites: [metaProfileWebsite1, metaProfileWebsite2],
+                vertical: metaProfileVertical as
+                  | "UNDEFINED"
+                  | "OTHER"
+                  | "AUTO"
+                  | "BEAUTY"
+                  | "APPAREL"
+                  | "EDU"
+                  | "ENTERTAIN"
+                  | "EVENT_PLAN"
+                  | "FINANCE"
+                  | "GROCERY"
+                  | "GOVT"
+                  | "HOTEL"
+                  | "HEALTH"
+                  | "NONPROFIT"
+                  | "PROF_SERVICES"
+                  | "RETAIL"
+                  | "TRAVEL"
+                  | "RESTAURANT"
+                  | "NOT_A_BIZ",
+              }
+            : {}),
           ...(metaProfilePictureBase64 && metaProfilePictureMimeType && metaProfilePictureFileName
             ? {
                 profilePictureBase64: metaProfilePictureBase64,
@@ -731,7 +736,10 @@ function IntegrationsHubPage() {
                   </Button>
                 </div>
 
-                <div className="mt-6 border-t border-[var(--mi-border)] pt-5">
+                <div
+                  id="whatsapp-profile"
+                  className="mt-6 scroll-mt-24 border-t border-[var(--mi-border)] pt-5"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="font-black">Perfil Comercial e Catálogo</h3>
@@ -742,7 +750,7 @@ function IntegrationsHubPage() {
                     </div>
                     <StatusBadge
                       status={
-                        whatsappProfile.data?.configured
+                        whatsappSettings?.configured
                           ? whatsappProfile.error
                             ? "error"
                             : "configured"
@@ -751,12 +759,19 @@ function IntegrationsHubPage() {
                     />
                   </div>
 
-                  {!whatsappProfile.data?.configured ? (
+                  {!whatsappSettings?.configured ? (
                     <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-500/[0.06] p-3 text-xs text-amber-800">
                       Valide a API Oficial acima para liberar a edição do perfil comercial.
                     </div>
                   ) : (
                     <>
+                      {whatsappProfile.error && (
+                        <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-500/[0.06] p-3 text-xs leading-5 text-amber-800">
+                          O perfil atual não pôde ser carregado pela Meta. A opção de foto continua
+                          disponível abaixo. Se a Meta recusar ao salvar, confirme que o token
+                          possui a permissão whatsapp_business_management.
+                        </div>
+                      )}
                       <div className="mt-4 grid gap-4 lg:grid-cols-[160px_1fr]">
                         <div>
                           <div className="grid h-36 w-36 place-items-center overflow-hidden rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-bg)]">
