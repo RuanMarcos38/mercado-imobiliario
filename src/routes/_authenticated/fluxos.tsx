@@ -387,11 +387,31 @@ function FlowsPage() {
                         {flow.description || "Sem descrição"}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-black ${flow.enabled ? "bg-emerald-400/10 text-emerald-200" : "bg-white/5 text-[var(--mi-text-soft)]"}`}
-                    >
-                      {flow.enabled ? "ATIVO" : "PAUSADO"}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-black ${flow.enabled ? "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" : "bg-white/5 text-[var(--mi-text-soft)]"}`}
+                      >
+                        {flow.enabled ? "ATIVO" : "PAUSADO"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={flowBusyId === flow.id}
+                        onClick={() => void toggleFlow(String(flow.id), !Boolean(flow.enabled))}
+                        className="h-8 rounded-lg px-2.5 text-[11px] font-black"
+                      >
+                        {flow.enabled ? (
+                          <PauseCircle className="mr-1.5 h-3.5 w-3.5" />
+                        ) : (
+                          <Power className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        {flowBusyId === flow.id
+                          ? "Salvando..."
+                          : flow.enabled
+                            ? "Pausar"
+                            : "Ativar"}
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-4 flex items-center gap-2 border-t border-[var(--mi-border)] pt-3 text-xs text-[var(--mi-text-muted)]">
                     <MessageSquareText className="h-3.5 w-3.5" /> Gatilho:{" "}
