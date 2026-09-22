@@ -2,7 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, MessageSquareText, Plus, Workflow } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Code2,
+  Copy,
+  KeyRound,
+  Link2,
+  MessageSquareText,
+  Plus,
+  RefreshCw,
+  Upload,
+  Workflow,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,11 +24,54 @@ import {
   listWhatsAppFlows,
   saveAiAgentSettings,
 } from "@/lib/whatsapp-admin.functions";
+import {
+  getN8nWorkflowSettings,
+  importWhatsAppFlowJson,
+  previewWhatsAppFlowJson,
+  saveN8nWorkflowSettings,
+  testN8nWorkflowConnection,
+} from "@/lib/n8n-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/fluxos")({
   component: FlowsPage,
   head: () => ({ title: "Fluxos de atendimento | MercadoImobi" }),
 });
+
+const CHATGPT_FLOW_PROMPT = `Crie um fluxo de atendimento para importar no MercadoImobi.
+Responda SOMENTE com JSON válido, sem markdown, comentários ou explicações.
+
+Formato obrigatório:
+{
+  "schemaVersion": 1,
+  "flow": {
+    "name": "Nome do fluxo",
+    "description": "Objetivo do fluxo",
+    "triggerType": "manual",
+    "triggerValue": "",
+    "enabled": false,
+    "steps": [
+      { "type": "message", "config": { "text": "Olá! Como posso ajudar?" } },
+      { "type": "wait", "config": { "seconds": 3 } },
+      { "type": "ai", "config": { "instruction": "Atenda de forma humana e faça uma pergunta por vez." } },
+      { "type": "handoff", "config": { "reason": "Cliente pediu atendimento humano" } }
+    ]
+  },
+  "n8nWorkflow": {
+    "name": "Nome do workflow no n8n",
+    "nodes": [],
+    "connections": {},
+    "settings": {}
+  }
+}
+
+Regras:
+- triggerType deve ser: manual, new_conversation, keyword, new_property_alert ou webhook.
+- type de cada step deve ser: message, wait, ai, handoff, webhook ou tag.
+- Se eu pedir integração com n8n, preencha n8nWorkflow com nodes e connections válidos do n8n.
+- Não inclua senhas, tokens, API Keys ou credenciais no JSON.
+- O fluxo deve começar pausado para revisão.
+- Preserve textos em português do Brasil.
+- Entregue apenas JSON válido.`;
 
 function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);
@@ -24,6 +79,11 @@ function FlowsPage() {
   const addStepFn = useServerFn(addWhatsAppFlowStep);
   const getAiSettingsFn = useServerFn(getAiAgentSettings);
   const saveAiSettingsFn = useServerFn(saveAiAgentSettings);
+  const getN8nSettingsFn = useServerFn(getN8nWorkflowSettings);
+  const saveN8nSettingsFn = useServerFn(saveN8nWorkflowSettings);
+  const testN8nFn = useServerFn(testN8nWorkflowConnection);
+  const previewJsonFn = useServerFn(previewWhatsAppFlowJson);
+  const importJsonFn = useServerFn(importWhatsAppFlowJson);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [autoReply, setAutoReply] = useState(true);
   const [agentName, setAgentName] = useState("Assistente MercadoImobi");
@@ -36,10 +96,33 @@ function FlowsPage() {
     "manual" | "new_conversation" | "keyword" | "new_property_alert" | "webhook"
   >("manual");
   const [triggerValue, setTriggerValue] = useState("");
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("");
+  const [n8nApiKey, setN8nApiKey] = useState("");
+  const [savingN8n, setSavingN8n] = useState(false);
+  const [testingN8n, setTestingN8n] = useState(false);
+  const [jsonImport, setJsonImport] = useState("");
+  const [validatingJson, setValidatingJson] = useState(false);
+  const [importingJson, setImportingJson] = useState(false);
+  const [publishToN8n, setPublishToN8n] = useState(false);
+  const [activateN8n, setActivateN8n] = useState(false);
+  const [jsonPreview, setJsonPreview] = useState<{
+    kind: string;
+    flowName: string | null;
+    flowSteps: number;
+    n8nWorkflowName: string | null;
+    n8nNodes: number;
+    hasLocalFlow: boolean;
+    hasN8nWorkflow: boolean;
+  } | null>(null);
   const flows = useQuery({ queryKey: ["whatsapp-flows"], queryFn: () => listFn() });
   const aiSettings = useQuery({
     queryKey: ["ai-agent-settings"],
     queryFn: () => getAiSettingsFn(),
+  });
+  const n8nSettings = useQuery({
+    queryKey: ["n8n-workflow-settings"],
+    queryFn: () => getN8nSettingsFn(),
+    refetchInterval: 60_000,
   });
 
   useEffect(() => {
@@ -50,6 +133,11 @@ function FlowsPage() {
     setSystemPrompt(aiSettings.data.system_prompt || "");
     setHandoffKeywords((aiSettings.data.handoff_keywords ?? []).join(", "));
   }, [aiSettings.data]);
+
+  useEffect(() => {
+    if (!n8nSettings.data) return;
+    setN8nBaseUrl(n8nSettings.data.baseUrl || "");
+  }, [n8nSettings.data]);
 
   const saveAi = async () => {
     setSavingAi(true);
@@ -100,6 +188,109 @@ function FlowsPage() {
       toast.success("Fluxo criado. Ele começa pausado para revisão.");
     } catch {
       toast.error("Não foi possível criar o fluxo.");
+    }
+  };
+
+  const saveN8n = async () => {
+    if (!n8nBaseUrl.trim() || savingN8n) return;
+    setSavingN8n(true);
+    try {
+      await saveN8nSettingsFn({
+        data: {
+          baseUrl: n8nBaseUrl.trim(),
+          apiKey: n8nApiKey.trim() || undefined,
+        },
+      });
+      setN8nApiKey("");
+      await n8nSettings.refetch();
+      toast.success("Integração n8n validada e salva com segurança.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível conectar ao n8n.");
+    } finally {
+      setSavingN8n(false);
+    }
+  };
+
+  const testN8n = async () => {
+    if (testingN8n) return;
+    setTestingN8n(true);
+    try {
+      await testN8nFn();
+      toast.success("Conexão com o n8n confirmada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao testar o n8n.");
+    } finally {
+      setTestingN8n(false);
+    }
+  };
+
+  const copyChatGptPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(CHATGPT_FLOW_PROMPT);
+      toast.success("Prompt para o ChatGPT copiado.");
+    } catch {
+      toast.error("Não foi possível copiar o prompt automaticamente.");
+    }
+  };
+
+  const selectJsonFile = async (file: File | null) => {
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      toast.error("O arquivo JSON deve ter no máximo 1,5 MB.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      setJsonImport(text);
+      setJsonPreview(null);
+      toast.success("JSON carregado. Valide antes de importar.");
+    } catch {
+      toast.error("Não foi possível ler o arquivo JSON.");
+    }
+  };
+
+  const validateJson = async () => {
+    if (!jsonImport.trim() || validatingJson) return;
+    setValidatingJson(true);
+    try {
+      const result = await previewJsonFn({ data: { json: jsonImport } });
+      setJsonPreview(result);
+      if (result.hasN8nWorkflow && !result.hasLocalFlow) setPublishToN8n(true);
+      toast.success("JSON válido e compatível com a ferramenta.");
+    } catch (error) {
+      setJsonPreview(null);
+      toast.error(error instanceof Error ? error.message : "JSON inválido.");
+    } finally {
+      setValidatingJson(false);
+    }
+  };
+
+  const importJson = async () => {
+    if (!jsonImport.trim() || importingJson) return;
+    setImportingJson(true);
+    try {
+      const result = await importJsonFn({
+        data: {
+          json: jsonImport,
+          publishToN8n,
+          activateN8n: publishToN8n && activateN8n,
+        },
+      });
+      await flows.refetch();
+      if (result.warning) {
+        toast.info(result.warning);
+      } else if (result.localFlowId && result.n8n?.id) {
+        toast.success("Fluxo importado no MercadoImobi e publicado no n8n.");
+      } else if (result.localFlowId) {
+        toast.success("Fluxo importado no MercadoImobi e mantido pausado para revisão.");
+      } else {
+        toast.success("Workflow publicado no n8n com sucesso.");
+      }
+      setJsonPreview(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar o fluxo.");
+    } finally {
+      setImportingJson(false);
     }
   };
 
