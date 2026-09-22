@@ -118,7 +118,7 @@ export function parseWhatsAppFlowImport(value: string): ParsedImport {
   }
 
   throw new Error(
-    "Formato JSON não reconhecido. Use o modelo MercadoImobi/ChatGPT ou um workflow JSON exportado pelo n8n.",
+    "Formato JSON não reconhecido. Use o modelo de fluxo MercadoImobi gerado pelo ChatGPT.",
   );
 }
 
@@ -178,7 +178,7 @@ async function canManageTenantIntegrations(db: any, tenantId: string, userId: st
 
 async function requireIntegrationManager(db: any, tenantId: string, userId: string) {
   if (!(await canManageTenantIntegrations(db, tenantId, userId))) {
-    throw new Error("Somente administradores podem configurar ou importar fluxos n8n.");
+    throw new Error("Somente administradores podem importar ou alterar fluxos de atendimento.");
   }
 }
 

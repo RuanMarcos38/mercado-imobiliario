@@ -19,6 +19,11 @@ const flowStepSchema = z.object({
   config: z.record(z.string(), z.unknown()).default({}),
 });
 
+const flowEnabledSchema = z.object({
+  flowId: z.string().uuid(),
+  enabled: z.boolean(),
+});
+
 export const listWhatsAppFlows = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -85,6 +90,24 @@ export const addWhatsAppFlowStep = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { success: true };
+  });
+
+export const setWhatsAppFlowEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => flowEnabledSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const { data: updated, error } = await db
+      .from("whatsapp_flows")
+      .update({ enabled: data.enabled, updated_at: new Date().toISOString() })
+      .eq("id", data.flowId)
+      .eq("tenant_id", tenantId)
+      .select("id,enabled")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!updated) throw new Error("Fluxo não encontrado.");
+    return { success: true, id: String(updated.id), enabled: Boolean(updated.enabled) };
   });
 
 export const getAiAgentSettings = createServerFn({ method: "GET" })
