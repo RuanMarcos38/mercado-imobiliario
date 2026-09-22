@@ -223,6 +223,28 @@ export async function maybeAutoReply(input: {
     return { sent: false, reason: "human_service_active" };
   }
 
+  try {
+    const { maybeRunNativeWhatsAppFlow } = await import("@/lib/whatsapp-flow-runtime.server");
+    const nativeFlow = await maybeRunNativeWhatsAppFlow({
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      phone: input.phone,
+      inboundText: input.inboundText,
+      inboundSentAt: input.inboundSentAt,
+      inboundExternalMessageId: input.inboundExternalMessageId,
+    });
+    if (nativeFlow.handled) {
+      return {
+        sent: nativeFlow.sent,
+        reason: nativeFlow.reason,
+        flowId: nativeFlow.flowId,
+      };
+    }
+  } catch {
+    // Fluxos nativos são aditivos. Se a camada de fluxo estiver indisponível,
+    // o atendimento automático já existente continua funcionando normalmente.
+  }
+
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) {
     await queueForHuman(input);
