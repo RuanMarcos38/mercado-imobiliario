@@ -7,10 +7,10 @@ import {
   CheckCircle2,
   Code2,
   Copy,
-  KeyRound,
-  Link2,
   MessageSquareText,
+  PauseCircle,
   Plus,
+  Power,
   RefreshCw,
   Upload,
   Workflow,
@@ -23,13 +23,11 @@ import {
   getAiAgentSettings,
   listWhatsAppFlows,
   saveAiAgentSettings,
+  setWhatsAppFlowEnabled,
 } from "@/lib/whatsapp-admin.functions";
 import {
-  getN8nWorkflowSettings,
   importWhatsAppFlowJson,
   previewWhatsAppFlowJson,
-  saveN8nWorkflowSettings,
-  testN8nWorkflowConnection,
 } from "@/lib/n8n-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/fluxos")({
@@ -40,33 +38,34 @@ export const Route = createFileRoute("/_authenticated/fluxos")({
 const CHATGPT_FLOW_PROMPT = `Crie um fluxo de atendimento para importar no MercadoImobi.
 Responda SOMENTE com JSON válido, sem markdown, comentários ou explicações.
 
-Formato obrigatório para o fluxo MercadoImobi:
+Formato obrigatório:
 {
   "schemaVersion": 1,
   "flow": {
     "name": "Nome do fluxo",
     "description": "Objetivo do fluxo",
-    "triggerType": "manual",
+    "triggerType": "new_conversation",
     "triggerValue": "",
     "enabled": false,
     "steps": [
-      { "type": "message", "config": { "text": "Olá! Como posso ajudar?" } },
+      { "type": "message", "config": { "text": "Olá {{nome}}! Como posso ajudar?" } },
       { "type": "wait", "config": { "seconds": 3 } },
       { "type": "ai", "config": { "instruction": "Atenda de forma humana e faça uma pergunta por vez." } },
+      { "type": "tag", "config": { "tag": "Lead qualificado" } },
       { "type": "handoff", "config": { "reason": "Cliente pediu atendimento humano" } }
     ]
   }
 }
 
-Se eu pedir publicação no n8n, acrescente também a propriedade "n8nWorkflow" com um workflow n8n válido contendo name, nodes, connections e settings. Não inclua n8nWorkflow quando ele não for necessário.
-
 Regras:
 - triggerType deve ser: manual, new_conversation, keyword, new_property_alert ou webhook.
 - type de cada step deve ser: message, wait, ai, handoff, webhook ou tag.
+- Para keyword, preencha triggerValue com a palavra ou frase que inicia o fluxo.
+- Em mensagens podem ser usadas as variáveis {{nome}}, {{telefone}}, {{mensagem}} e {{fluxo}}.
 - Não inclua senhas, tokens, API Keys ou credenciais no JSON.
 - O fluxo deve começar pausado para revisão.
 - Preserve textos em português do Brasil.
-- Entregue apenas JSON válido.`;
+- Entregue apenas JSON válido.`
 
 function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);
@@ -74,9 +73,7 @@ function FlowsPage() {
   const addStepFn = useServerFn(addWhatsAppFlowStep);
   const getAiSettingsFn = useServerFn(getAiAgentSettings);
   const saveAiSettingsFn = useServerFn(saveAiAgentSettings);
-  const getN8nSettingsFn = useServerFn(getN8nWorkflowSettings);
-  const saveN8nSettingsFn = useServerFn(saveN8nWorkflowSettings);
-  const testN8nFn = useServerFn(testN8nWorkflowConnection);
+  const setFlowEnabledFn = useServerFn(setWhatsAppFlowEnabled);
   const previewJsonFn = useServerFn(previewWhatsAppFlowJson);
   const importJsonFn = useServerFn(importWhatsAppFlowJson);
   const [aiEnabled, setAiEnabled] = useState(true);
@@ -91,33 +88,20 @@ function FlowsPage() {
     "manual" | "new_conversation" | "keyword" | "new_property_alert" | "webhook"
   >("manual");
   const [triggerValue, setTriggerValue] = useState("");
-  const [n8nBaseUrl, setN8nBaseUrl] = useState("");
-  const [n8nApiKey, setN8nApiKey] = useState("");
-  const [savingN8n, setSavingN8n] = useState(false);
-  const [testingN8n, setTestingN8n] = useState(false);
   const [jsonImport, setJsonImport] = useState("");
   const [validatingJson, setValidatingJson] = useState(false);
   const [importingJson, setImportingJson] = useState(false);
-  const [publishToN8n, setPublishToN8n] = useState(false);
-  const [activateN8n, setActivateN8n] = useState(false);
+  const [flowBusyId, setFlowBusyId] = useState<string | null>(null);
   const [jsonPreview, setJsonPreview] = useState<{
     kind: string;
     flowName: string | null;
     flowSteps: number;
-    n8nWorkflowName: string | null;
-    n8nNodes: number;
     hasLocalFlow: boolean;
-    hasN8nWorkflow: boolean;
   } | null>(null);
   const flows = useQuery({ queryKey: ["whatsapp-flows"], queryFn: () => listFn() });
   const aiSettings = useQuery({
     queryKey: ["ai-agent-settings"],
     queryFn: () => getAiSettingsFn(),
-  });
-  const n8nSettings = useQuery({
-    queryKey: ["n8n-workflow-settings"],
-    queryFn: () => getN8nSettingsFn(),
-    refetchInterval: 60_000,
   });
 
   useEffect(() => {
@@ -128,11 +112,6 @@ function FlowsPage() {
     setSystemPrompt(aiSettings.data.system_prompt || "");
     setHandoffKeywords((aiSettings.data.handoff_keywords ?? []).join(", "));
   }, [aiSettings.data]);
-
-  useEffect(() => {
-    if (!n8nSettings.data) return;
-    setN8nBaseUrl(n8nSettings.data.baseUrl || "");
-  }, [n8nSettings.data]);
 
   const saveAi = async () => {
     setSavingAi(true);
@@ -186,36 +165,17 @@ function FlowsPage() {
     }
   };
 
-  const saveN8n = async () => {
-    if (!n8nBaseUrl.trim() || savingN8n) return;
-    setSavingN8n(true);
+  const toggleFlow = async (flowId: string, enabled: boolean) => {
+    if (flowBusyId) return;
+    setFlowBusyId(flowId);
     try {
-      await saveN8nSettingsFn({
-        data: {
-          baseUrl: n8nBaseUrl.trim(),
-          apiKey: n8nApiKey.trim() || undefined,
-        },
-      });
-      setN8nApiKey("");
-      await n8nSettings.refetch();
-      toast.success("Integração n8n validada e salva com segurança.");
+      await setFlowEnabledFn({ data: { flowId, enabled } });
+      await flows.refetch();
+      toast.success(enabled ? "Fluxo ativado no motor nativo." : "Fluxo pausado.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível conectar ao n8n.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o fluxo.");
     } finally {
-      setSavingN8n(false);
-    }
-  };
-
-  const testN8n = async () => {
-    if (testingN8n) return;
-    setTestingN8n(true);
-    try {
-      await testN8nFn();
-      toast.success("Conexão com o n8n confirmada.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao testar o n8n.");
-    } finally {
-      setTestingN8n(false);
+      setFlowBusyId(null);
     }
   };
 
@@ -249,9 +209,16 @@ function FlowsPage() {
     setValidatingJson(true);
     try {
       const result = await previewJsonFn({ data: { json: jsonImport } });
-      setJsonPreview(result);
-      if (result.hasN8nWorkflow && !result.hasLocalFlow) setPublishToN8n(true);
-      toast.success("JSON válido e compatível com a ferramenta.");
+      if (!result.hasLocalFlow) {
+        throw new Error("O JSON precisa conter um fluxo MercadoImobi.");
+      }
+      setJsonPreview({
+        kind: result.kind,
+        flowName: result.flowName,
+        flowSteps: result.flowSteps,
+        hasLocalFlow: result.hasLocalFlow,
+      });
+      toast.success("JSON válido e compatível com o motor nativo.");
     } catch (error) {
       setJsonPreview(null);
       toast.error(error instanceof Error ? error.message : "JSON inválido.");
@@ -267,20 +234,15 @@ function FlowsPage() {
       const result = await importJsonFn({
         data: {
           json: jsonImport,
-          publishToN8n,
-          activateN8n: publishToN8n && activateN8n,
+          publishToN8n: false,
+          activateN8n: false,
         },
       });
       await flows.refetch();
-      if (result.warning) {
-        toast.info(result.warning);
-      } else if (result.localFlowId && result.n8n?.id) {
-        toast.success("Fluxo importado no MercadoImobi e publicado no n8n.");
-      } else if (result.localFlowId) {
-        toast.success("Fluxo importado no MercadoImobi e mantido pausado para revisão.");
-      } else {
-        toast.success("Workflow publicado no n8n com sucesso.");
+      if (!result.localFlowId) {
+        throw new Error("O JSON não contém um fluxo nativo do MercadoImobi.");
       }
+      toast.success("Fluxo importado. Revise e clique em Ativar quando estiver pronto.");
       setJsonPreview(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível importar o fluxo.");
