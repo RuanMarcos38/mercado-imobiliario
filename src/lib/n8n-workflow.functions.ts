@@ -2,10 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireTenantId } from "@/lib/tenant.server";
-import {
-  readIntegrationSecret,
-  writeIntegrationSecret,
-} from "@/lib/integration-secrets.server";
+import { readIntegrationSecret, writeIntegrationSecret } from "@/lib/integration-secrets.server";
 
 const N8N_SECRET_NAME = "n8n-workflow-api";
 const N8N_REQUEST_TIMEOUT_MS = 20_000;
@@ -173,9 +170,9 @@ async function canManageTenantIntegrations(db: any, tenantId: string, userId: st
   const memberRole = String(member?.member_role ?? "").toLowerCase();
   return Boolean(
     platformRole ||
-      memberRole === "owner" ||
-      memberRole === "admin" ||
-      memberRole === "administrator",
+    memberRole === "owner" ||
+    memberRole === "admin" ||
+    memberRole === "administrator",
   );
 }
 
@@ -244,8 +241,11 @@ async function testN8n(config: N8nSecret) {
   const result = await n8nRequest(config, "/workflows?limit=1", { method: "GET" });
   return {
     ok: true,
-    workflowCount:
-      Array.isArray(result["data"]) ? result["data"].length : Array.isArray(result["workflows"]) ? result["workflows"].length : 0,
+    workflowCount: Array.isArray(result["data"])
+      ? result["data"].length
+      : Array.isArray(result["workflows"])
+        ? result["workflows"].length
+        : 0,
   };
 }
 
@@ -292,7 +292,9 @@ async function publishN8nWorkflow(
 
   const hasCredentialReferences = workflow.nodes.some((node) => {
     const credentials = node["credentials"];
-    return Boolean(credentials && typeof credentials === "object" && Object.keys(credentials).length);
+    return Boolean(
+      credentials && typeof credentials === "object" && Object.keys(credentials).length,
+    );
   });
 
   if (hasCredentialReferences) {
@@ -401,7 +403,9 @@ export const testN8nWorkflowConnection = createServerFn({ method: "POST" })
 
 export const previewWhatsAppFlowJson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ json: z.string().min(2).max(MAX_JSON_CHARS) }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ json: z.string().min(2).max(MAX_JSON_CHARS) }).parse(data),
+  )
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -442,7 +446,8 @@ export const importWhatsAppFlowJson = createServerFn({ method: "POST" })
       localFlowId = await createLocalFlow(db, tenantId, context.userId, parsed.flow);
     }
 
-    let n8n: { id: string | null; name: string; active: boolean; warning: string | null } | null = null;
+    let n8n: { id: string | null; name: string; active: boolean; warning: string | null } | null =
+      null;
     let warning: string | null = null;
 
     if (data.publishToN8n && parsed.n8nWorkflow) {

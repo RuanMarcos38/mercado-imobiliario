@@ -66,7 +66,7 @@ Regras:
 - Não inclua senhas, tokens, API Keys ou credenciais no JSON.
 - O fluxo deve começar pausado para revisão.
 - Preserve textos em português do Brasil.
-- Entregue apenas JSON válido.`
+- Entregue apenas JSON válido.`;
 
 function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);
@@ -477,7 +477,7 @@ function FlowsPage() {
                   }}
                   rows={14}
                   spellCheck={false}
-                  placeholder='Cole aqui o JSON gerado pelo ChatGPT ou exportado pelo n8n...'
+                  placeholder="Cole aqui o JSON gerado pelo ChatGPT ou exportado pelo n8n..."
                   className="font-mono text-xs"
                 />
               </Field>
