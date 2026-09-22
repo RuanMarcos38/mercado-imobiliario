@@ -147,7 +147,7 @@ function normalizeN8nBaseUrl(value: string) {
   ) {
     throw new Error("Use uma URL acessível pelo servidor MercadoImobi.");
   }
-  url.pathname = url.pathname.replace(/\/+$/, "");
+  url.pathname = url.pathname.replace(/\/api\/v1\/?$/i, "").replace(/\/+$/, "");
   url.search = "";
   url.hash = "";
   return url.toString().replace(/\/$/, "");
