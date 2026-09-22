@@ -2,7 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, MessageSquareText, Plus, Workflow } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Code2,
+  Copy,
+  KeyRound,
+  Link2,
+  MessageSquareText,
+  Plus,
+  RefreshCw,
+  Upload,
+  Workflow,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,11 +24,49 @@ import {
   listWhatsAppFlows,
   saveAiAgentSettings,
 } from "@/lib/whatsapp-admin.functions";
+import {
+  getN8nWorkflowSettings,
+  importWhatsAppFlowJson,
+  previewWhatsAppFlowJson,
+  saveN8nWorkflowSettings,
+  testN8nWorkflowConnection,
+} from "@/lib/n8n-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/fluxos")({
   component: FlowsPage,
   head: () => ({ title: "Fluxos de atendimento | MercadoImobi" }),
 });
+
+const CHATGPT_FLOW_PROMPT = `Crie um fluxo de atendimento para importar no MercadoImobi.
+Responda SOMENTE com JSON válido, sem markdown, comentários ou explicações.
+
+Formato obrigatório para o fluxo MercadoImobi:
+{
+  "schemaVersion": 1,
+  "flow": {
+    "name": "Nome do fluxo",
+    "description": "Objetivo do fluxo",
+    "triggerType": "manual",
+    "triggerValue": "",
+    "enabled": false,
+    "steps": [
+      { "type": "message", "config": { "text": "Olá! Como posso ajudar?" } },
+      { "type": "wait", "config": { "seconds": 3 } },
+      { "type": "ai", "config": { "instruction": "Atenda de forma humana e faça uma pergunta por vez." } },
+      { "type": "handoff", "config": { "reason": "Cliente pediu atendimento humano" } }
+    ]
+  }
+}
+
+Se eu pedir publicação no n8n, acrescente também a propriedade "n8nWorkflow" com um workflow n8n válido contendo name, nodes, connections e settings. Não inclua n8nWorkflow quando ele não for necessário.
+
+Regras:
+- triggerType deve ser: manual, new_conversation, keyword, new_property_alert ou webhook.
+- type de cada step deve ser: message, wait, ai, handoff, webhook ou tag.
+- Não inclua senhas, tokens, API Keys ou credenciais no JSON.
+- O fluxo deve começar pausado para revisão.
+- Preserve textos em português do Brasil.
+- Entregue apenas JSON válido.`;
 
 function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);
@@ -24,6 +74,11 @@ function FlowsPage() {
   const addStepFn = useServerFn(addWhatsAppFlowStep);
   const getAiSettingsFn = useServerFn(getAiAgentSettings);
   const saveAiSettingsFn = useServerFn(saveAiAgentSettings);
+  const getN8nSettingsFn = useServerFn(getN8nWorkflowSettings);
+  const saveN8nSettingsFn = useServerFn(saveN8nWorkflowSettings);
+  const testN8nFn = useServerFn(testN8nWorkflowConnection);
+  const previewJsonFn = useServerFn(previewWhatsAppFlowJson);
+  const importJsonFn = useServerFn(importWhatsAppFlowJson);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [autoReply, setAutoReply] = useState(true);
   const [agentName, setAgentName] = useState("Assistente MercadoImobi");
@@ -36,10 +91,33 @@ function FlowsPage() {
     "manual" | "new_conversation" | "keyword" | "new_property_alert" | "webhook"
   >("manual");
   const [triggerValue, setTriggerValue] = useState("");
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("");
+  const [n8nApiKey, setN8nApiKey] = useState("");
+  const [savingN8n, setSavingN8n] = useState(false);
+  const [testingN8n, setTestingN8n] = useState(false);
+  const [jsonImport, setJsonImport] = useState("");
+  const [validatingJson, setValidatingJson] = useState(false);
+  const [importingJson, setImportingJson] = useState(false);
+  const [publishToN8n, setPublishToN8n] = useState(false);
+  const [activateN8n, setActivateN8n] = useState(false);
+  const [jsonPreview, setJsonPreview] = useState<{
+    kind: string;
+    flowName: string | null;
+    flowSteps: number;
+    n8nWorkflowName: string | null;
+    n8nNodes: number;
+    hasLocalFlow: boolean;
+    hasN8nWorkflow: boolean;
+  } | null>(null);
   const flows = useQuery({ queryKey: ["whatsapp-flows"], queryFn: () => listFn() });
   const aiSettings = useQuery({
     queryKey: ["ai-agent-settings"],
     queryFn: () => getAiSettingsFn(),
+  });
+  const n8nSettings = useQuery({
+    queryKey: ["n8n-workflow-settings"],
+    queryFn: () => getN8nSettingsFn(),
+    refetchInterval: 60_000,
   });
 
   useEffect(() => {
@@ -50,6 +128,11 @@ function FlowsPage() {
     setSystemPrompt(aiSettings.data.system_prompt || "");
     setHandoffKeywords((aiSettings.data.handoff_keywords ?? []).join(", "));
   }, [aiSettings.data]);
+
+  useEffect(() => {
+    if (!n8nSettings.data) return;
+    setN8nBaseUrl(n8nSettings.data.baseUrl || "");
+  }, [n8nSettings.data]);
 
   const saveAi = async () => {
     setSavingAi(true);
@@ -100,6 +183,109 @@ function FlowsPage() {
       toast.success("Fluxo criado. Ele começa pausado para revisão.");
     } catch {
       toast.error("Não foi possível criar o fluxo.");
+    }
+  };
+
+  const saveN8n = async () => {
+    if (!n8nBaseUrl.trim() || savingN8n) return;
+    setSavingN8n(true);
+    try {
+      await saveN8nSettingsFn({
+        data: {
+          baseUrl: n8nBaseUrl.trim(),
+          apiKey: n8nApiKey.trim() || undefined,
+        },
+      });
+      setN8nApiKey("");
+      await n8nSettings.refetch();
+      toast.success("Integração n8n validada e salva com segurança.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível conectar ao n8n.");
+    } finally {
+      setSavingN8n(false);
+    }
+  };
+
+  const testN8n = async () => {
+    if (testingN8n) return;
+    setTestingN8n(true);
+    try {
+      await testN8nFn();
+      toast.success("Conexão com o n8n confirmada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao testar o n8n.");
+    } finally {
+      setTestingN8n(false);
+    }
+  };
+
+  const copyChatGptPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(CHATGPT_FLOW_PROMPT);
+      toast.success("Prompt para o ChatGPT copiado.");
+    } catch {
+      toast.error("Não foi possível copiar o prompt automaticamente.");
+    }
+  };
+
+  const selectJsonFile = async (file: File | null) => {
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      toast.error("O arquivo JSON deve ter no máximo 1,5 MB.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      setJsonImport(text);
+      setJsonPreview(null);
+      toast.success("JSON carregado. Valide antes de importar.");
+    } catch {
+      toast.error("Não foi possível ler o arquivo JSON.");
+    }
+  };
+
+  const validateJson = async () => {
+    if (!jsonImport.trim() || validatingJson) return;
+    setValidatingJson(true);
+    try {
+      const result = await previewJsonFn({ data: { json: jsonImport } });
+      setJsonPreview(result);
+      if (result.hasN8nWorkflow && !result.hasLocalFlow) setPublishToN8n(true);
+      toast.success("JSON válido e compatível com a ferramenta.");
+    } catch (error) {
+      setJsonPreview(null);
+      toast.error(error instanceof Error ? error.message : "JSON inválido.");
+    } finally {
+      setValidatingJson(false);
+    }
+  };
+
+  const importJson = async () => {
+    if (!jsonImport.trim() || importingJson) return;
+    setImportingJson(true);
+    try {
+      const result = await importJsonFn({
+        data: {
+          json: jsonImport,
+          publishToN8n,
+          activateN8n: publishToN8n && activateN8n,
+        },
+      });
+      await flows.refetch();
+      if (result.warning) {
+        toast.info(result.warning);
+      } else if (result.localFlowId && result.n8n?.id) {
+        toast.success("Fluxo importado no MercadoImobi e publicado no n8n.");
+      } else if (result.localFlowId) {
+        toast.success("Fluxo importado no MercadoImobi e mantido pausado para revisão.");
+      } else {
+        toast.success("Workflow publicado no n8n com sucesso.");
+      }
+      setJsonPreview(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar o fluxo.");
+    } finally {
+      setImportingJson(false);
     }
   };
 
@@ -263,6 +449,218 @@ function FlowsPage() {
             </div>
           </section>
         </div>
+        <section className="mt-7 rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Code2 className="h-5 w-5 text-blue-600" />
+                <h2 className="font-black">Importar fluxo JSON · ChatGPT + n8n</h2>
+              </div>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--mi-text-soft)]">
+                Gere o fluxo no ChatGPT, cole ou carregue o arquivo JSON, valide e importe sem
+                substituir os fluxos já existentes. Workflows nativos do n8n também são aceitos.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => void copyChatGptPrompt()}>
+              <Copy className="mr-2 h-4 w-4" /> Copiar prompt para ChatGPT
+            </Button>
+          </div>
+
+          <div className="mt-5 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-3">
+              <Field label="JSON do fluxo">
+                <textarea
+                  value={jsonImport}
+                  onChange={(event) => {
+                    setJsonImport(event.target.value);
+                    setJsonPreview(null);
+                  }}
+                  rows={14}
+                  spellCheck={false}
+                  placeholder="Cole aqui o JSON gerado pelo ChatGPT ou exportado pelo n8n..."
+                  className="font-mono text-xs"
+                />
+              </Field>
+
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex h-10 cursor-pointer items-center rounded-xl border border-[var(--mi-border)] px-4 text-xs font-black hover:bg-[var(--mi-surface-soft)]">
+                  <Upload className="mr-2 h-4 w-4" /> Carregar arquivo .json
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={(event) => void selectJsonFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <Button
+                  variant="outline"
+                  onClick={() => void validateJson()}
+                  disabled={!jsonImport.trim() || validatingJson}
+                >
+                  {validatingJson ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  )}
+                  Validar JSON
+                </Button>
+              </div>
+
+              {jsonPreview && (
+                <div className="rounded-xl border border-emerald-300/40 bg-emerald-500/[0.06] p-3 text-xs leading-5">
+                  <p className="font-black text-emerald-700 dark:text-emerald-300">
+                    JSON válido · {jsonPreview.kind}
+                  </p>
+                  {jsonPreview.hasLocalFlow && (
+                    <p className="mt-1">
+                      MercadoImobi: {jsonPreview.flowName} · {jsonPreview.flowSteps} passo(s)
+                    </p>
+                  )}
+                  {jsonPreview.hasN8nWorkflow && (
+                    <p>
+                      n8n: {jsonPreview.n8nWorkflowName} · {jsonPreview.n8nNodes} node(s)
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid gap-2 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-3 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-xs font-bold">
+                  <input
+                    type="checkbox"
+                    checked={publishToN8n}
+                    onChange={(event) => {
+                      setPublishToN8n(event.target.checked);
+                      if (!event.target.checked) setActivateN8n(false);
+                    }}
+                  />
+                  Também publicar no n8n
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold">
+                  <input
+                    type="checkbox"
+                    checked={activateN8n}
+                    disabled={!publishToN8n}
+                    onChange={(event) => setActivateN8n(event.target.checked)}
+                  />
+                  Ativar workflow após importar
+                </label>
+              </div>
+
+              <Button
+                onClick={() => void importJson()}
+                disabled={!jsonImport.trim() || importingJson}
+                className="h-11 w-full rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
+              >
+                {importingJson ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Workflow className="mr-2 h-4 w-4" />
+                )}
+                {importingJson ? "Importando..." : "Importar fluxo JSON"}
+              </Button>
+              <p className="text-[10px] leading-4 text-[var(--mi-text-soft)]">
+                Fluxos importados no MercadoImobi começam pausados para revisão. O importador não
+                altera credenciais existentes e não executa código contido no JSON.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-violet-600" />
+                    <p className="text-sm font-black">Integração n8n</p>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-5 text-[var(--mi-text-soft)]">
+                    A API Key fica criptografada no servidor e nunca é exibida novamente.
+                  </p>
+                </div>
+                <span
+                  className={
+                    "rounded-full px-2.5 py-1 text-[10px] font-black " +
+                    (n8nSettings.data?.configured
+                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-300")
+                  }
+                >
+                  {n8nSettings.data?.configured ? "CONFIGURADO" : "PENDENTE"}
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <Field label="URL da instância n8n">
+                  <input
+                    value={n8nBaseUrl}
+                    onChange={(event) => setN8nBaseUrl(event.target.value)}
+                    placeholder="https://n8n.seudominio.com"
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field label="API Key do n8n">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 shrink-0 text-[var(--mi-text-soft)]" />
+                    <input
+                      type="password"
+                      value={n8nApiKey}
+                      onChange={(event) => setN8nApiKey(event.target.value)}
+                      placeholder={
+                        n8nSettings.data?.hasApiKey
+                          ? "Deixe vazio para manter a chave salva"
+                          : "Cole a API Key do n8n"
+                      }
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </Field>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => void saveN8n()}
+                    disabled={!n8nBaseUrl.trim() || savingN8n}
+                    className="bg-violet-600 font-black text-white hover:bg-violet-700"
+                  >
+                    {savingN8n ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeyRound className="mr-2 h-4 w-4" />
+                    )}
+                    Salvar e validar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void testN8n()}
+                    disabled={!n8nSettings.data?.configured || testingN8n}
+                  >
+                    {testingN8n ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="mr-2 h-4 w-4" />
+                    )}
+                    Testar conexão
+                  </Button>
+                </div>
+
+                <div className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 text-[11px] leading-5 text-[var(--mi-text-soft)]">
+                  <p>
+                    Fonte atual:{" "}
+                    <strong className="text-[var(--mi-text)]">
+                      {n8nSettings.data?.source === "user"
+                        ? "Configuração criptografada da conta"
+                        : n8nSettings.data?.source === "server"
+                          ? "Variáveis seguras do servidor"
+                          : "Não configurada"}
+                    </strong>
+                  </p>
+                  <p className="mt-1">
+                    A integração usa a API do n8n para criar workflows. Credenciais referenciadas
+                    pelos nodes precisam existir na própria instância n8n.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
