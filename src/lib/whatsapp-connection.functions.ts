@@ -9,10 +9,14 @@ import {
   type EvolutionGatewayConfig,
 } from "@/lib/evolution-instance.server";
 import {
+  getMetaWhatsAppBusinessProfile,
+  getMetaWhatsAppCommerceSettings,
   metaWhatsAppConfigFromStored,
   metaWhatsAppInstanceName,
   metaWhatsAppWebhookCallbackUrl,
   testMetaWhatsAppConfig,
+  updateMetaWhatsAppBusinessProfile,
+  updateMetaWhatsAppCommerceSettings,
   writeStoredMetaWhatsAppConfig,
   type MetaWhatsAppConfig,
 } from "@/lib/meta-whatsapp.server";
@@ -43,6 +47,55 @@ const metaOfficialSettingsSchema = z.object({
   displayPhoneNumber: z.string().trim().max(40).optional(),
   graphVersion: z.string().trim().max(12).optional(),
 });
+
+const metaBusinessProfileSchema = z
+  .object({
+    about: z.string().max(139).optional(),
+    address: z.string().max(256).optional(),
+    description: z.string().max(256).optional(),
+    email: z.string().max(128).optional(),
+    websites: z.array(z.string().max(256)).max(2).optional(),
+    vertical: z
+      .enum([
+        "UNDEFINED",
+        "OTHER",
+        "AUTO",
+        "BEAUTY",
+        "APPAREL",
+        "EDU",
+        "ENTERTAIN",
+        "EVENT_PLAN",
+        "FINANCE",
+        "GROCERY",
+        "GOVT",
+        "HOTEL",
+        "HEALTH",
+        "NONPROFIT",
+        "PROF_SERVICES",
+        "RETAIL",
+        "TRAVEL",
+        "RESTAURANT",
+        "NOT_A_BIZ",
+      ])
+      .optional(),
+    profilePictureBase64: z.string().max(8_000_000).optional(),
+    profilePictureMimeType: z.enum(["image/jpeg", "image/png"]).optional(),
+    profilePictureFileName: z.string().max(180).optional(),
+    isCatalogVisible: z.boolean().optional(),
+    isCartEnabled: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.profilePictureBase64 &&
+      (!data.profilePictureMimeType || !data.profilePictureFileName)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A foto de perfil precisa incluir nome e tipo do arquivo.",
+        path: ["profilePictureBase64"],
+      });
+    }
+  });
 
 type MetaWhatsAppSettingsSource = "platform" | "server_env" | "not_configured";
 
@@ -408,6 +461,144 @@ export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" 
       qualityRating: result.qualityRating,
       businessAccountMatched,
     });
+  });
+
+export const getMetaWhatsAppBusinessProfileSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+    const config = await tenantMetaWhatsAppConfig({
+      tenantId,
+      userId: context.userId,
+      connection: savedConnection,
+    });
+
+    if (!config) {
+      return {
+        configured: false,
+        profile: null,
+        commerce: null,
+        commerceAvailable: false,
+        warning: null as string | null,
+      };
+    }
+
+    const [profileResult, commerceResult] = await Promise.allSettled([
+      getMetaWhatsAppBusinessProfile(config),
+      getMetaWhatsAppCommerceSettings(config),
+    ]);
+    if (profileResult.status === "rejected") {
+      throw new Error(
+        profileResult.reason instanceof Error
+          ? profileResult.reason.message
+          : "Não foi possível carregar o perfil comercial do WhatsApp.",
+      );
+    }
+
+    return {
+      configured: true,
+      profile: profileResult.value,
+      commerce: commerceResult.status === "fulfilled" ? commerceResult.value : null,
+      commerceAvailable: commerceResult.status === "fulfilled",
+      warning:
+        commerceResult.status === "rejected"
+          ? commerceResult.reason instanceof Error
+            ? commerceResult.reason.message
+            : "Os controles de catálogo não estão disponíveis para este número."
+          : null,
+    };
+  });
+
+export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => metaBusinessProfileSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    const tenantId = await requireTenantId(context.supabase, context.userId);
+    const db = context.supabase as any;
+    await requireTenantIntegrationManager(db, tenantId, context.userId);
+
+    const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
+    const config = await tenantMetaWhatsAppConfig({
+      tenantId,
+      userId: context.userId,
+      connection: savedConnection,
+    });
+    if (!config) {
+      throw new Error("Configure e valide a WhatsApp Cloud API antes de editar o perfil.");
+    }
+
+    const websites = data.websites
+      ?.map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, 2);
+    const hasProfileUpdate =
+      data.about !== undefined ||
+      data.address !== undefined ||
+      data.description !== undefined ||
+      data.email !== undefined ||
+      data.websites !== undefined ||
+      data.vertical !== undefined ||
+      Boolean(data.profilePictureBase64);
+
+    let profile = await getMetaWhatsAppBusinessProfile(config);
+    if (hasProfileUpdate) {
+      profile = await updateMetaWhatsAppBusinessProfile({
+        config,
+        ...(data.about !== undefined ? { about: data.about.trim() } : {}),
+        ...(data.address !== undefined ? { address: data.address.trim() } : {}),
+        ...(data.description !== undefined ? { description: data.description.trim() } : {}),
+        ...(data.email !== undefined ? { email: data.email.trim() } : {}),
+        ...(websites !== undefined ? { websites } : {}),
+        ...(data.vertical !== undefined ? { vertical: data.vertical } : {}),
+        ...(data.profilePictureBase64 &&
+        data.profilePictureMimeType &&
+        data.profilePictureFileName
+          ? {
+              profilePicture: {
+                base64: data.profilePictureBase64,
+                mimeType: data.profilePictureMimeType,
+                fileName: data.profilePictureFileName,
+              },
+            }
+          : {}),
+      });
+    }
+
+    let commerce = null;
+    let warning: string | null = null;
+    if (data.isCatalogVisible !== undefined && data.isCartEnabled !== undefined) {
+      try {
+        commerce = await updateMetaWhatsAppCommerceSettings({
+          config,
+          isCatalogVisible: data.isCatalogVisible,
+          isCartEnabled: data.isCartEnabled,
+        });
+      } catch (error) {
+        warning =
+          error instanceof Error
+            ? error.message
+            : "A Meta não disponibilizou os controles de catálogo para este número.";
+      }
+    } else {
+      try {
+        commerce = await getMetaWhatsAppCommerceSettings(config);
+      } catch (error) {
+        warning =
+          error instanceof Error
+            ? error.message
+            : "A Meta não disponibilizou os controles de catálogo para este número.";
+      }
+    }
+
+    return {
+      configured: true,
+      profile,
+      commerce,
+      commerceAvailable: Boolean(commerce),
+      warning,
+    };
   });
 
 export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
