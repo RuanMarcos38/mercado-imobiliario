@@ -394,7 +394,7 @@ function FlowsPage() {
                         size="sm"
                         variant="outline"
                         disabled={flowBusyId === flow.id}
-                        onClick={() => void toggleFlow(String(flow.id), !Boolean(flow.enabled))}
+                        onClick={() => void toggleFlow(String(flow.id), !flow.enabled)}
                         className="h-8 rounded-lg px-2.5 text-[11px] font-black"
                       >
                         {flow.enabled ? (
