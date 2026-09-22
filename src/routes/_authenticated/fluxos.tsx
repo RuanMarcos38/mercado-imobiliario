@@ -25,10 +25,7 @@ import {
   saveAiAgentSettings,
   setWhatsAppFlowEnabled,
 } from "@/lib/whatsapp-admin.functions";
-import {
-  importWhatsAppFlowJson,
-  previewWhatsAppFlowJson,
-} from "@/lib/n8n-workflow.functions";
+import { importWhatsAppFlowJson, previewWhatsAppFlowJson } from "@/lib/n8n-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/fluxos")({
   component: FlowsPage,
@@ -65,7 +62,7 @@ Regras:
 - Não inclua senhas, tokens, API Keys ou credenciais no JSON.
 - O fluxo deve começar pausado para revisão.
 - Preserve textos em português do Brasil.
-- Entregue apenas JSON válido.`
+- Entregue apenas JSON válido.`;
 
 function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);

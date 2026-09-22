@@ -192,10 +192,7 @@ function inboundAlreadyProcessed(
   });
 }
 
-function latestPendingExecution(
-  events: Array<{ metadata?: unknown }>,
-  conversationId: string,
-) {
+function latestPendingExecution(events: Array<{ metadata?: unknown }>, conversationId: string) {
   for (const event of events) {
     const eventMetadata = metadata(event.metadata);
     if (String(eventMetadata["conversationId"] ?? "") !== conversationId) continue;
@@ -250,14 +247,12 @@ async function conversationInfo(tenantId: string, conversationId: string) {
     .eq("id", conversationId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data as
-    | {
-        id: string;
-        contact_name: string | null;
-        phone_e164: string;
-        assigned_user_id: string | null;
-      }
-    | null;
+  return data as {
+    id: string;
+    contact_name: string | null;
+    phone_e164: string;
+    assigned_user_id: string | null;
+  } | null;
 }
 
 function renderTemplate(
@@ -350,17 +345,22 @@ async function queueForHuman(tenantId: string, conversationId: string, reason: s
     .eq("tenant_id", tenantId)
     .eq("id", conversationId);
 
-  await insertSystemEvent(tenantId, STATE_EVENT, "Fluxo encaminhou a conversa para atendimento humano", {
-    conversationId,
-    state: "waiting",
-    waitingSince: now,
-    acceptedAt: null,
-    firstResponseAt: null,
-    closedAt: null,
-    assignedUserId: null,
-    departmentName: "Geral",
-    flowReason: reason,
-  });
+  await insertSystemEvent(
+    tenantId,
+    STATE_EVENT,
+    "Fluxo encaminhou a conversa para atendimento humano",
+    {
+      conversationId,
+      state: "waiting",
+      waitingSince: now,
+      acceptedAt: null,
+      firstResponseAt: null,
+      closedAt: null,
+      assignedUserId: null,
+      departmentName: "Geral",
+      flowReason: reason,
+    },
+  );
 
   try {
     await db.rpc("attendance_distribute_conversation", {
@@ -398,12 +398,10 @@ async function applyTag(tenantId: string, conversationId: string, config: JsonOb
   const tags = [...new Set([...currentTags, ...configured])].slice(0, 8);
   if (!tags.length) return;
 
-  await insertSystemEvent(
-    tenantId,
-    TAG_EVENT,
-    "Tags de conversa atualizadas pelo fluxo nativo",
-    { conversationId, tags },
-  );
+  await insertSystemEvent(tenantId, TAG_EVENT, "Tags de conversa atualizadas pelo fluxo nativo", {
+    conversationId,
+    tags,
+  });
 }
 
 async function executeWebhookStep(input: {
