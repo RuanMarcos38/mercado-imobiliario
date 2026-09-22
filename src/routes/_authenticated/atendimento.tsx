@@ -56,6 +56,7 @@ import {
 import {
   disconnectWhatsAppConnection,
   prepareWhatsAppConnection,
+  saveMetaWhatsAppBusinessProfileSettings,
 } from "@/lib/whatsapp-connection.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
 import { sendWhatsAppAttachment } from "@/lib/whatsapp-media.functions";
@@ -219,6 +220,7 @@ function AtendimentoPage() {
   const qrFn = useServerFn(getWhatsAppQrCode);
   const prepareFn = useServerFn(prepareWhatsAppConnection);
   const disconnectFn = useServerFn(disconnectWhatsAppConnection);
+  const saveWhatsAppProfileFn = useServerFn(saveMetaWhatsAppBusinessProfileSettings);
   const conversationsFn = useServerFn(listAttendanceConversations);
   const viewerFn = useServerFn(getAttendanceViewer);
   const messagesFn = useServerFn(listWhatsAppMessages);
@@ -266,8 +268,10 @@ function AtendimentoPage() {
   const [tagInput, setTagInput] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [savingProfilePicture, setSavingProfilePicture] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profilePictureInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -577,6 +581,40 @@ function AtendimentoPage() {
     }
   };
 
+  const selectWhatsAppProfilePicture = async (file: File | null) => {
+    if (!file || savingProfilePicture) return;
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      toast.error("Selecione uma imagem JPEG ou PNG.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A foto de perfil deve ter no máximo 5 MB.");
+      return;
+    }
+
+    setSavingProfilePicture(true);
+    try {
+      const base64 = await readFileBase64(file);
+      await saveWhatsAppProfileFn({
+        data: {
+          profilePictureBase64: base64,
+          profilePictureMimeType: file.type as "image/jpeg" | "image/png",
+          profilePictureFileName: file.name,
+        },
+      });
+      toast.success("Foto de perfil do WhatsApp atualizada com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar a foto de perfil do WhatsApp.",
+      );
+    } finally {
+      setSavingProfilePicture(false);
+      if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
+    }
+  };
+
   const startConversation = async () => {
     const phone = window.prompt("Número do WhatsApp com DDI e DDD (ex.: 5547999999999):");
     if (!phone?.trim()) return;
@@ -874,14 +912,31 @@ function AtendimentoPage() {
                 <MessageCircle className="mr-2 h-4 w-4" /> Nova conversa
               </Button>
               {isMetaWhatsApp && (
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.assign("/central-integracoes#whatsapp-profile")}
-                  className="h-10 rounded-xl border-blue-300/50 bg-blue-500/[0.05] px-3 font-black text-blue-600"
-                  title="Alterar foto e perfil do WhatsApp"
-                >
-                  <Settings className="mr-2 h-4 w-4" /> Foto e perfil
-                </Button>
+                <>
+                  <input
+                    ref={profilePictureInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="hidden"
+                    onChange={(event) =>
+                      void selectWhatsAppProfilePicture(event.target.files?.[0] ?? null)
+                    }
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={savingProfilePicture}
+                    onClick={() => profilePictureInputRef.current?.click()}
+                    className="h-10 rounded-xl border-blue-300/50 bg-blue-500/[0.05] px-3 font-black text-blue-600"
+                    title="Alterar foto de perfil do WhatsApp"
+                  >
+                    {savingProfilePicture ? (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Settings className="mr-2 h-4 w-4" />
+                    )}
+                    {savingProfilePicture ? "Enviando foto..." : "Foto do WhatsApp"}
+                  </Button>
+                </>
               )}
               <span
                 className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
