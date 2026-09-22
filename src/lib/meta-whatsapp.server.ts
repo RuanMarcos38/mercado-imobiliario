@@ -17,6 +17,32 @@ const META_WHATSAPP_PHONE_FIELDS = [
 
 export type MetaWhatsAppMediaType = "image" | "video" | "audio" | "document";
 
+export type MetaWhatsAppBusinessProfile = {
+  about: string | null;
+  address: string | null;
+  description: string | null;
+  email: string | null;
+  websites: string[];
+  vertical: string | null;
+  profilePictureUrl: string | null;
+};
+
+export type MetaWhatsAppCommerceSettings = {
+  isCatalogVisible: boolean;
+  isCartEnabled: boolean;
+  id: string | null;
+};
+
+const META_WHATSAPP_PROFILE_FIELDS = [
+  "about",
+  "address",
+  "description",
+  "email",
+  "profile_picture_url",
+  "websites",
+  "vertical",
+].join(",");
+
 export type MetaWhatsAppConfig = {
   graphVersion: string;
   phoneNumberId: string;
@@ -329,6 +355,160 @@ export async function sendMetaWhatsAppMediaMessage(input: {
       }),
     },
   );
+}
+
+function profileFromPayload(payload: JsonObject): MetaWhatsAppBusinessProfile {
+  const data = Array.isArray(payload["data"]) ? payload["data"] : [];
+  const first = data[0] && typeof data[0] === "object" ? object(data[0]) : {};
+  const nested = object(first["business_profile"]);
+  const source = Object.keys(nested).length ? nested : first;
+  const websites = Array.isArray(source["websites"])
+    ? source["websites"].filter((value): value is string => typeof value === "string")
+    : [];
+
+  return {
+    about: textField(source, "about"),
+    address: textField(source, "address"),
+    description: textField(source, "description"),
+    email: textField(source, "email"),
+    websites,
+    vertical: textField(source, "vertical"),
+    profilePictureUrl: textField(source, "profile_picture_url"),
+  };
+}
+
+export async function getMetaWhatsAppBusinessProfile(config: MetaWhatsAppConfig) {
+  const params = new URLSearchParams({ fields: META_WHATSAPP_PROFILE_FIELDS });
+  const payload = await metaJson(
+    endpoint(
+      config,
+      `/${encodeURIComponent(config.phoneNumberId)}/whatsapp_business_profile?${params.toString()}`,
+    ),
+    config,
+    { method: "GET" },
+  );
+  return profileFromPayload(payload);
+}
+
+async function uploadMetaWhatsAppProfilePicture(input: {
+  config: MetaWhatsAppConfig;
+  mimeType: "image/jpeg" | "image/png";
+  fileName: string;
+  base64: string;
+}) {
+  const bytes = base64Bytes(input.base64);
+  if (!bytes.byteLength) throw new Error("META_WHATSAPP_PROFILE_PICTURE_EMPTY");
+  if (bytes.byteLength > 5 * 1024 * 1024) {
+    throw new Error("META_WHATSAPP_PROFILE_PICTURE_TOO_LARGE");
+  }
+
+  const params = new URLSearchParams({
+    file_length: String(bytes.byteLength),
+    file_type: input.mimeType,
+    file_name: input.fileName || "whatsapp-profile",
+  });
+  const sessionPayload = await metaJson(
+    endpoint(input.config, `/app/uploads/?${params.toString()}`),
+    input.config,
+    { method: "POST" },
+  );
+  const uploadId = typeof sessionPayload["id"] === "string" ? sessionPayload["id"] : "";
+  if (!uploadId) throw new Error("META_WHATSAPP_PROFILE_UPLOAD_SESSION_MISSING");
+
+  const uploadPayload = await metaJson(endpoint(input.config, `/${uploadId}`), input.config, {
+    method: "POST",
+    headers: {
+      "Content-Type": input.mimeType,
+      file_offset: "0",
+    },
+    body: bytes,
+  });
+  const handle = typeof uploadPayload["h"] === "string" ? uploadPayload["h"] : "";
+  if (!handle) throw new Error("META_WHATSAPP_PROFILE_PICTURE_HANDLE_MISSING");
+  return handle;
+}
+
+export async function updateMetaWhatsAppBusinessProfile(input: {
+  config: MetaWhatsAppConfig;
+  about?: string;
+  address?: string;
+  description?: string;
+  email?: string;
+  websites?: string[];
+  vertical?: string;
+  profilePicture?: {
+    mimeType: "image/jpeg" | "image/png";
+    fileName: string;
+    base64: string;
+  };
+}) {
+  const body: Record<string, unknown> = {
+    messaging_product: "whatsapp",
+  };
+
+  if (input.about !== undefined) body["about"] = input.about;
+  if (input.address !== undefined) body["address"] = input.address;
+  if (input.description !== undefined) body["description"] = input.description;
+  if (input.email !== undefined) body["email"] = input.email;
+  if (input.websites !== undefined) body["websites"] = input.websites.slice(0, 2);
+  if (input.vertical !== undefined) body["vertical"] = input.vertical;
+  if (input.profilePicture) {
+    body["profile_picture_handle"] = await uploadMetaWhatsAppProfilePicture({
+      config: input.config,
+      ...input.profilePicture,
+    });
+  }
+
+  await metaJson(
+    endpoint(
+      input.config,
+      `/${encodeURIComponent(input.config.phoneNumberId)}/whatsapp_business_profile`,
+    ),
+    input.config,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+
+  return getMetaWhatsAppBusinessProfile(input.config);
+}
+
+export async function getMetaWhatsAppCommerceSettings(
+  config: MetaWhatsAppConfig,
+): Promise<MetaWhatsAppCommerceSettings> {
+  const payload = await metaJson(
+    endpoint(config, `/${encodeURIComponent(config.phoneNumberId)}/whatsapp_commerce_settings`),
+    config,
+    { method: "GET" },
+  );
+  const data = Array.isArray(payload["data"]) ? payload["data"] : [];
+  const first = data[0] && typeof data[0] === "object" ? object(data[0]) : {};
+  return {
+    isCatalogVisible: first["is_catalog_visible"] === true,
+    isCartEnabled: first["is_cart_enabled"] === true,
+    id: textField(first, "id"),
+  };
+}
+
+export async function updateMetaWhatsAppCommerceSettings(input: {
+  config: MetaWhatsAppConfig;
+  isCatalogVisible: boolean;
+  isCartEnabled: boolean;
+}) {
+  const params = new URLSearchParams({
+    is_catalog_visible: String(input.isCatalogVisible),
+    is_cart_enabled: String(input.isCartEnabled),
+  });
+  await metaJson(
+    endpoint(
+      input.config,
+      `/${encodeURIComponent(input.config.phoneNumberId)}/whatsapp_commerce_settings?${params.toString()}`,
+    ),
+    input.config,
+    { method: "POST" },
+  );
+  return getMetaWhatsAppCommerceSettings(input.config);
 }
 
 export async function testMetaWhatsAppConnection(phoneNumberId?: string) {
