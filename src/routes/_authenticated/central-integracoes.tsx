@@ -157,7 +157,7 @@ function IntegrationsHubPage() {
   const [metaProfileEmail, setMetaProfileEmail] = useState("");
   const [metaProfileWebsite1, setMetaProfileWebsite1] = useState("");
   const [metaProfileWebsite2, setMetaProfileWebsite2] = useState("");
-  const [metaProfileVertical, setMetaProfileVertical] = useState("PROF_SERVICES");
+  const [metaProfileVertical, setMetaProfileVertical] = useState("UNDEFINED");
   const [metaCatalogVisible, setMetaCatalogVisible] = useState(false);
   const [metaCartEnabled, setMetaCartEnabled] = useState(false);
   const [metaProfilePictureBase64, setMetaProfilePictureBase64] = useState("");
@@ -255,7 +255,7 @@ function IntegrationsHubPage() {
     setMetaProfileEmail(profile.email || "");
     setMetaProfileWebsite1(profile.websites?.[0] || "");
     setMetaProfileWebsite2(profile.websites?.[1] || "");
-    setMetaProfileVertical(profile.vertical || "PROF_SERVICES");
+    setMetaProfileVertical(profile.vertical || "UNDEFINED");
     setMetaProfilePicturePreview(profile.profilePictureUrl || "");
     setMetaCatalogVisible(Boolean(whatsappProfile.data?.commerce?.isCatalogVisible));
     setMetaCartEnabled(Boolean(whatsappProfile.data?.commerce?.isCartEnabled));
@@ -857,6 +857,7 @@ function IntegrationsHubPage() {
                           <label className="space-y-1 text-xs font-bold">
                             <span>Site 1</span>
                             <Input
+                              type="url"
                               value={metaProfileWebsite1}
                               onChange={(event) => setMetaProfileWebsite1(event.target.value)}
                               placeholder="https://..."
@@ -865,6 +866,7 @@ function IntegrationsHubPage() {
                           <label className="space-y-1 text-xs font-bold">
                             <span>Site 2</span>
                             <Input
+                              type="url"
                               value={metaProfileWebsite2}
                               onChange={(event) => setMetaProfileWebsite2(event.target.value)}
                               placeholder="https://..."
