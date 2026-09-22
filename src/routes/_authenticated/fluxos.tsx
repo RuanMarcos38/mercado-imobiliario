@@ -40,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/fluxos")({
 const CHATGPT_FLOW_PROMPT = `Crie um fluxo de atendimento para importar no MercadoImobi.
 Responda SOMENTE com JSON válido, sem markdown, comentários ou explicações.
 
-Formato obrigatório:
+Formato obrigatório para o fluxo MercadoImobi:
 {
   "schemaVersion": 1,
   "flow": {
@@ -55,23 +55,18 @@ Formato obrigatório:
       { "type": "ai", "config": { "instruction": "Atenda de forma humana e faça uma pergunta por vez." } },
       { "type": "handoff", "config": { "reason": "Cliente pediu atendimento humano" } }
     ]
-  },
-  "n8nWorkflow": {
-    "name": "Nome do workflow no n8n",
-    "nodes": [],
-    "connections": {},
-    "settings": {}
   }
 }
+
+Se eu pedir publicação no n8n, acrescente também a propriedade "n8nWorkflow" com um workflow n8n válido contendo name, nodes, connections e settings. Não inclua n8nWorkflow quando ele não for necessário.
 
 Regras:
 - triggerType deve ser: manual, new_conversation, keyword, new_property_alert ou webhook.
 - type de cada step deve ser: message, wait, ai, handoff, webhook ou tag.
-- Se eu pedir integração com n8n, preencha n8nWorkflow com nodes e connections válidos do n8n.
 - Não inclua senhas, tokens, API Keys ou credenciais no JSON.
 - O fluxo deve começar pausado para revisão.
 - Preserve textos em português do Brasil.
-- Entregue apenas JSON válido.`;
+- Entregue apenas JSON válido.`
 
 function FlowsPage() {
   const listFn = useServerFn(listWhatsAppFlows);
