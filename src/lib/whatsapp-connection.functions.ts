@@ -53,15 +53,16 @@ const metaBusinessProfileSchema = z
     about: z.string().max(139).optional(),
     address: z.string().max(256).optional(),
     description: z.string().max(256).optional(),
-    email: z
-      .union([z.literal(""), z.string().trim().email().max(128)])
-      .optional(),
+    email: z.union([z.literal(""), z.string().trim().email().max(128)]).optional(),
     websites: z
       .array(
-        z.string().max(256).refine(
-          (value) => !value.trim() || /^https?:\/\//i.test(value.trim()),
-          "Use um site começando com http:// ou https://.",
-        ),
+        z
+          .string()
+          .max(256)
+          .refine(
+            (value) => !value.trim() || /^https?:\/\//i.test(value.trim()),
+            "Use um site começando com http:// ou https://.",
+          ),
       )
       .max(2)
       .optional(),
@@ -511,8 +512,7 @@ export const getMetaWhatsAppBusinessProfileSettings = createServerFn({ method: "
       configured: true,
       profile: profileResult.value,
       commerce: commerceResult.status === "fulfilled" ? commerceResult.value : null,
-      commerceAvailable:
-        commerceResult.status === "fulfilled" && Boolean(commerceResult.value.id),
+      commerceAvailable: commerceResult.status === "fulfilled" && Boolean(commerceResult.value.id),
       warning:
         commerceResult.status === "rejected"
           ? commerceResult.reason instanceof Error
@@ -563,9 +563,7 @@ export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: 
         ...(data.email?.trim() ? { email: data.email.trim() } : {}),
         ...(websites !== undefined ? { websites } : {}),
         ...(data.vertical !== undefined ? { vertical: data.vertical } : {}),
-        ...(data.profilePictureBase64 &&
-        data.profilePictureMimeType &&
-        data.profilePictureFileName
+        ...(data.profilePictureBase64 && data.profilePictureMimeType && data.profilePictureFileName
           ? {
               profilePicture: {
                 base64: data.profilePictureBase64,

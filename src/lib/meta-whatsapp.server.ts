@@ -357,7 +357,6 @@ export async function sendMetaWhatsAppMediaMessage(input: {
   );
 }
 
-
 function profileFromPayload(payload: JsonObject): MetaWhatsAppBusinessProfile {
   const data = Array.isArray(payload["data"]) ? payload["data"] : [];
   const first = data[0] && typeof data[0] === "object" ? object(data[0]) : {};
@@ -416,18 +415,14 @@ async function uploadMetaWhatsAppProfilePicture(input: {
   const uploadId = typeof sessionPayload["id"] === "string" ? sessionPayload["id"] : "";
   if (!uploadId) throw new Error("META_WHATSAPP_PROFILE_UPLOAD_SESSION_MISSING");
 
-  const uploadPayload = await metaJson(
-    endpoint(input.config, `/${uploadId}`),
-    input.config,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": input.mimeType,
-        file_offset: "0",
-      },
-      body: bytes,
+  const uploadPayload = await metaJson(endpoint(input.config, `/${uploadId}`), input.config, {
+    method: "POST",
+    headers: {
+      "Content-Type": input.mimeType,
+      file_offset: "0",
     },
-  );
+    body: bytes,
+  });
   const handle = typeof uploadPayload["h"] === "string" ? uploadPayload["h"] : "";
   if (!handle) throw new Error("META_WHATSAPP_PROFILE_PICTURE_HANDLE_MISSING");
   return handle;
@@ -483,10 +478,7 @@ export async function getMetaWhatsAppCommerceSettings(
   config: MetaWhatsAppConfig,
 ): Promise<MetaWhatsAppCommerceSettings> {
   const payload = await metaJson(
-    endpoint(
-      config,
-      `/${encodeURIComponent(config.phoneNumberId)}/whatsapp_commerce_settings`,
-    ),
+    endpoint(config, `/${encodeURIComponent(config.phoneNumberId)}/whatsapp_commerce_settings`),
     config,
     { method: "GET" },
   );

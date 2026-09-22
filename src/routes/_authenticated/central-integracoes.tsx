@@ -429,9 +429,7 @@ function IntegrationsHubPage() {
             | "TRAVEL"
             | "RESTAURANT"
             | "NOT_A_BIZ",
-          ...(metaProfilePictureBase64 &&
-          metaProfilePictureMimeType &&
-          metaProfilePictureFileName
+          ...(metaProfilePictureBase64 && metaProfilePictureMimeType && metaProfilePictureFileName
             ? {
                 profilePictureBase64: metaProfilePictureBase64,
                 profilePictureMimeType: metaProfilePictureMimeType,
@@ -880,8 +878,8 @@ function IntegrationsHubPage() {
                           <div>
                             <p className="text-xs font-black">Catálogo do WhatsApp</p>
                             <p className="mt-1 max-w-xl text-[11px] leading-5 text-[var(--mi-text-soft)]">
-                              Se um catálogo já estiver associado a este número na Meta, controle aqui
-                              a exibição do catálogo e do carrinho.
+                              Se um catálogo já estiver associado a este número na Meta, controle
+                              aqui a exibição do catálogo e do carrinho.
                             </p>
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[var(--mi-text-soft)]">

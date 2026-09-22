@@ -53,9 +53,7 @@ describe("Meta WhatsApp business profile and commerce", () => {
       vertical: "PROF_SERVICES",
       profilePictureUrl: "https://pps.whatsapp.net/profile.jpg",
     });
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      "/987654321/whatsapp_business_profile?",
-    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/987654321/whatsapp_business_profile?");
   });
 
   it("uploads a profile picture and updates the business profile", async () => {
