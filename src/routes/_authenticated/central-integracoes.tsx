@@ -37,7 +37,9 @@ import {
   syncExternalPropertyLinkNow,
 } from "@/lib/property-links.functions";
 import {
+  getMetaWhatsAppBusinessProfileSettings,
   getMetaWhatsAppOfficialSettings,
+  saveMetaWhatsAppBusinessProfileSettings,
   saveMetaWhatsAppOfficialSettings,
 } from "@/lib/whatsapp-connection.functions";
 import {
@@ -104,6 +106,8 @@ function IntegrationsHubPage() {
   const syncLinkFn = useServerFn(syncExternalPropertyLinkNow);
   const whatsappOfficialFn = useServerFn(getMetaWhatsAppOfficialSettings);
   const saveWhatsappOfficialFn = useServerFn(saveMetaWhatsAppOfficialSettings);
+  const whatsappProfileFn = useServerFn(getMetaWhatsAppBusinessProfileSettings);
+  const saveWhatsappProfileFn = useServerFn(saveMetaWhatsAppBusinessProfileSettings);
   const metaSocialSettingsFn = useServerFn(getMetaSocialAccountSettings);
   const selectMetaSocialAccountFn = useServerFn(selectMetaSocialAccountForTenant);
 
@@ -120,6 +124,11 @@ function IntegrationsHubPage() {
   const whatsappOfficial = useQuery({
     queryKey: ["meta-whatsapp-official-settings"],
     queryFn: () => whatsappOfficialFn(),
+    refetchInterval: 60_000,
+  });
+  const whatsappProfile = useQuery({
+    queryKey: ["meta-whatsapp-business-profile"],
+    queryFn: () => whatsappProfileFn(),
     refetchInterval: 60_000,
   });
   const metaSocial = useQuery({
@@ -141,6 +150,22 @@ function IntegrationsHubPage() {
   const [metaGraphVersion, setMetaGraphVersion] = useState("v26.0");
   const [metaAccessToken, setMetaAccessToken] = useState("");
   const [metaFieldNonce, setMetaFieldNonce] = useState(0);
+  const [savingMetaProfile, setSavingMetaProfile] = useState(false);
+  const [metaProfileAbout, setMetaProfileAbout] = useState("");
+  const [metaProfileDescription, setMetaProfileDescription] = useState("");
+  const [metaProfileAddress, setMetaProfileAddress] = useState("");
+  const [metaProfileEmail, setMetaProfileEmail] = useState("");
+  const [metaProfileWebsite1, setMetaProfileWebsite1] = useState("");
+  const [metaProfileWebsite2, setMetaProfileWebsite2] = useState("");
+  const [metaProfileVertical, setMetaProfileVertical] = useState("PROF_SERVICES");
+  const [metaCatalogVisible, setMetaCatalogVisible] = useState(false);
+  const [metaCartEnabled, setMetaCartEnabled] = useState(false);
+  const [metaProfilePictureBase64, setMetaProfilePictureBase64] = useState("");
+  const [metaProfilePictureMimeType, setMetaProfilePictureMimeType] = useState<
+    "" | "image/jpeg" | "image/png"
+  >("");
+  const [metaProfilePictureFileName, setMetaProfilePictureFileName] = useState("");
+  const [metaProfilePicturePreview, setMetaProfilePicturePreview] = useState("");
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -219,6 +244,31 @@ function IntegrationsHubPage() {
     whatsappSettings?.displayPhoneNumber,
     whatsappSettings?.graphVersion,
     whatsappSettings?.phoneNumberId,
+  ]);
+
+  useEffect(() => {
+    const profile = whatsappProfile.data?.profile;
+    if (!profile) return;
+    setMetaProfileAbout(profile.about || "");
+    setMetaProfileDescription(profile.description || "");
+    setMetaProfileAddress(profile.address || "");
+    setMetaProfileEmail(profile.email || "");
+    setMetaProfileWebsite1(profile.websites?.[0] || "");
+    setMetaProfileWebsite2(profile.websites?.[1] || "");
+    setMetaProfileVertical(profile.vertical || "PROF_SERVICES");
+    setMetaProfilePicturePreview(profile.profilePictureUrl || "");
+    setMetaCatalogVisible(Boolean(whatsappProfile.data?.commerce?.isCatalogVisible));
+    setMetaCartEnabled(Boolean(whatsappProfile.data?.commerce?.isCartEnabled));
+  }, [
+    whatsappProfile.data?.commerce?.isCartEnabled,
+    whatsappProfile.data?.commerce?.isCatalogVisible,
+    whatsappProfile.data?.profile?.about,
+    whatsappProfile.data?.profile?.address,
+    whatsappProfile.data?.profile?.description,
+    whatsappProfile.data?.profile?.email,
+    whatsappProfile.data?.profile?.profilePictureUrl,
+    whatsappProfile.data?.profile?.vertical,
+    whatsappProfile.data?.profile?.websites,
   ]);
 
   useEffect(() => {
@@ -305,7 +355,11 @@ function IntegrationsHubPage() {
         },
       });
       setMetaAccessToken("");
-      await Promise.all([whatsappOfficial.refetch(), overview.refetch()]);
+      await Promise.all([
+        whatsappOfficial.refetch(),
+        whatsappProfile.refetch(),
+        overview.refetch(),
+      ]);
       toast.success("WhatsApp API Oficial validada e salva para esta organização.");
     } catch (error) {
       toast.error(
@@ -315,6 +369,100 @@ function IntegrationsHubPage() {
       );
     } finally {
       setSavingMetaWhatsApp(false);
+    }
+  };
+
+  const selectMetaProfilePicture = (file: File | null) => {
+    if (!file) return;
+    if (file.type !== "image/jpeg" && file.type !== "image/png") {
+      toast.error("A foto de perfil deve ser JPEG ou PNG.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A foto de perfil deve ter no máximo 5 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      setMetaProfilePictureBase64(result);
+      setMetaProfilePicturePreview(result);
+      setMetaProfilePictureMimeType(file.type as "image/jpeg" | "image/png");
+      setMetaProfilePictureFileName(file.name);
+    };
+    reader.onerror = () => toast.error("Não foi possível ler a imagem selecionada.");
+    reader.readAsDataURL(file);
+  };
+
+  const saveMetaProfile = async () => {
+    if (savingMetaProfile) return;
+    if (!whatsappProfile.data?.configured) {
+      toast.error("Valide primeiro a WhatsApp Cloud API desta organização.");
+      return;
+    }
+    setSavingMetaProfile(true);
+    try {
+      const result = await saveWhatsappProfileFn({
+        data: {
+          about: metaProfileAbout,
+          description: metaProfileDescription,
+          address: metaProfileAddress,
+          email: metaProfileEmail,
+          websites: [metaProfileWebsite1, metaProfileWebsite2],
+          vertical: metaProfileVertical as
+            | "UNDEFINED"
+            | "OTHER"
+            | "AUTO"
+            | "BEAUTY"
+            | "APPAREL"
+            | "EDU"
+            | "ENTERTAIN"
+            | "EVENT_PLAN"
+            | "FINANCE"
+            | "GROCERY"
+            | "GOVT"
+            | "HOTEL"
+            | "HEALTH"
+            | "NONPROFIT"
+            | "PROF_SERVICES"
+            | "RETAIL"
+            | "TRAVEL"
+            | "RESTAURANT"
+            | "NOT_A_BIZ",
+          ...(metaProfilePictureBase64 &&
+          metaProfilePictureMimeType &&
+          metaProfilePictureFileName
+            ? {
+                profilePictureBase64: metaProfilePictureBase64,
+                profilePictureMimeType: metaProfilePictureMimeType,
+                profilePictureFileName: metaProfilePictureFileName,
+              }
+            : {}),
+          ...(whatsappProfile.data?.commerceAvailable
+            ? {
+                isCatalogVisible: metaCatalogVisible,
+                isCartEnabled: metaCartEnabled,
+              }
+            : {}),
+        },
+      });
+      setMetaProfilePictureBase64("");
+      setMetaProfilePictureMimeType("");
+      setMetaProfilePictureFileName("");
+      await whatsappProfile.refetch();
+      if (result.warning) {
+        toast.info("Perfil salvo. A Meta não liberou os controles de catálogo para este número.");
+      } else {
+        toast.success("Perfil comercial do WhatsApp atualizado pela API oficial da Meta.");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar o perfil comercial do WhatsApp.",
+      );
+    } finally {
+      setSavingMetaProfile(false);
     }
   };
 
@@ -386,6 +534,7 @@ function IntegrationsHubPage() {
                   overview.refetch(),
                   links.refetch(),
                   whatsappOfficial.refetch(),
+                  whatsappProfile.refetch(),
                   metaSocial.refetch(),
                 ])
               }
@@ -582,6 +731,217 @@ function IntegrationsHubPage() {
                     />
                     Atualizar status
                   </Button>
+                </div>
+
+                <div className="mt-6 border-t border-[var(--mi-border)] pt-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-black">Perfil Comercial e Catálogo</h3>
+                      <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--mi-text-muted)]">
+                        Atualiza foto, descrição e dados públicos usando a mesma conexão oficial já
+                        salva. Token, Phone Number ID e demais credenciais não são alterados.
+                      </p>
+                    </div>
+                    <StatusBadge
+                      status={
+                        whatsappProfile.data?.configured
+                          ? whatsappProfile.error
+                            ? "error"
+                            : "configured"
+                          : "available"
+                      }
+                    />
+                  </div>
+
+                  {!whatsappProfile.data?.configured ? (
+                    <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-500/[0.06] p-3 text-xs text-amber-800">
+                      Valide a API Oficial acima para liberar a edição do perfil comercial.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4 grid gap-4 lg:grid-cols-[160px_1fr]">
+                        <div>
+                          <div className="grid h-36 w-36 place-items-center overflow-hidden rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-bg)]">
+                            {metaProfilePicturePreview ? (
+                              <img
+                                src={metaProfilePicturePreview}
+                                alt="Foto de perfil do WhatsApp"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <MessageCircle className="h-10 w-10 text-[var(--mi-text-soft)]" />
+                            )}
+                          </div>
+                          <label className="mt-3 block cursor-pointer text-xs font-black text-blue-600">
+                            Alterar foto
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png"
+                              className="hidden"
+                              onChange={(event) =>
+                                selectMetaProfilePicture(event.target.files?.[0] ?? null)
+                              }
+                            />
+                          </label>
+                          <p className="mt-1 text-[10px] text-[var(--mi-text-soft)]">
+                            JPEG ou PNG, até 5 MB.
+                          </p>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="space-y-1 text-xs font-bold md:col-span-2">
+                            <span>Descrição</span>
+                            <textarea
+                              value={metaProfileDescription}
+                              onChange={(event) => setMetaProfileDescription(event.target.value)}
+                              maxLength={256}
+                              rows={3}
+                              className="w-full rounded-lg border border-[var(--mi-border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500"
+                              placeholder="Descrição pública da empresa"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-bold md:col-span-2">
+                            <span>Sobre</span>
+                            <Input
+                              value={metaProfileAbout}
+                              onChange={(event) => setMetaProfileAbout(event.target.value)}
+                              maxLength={139}
+                              placeholder="Texto curto exibido no perfil"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-bold">
+                            <span>E-mail</span>
+                            <Input
+                              type="email"
+                              value={metaProfileEmail}
+                              onChange={(event) => setMetaProfileEmail(event.target.value)}
+                              placeholder="contato@empresa.com.br"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-bold">
+                            <span>Segmento</span>
+                            <select
+                              value={metaProfileVertical}
+                              onChange={(event) => setMetaProfileVertical(event.target.value)}
+                              className="h-10 w-full rounded-lg border border-[var(--mi-border)] bg-transparent px-3 text-sm"
+                            >
+                              <option value="PROF_SERVICES">Serviços profissionais</option>
+                              <option value="OTHER">Outros</option>
+                              <option value="RETAIL">Varejo</option>
+                              <option value="FINANCE">Finanças</option>
+                              <option value="HOTEL">Hotelaria</option>
+                              <option value="TRAVEL">Viagens</option>
+                              <option value="RESTAURANT">Restaurante</option>
+                              <option value="HEALTH">Saúde</option>
+                              <option value="EDU">Educação</option>
+                              <option value="ENTERTAIN">Entretenimento</option>
+                              <option value="EVENT_PLAN">Eventos</option>
+                              <option value="APPAREL">Moda</option>
+                              <option value="BEAUTY">Beleza</option>
+                              <option value="AUTO">Automotivo</option>
+                              <option value="GROCERY">Alimentação</option>
+                              <option value="NONPROFIT">Sem fins lucrativos</option>
+                              <option value="GOVT">Governo</option>
+                              <option value="UNDEFINED">Não definido</option>
+                            </select>
+                          </label>
+                          <label className="space-y-1 text-xs font-bold md:col-span-2">
+                            <span>Endereço</span>
+                            <Input
+                              value={metaProfileAddress}
+                              onChange={(event) => setMetaProfileAddress(event.target.value)}
+                              maxLength={256}
+                              placeholder="Endereço comercial"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-bold">
+                            <span>Site 1</span>
+                            <Input
+                              value={metaProfileWebsite1}
+                              onChange={(event) => setMetaProfileWebsite1(event.target.value)}
+                              placeholder="https://..."
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs font-bold">
+                            <span>Site 2</span>
+                            <Input
+                              value={metaProfileWebsite2}
+                              onChange={(event) => setMetaProfileWebsite2(event.target.value)}
+                              placeholder="https://..."
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-black">Catálogo do WhatsApp</p>
+                            <p className="mt-1 max-w-xl text-[11px] leading-5 text-[var(--mi-text-soft)]">
+                              Se um catálogo já estiver associado a este número na Meta, controle aqui
+                              a exibição do catálogo e do carrinho.
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[var(--mi-text-soft)]">
+                            {whatsappProfile.data?.commerceAvailable
+                              ? "Disponível"
+                              : "Catálogo não associado"}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-5">
+                          <label className="flex items-center gap-2 text-xs font-bold">
+                            <input
+                              type="checkbox"
+                              checked={metaCatalogVisible}
+                              disabled={!whatsappProfile.data?.commerceAvailable}
+                              onChange={(event) => setMetaCatalogVisible(event.target.checked)}
+                            />
+                            Exibir catálogo
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-bold">
+                            <input
+                              type="checkbox"
+                              checked={metaCartEnabled}
+                              disabled={!whatsappProfile.data?.commerceAvailable}
+                              onChange={(event) => setMetaCartEnabled(event.target.checked)}
+                            />
+                            Habilitar carrinho
+                          </label>
+                        </div>
+                        {whatsappProfile.data?.warning && (
+                          <p className="mt-3 text-[11px] leading-5 text-amber-700">
+                            O perfil pode ser editado normalmente. Para usar catálogo, associe um
+                            catálogo compatível ao número no ambiente da Meta.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => void saveMetaProfile()}
+                          disabled={savingMetaProfile || whatsappProfile.isFetching}
+                          className="rounded-xl bg-blue-600 font-black text-white hover:bg-blue-700"
+                        >
+                          {savingMetaProfile ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="h-4 w-4" />
+                          )}
+                          Salvar perfil comercial
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => void whatsappProfile.refetch()}
+                          disabled={whatsappProfile.isFetching}
+                        >
+                          <RefreshCw
+                            className={`h-4 w-4 ${whatsappProfile.isFetching ? "animate-spin" : ""}`}
+                          />
+                          Recarregar perfil
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
