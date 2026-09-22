@@ -553,7 +553,7 @@ export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: 
       data.vertical !== undefined ||
       Boolean(data.profilePictureBase64);
 
-    let profile = await getMetaWhatsAppBusinessProfile(config);
+    let profile;
     if (hasProfileUpdate) {
       profile = await updateMetaWhatsAppBusinessProfile({
         config,
@@ -573,6 +573,8 @@ export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: 
             }
           : {}),
       });
+    } else {
+      profile = await getMetaWhatsAppBusinessProfile(config);
     }
 
     let commerce = null;
