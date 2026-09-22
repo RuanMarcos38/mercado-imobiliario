@@ -768,8 +768,8 @@ function IntegrationsHubPage() {
                       {whatsappProfile.error && (
                         <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-500/[0.06] p-3 text-xs leading-5 text-amber-800">
                           O perfil atual não pôde ser carregado pela Meta. A opção de foto continua
-                          disponível abaixo. Se a Meta recusar ao salvar, confirme que o token possui
-                          a permissão whatsapp_business_management.
+                          disponível abaixo. Se a Meta recusar ao salvar, confirme que o token
+                          possui a permissão whatsapp_business_management.
                         </div>
                       )}
                       <div className="mt-4 grid gap-4 lg:grid-cols-[160px_1fr]">
