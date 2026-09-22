@@ -192,6 +192,28 @@ function inboundAlreadyProcessed(
   });
 }
 
+function latestPendingExecution(
+  events: Array<{ metadata?: unknown }>,
+  conversationId: string,
+) {
+  for (const event of events) {
+    const eventMetadata = metadata(event.metadata);
+    if (String(eventMetadata["conversationId"] ?? "") !== conversationId) continue;
+    const status = String(eventMetadata["status"] ?? "");
+    if (status === "awaiting_inbound") {
+      const flowId = String(eventMetadata["flowId"] ?? "");
+      const nextPosition = Number(eventMetadata["nextPosition"] ?? 1);
+      if (flowId && Number.isFinite(nextPosition) && nextPosition >= 1) {
+        return { flowId, nextPosition };
+      }
+    }
+    if (["completed", "handoff", "failed"].includes(status)) {
+      return null;
+    }
+  }
+  return null;
+}
+
 async function activeFlows(tenantId: string) {
   const db = supabaseAdmin as any;
   const { data, error } = await db
@@ -479,10 +501,17 @@ export async function maybeRunNativeWhatsAppFlow(input: {
     return { handled: false, sent: false, reason: "no_active_native_flow" };
   }
 
-  const flow = chooseMatchingFlow(flows, events, input);
+  const pending = latestPendingExecution(events, input.conversationId);
+  let flow = pending ? flows.find((candidate) => candidate.id === pending.flowId) : undefined;
+  let startPosition = pending?.nextPosition ?? 1;
+
+  if (!flow) {
+    flow = chooseMatchingFlow(flows, events, input);
+    startPosition = 1;
+  }
   if (!flow) return { handled: false, sent: false, reason: "no_matching_native_flow" };
 
-  const steps = await flowSteps(flow.id);
+  const steps = (await flowSteps(flow.id)).filter((step) => step.position >= startPosition);
   if (!steps.length) return { handled: false, sent: false, reason: "native_flow_without_steps" };
 
   const phone = normalizeWhatsAppPhone(conversation.phone_e164 || input.phone) || input.phone;
@@ -494,17 +523,45 @@ export async function maybeRunNativeWhatsAppFlow(input: {
     inboundExternalMessageId: input.inboundExternalMessageId ?? null,
     inboundSentAt: input.inboundSentAt ?? null,
   };
-  await insertSystemEvent(input.tenantId, FLOW_EVENT, `Fluxo nativo iniciado: ${flow.name}`, {
-    ...eventBase,
-    status: "started",
-  });
+  await insertSystemEvent(
+    input.tenantId,
+    FLOW_EVENT,
+    pending ? `Fluxo nativo retomado: ${flow.name}` : `Fluxo nativo iniciado: ${flow.name}`,
+    {
+      ...eventBase,
+      status: "started",
+      startPosition,
+      resumed: Boolean(pending),
+    },
+  );
 
   let sentCount = 0;
   let totalWait = 0;
+  let outboundSentThisTurn = false;
   try {
     for (const step of steps) {
       const config = metadata(step.config);
       if (step.step_type === "message") {
+        if (outboundSentThisTurn) {
+          await insertSystemEvent(
+            input.tenantId,
+            FLOW_EVENT,
+            `Fluxo aguardando nova mensagem: ${flow.name}`,
+            {
+              ...eventBase,
+              status: "awaiting_inbound",
+              nextPosition: step.position,
+              sentCount,
+            },
+          );
+          return {
+            handled: true,
+            sent: sentCount > 0,
+            reason: "native_flow_awaiting_inbound",
+            flowId: flow.id,
+            flowName: flow.name,
+          };
+        }
         const rawText = configText(config, ["text", "message", "body"]);
         if (!rawText) continue;
         const text = renderTemplate(rawText, {
@@ -523,6 +580,7 @@ export async function maybeRunNativeWhatsAppFlow(input: {
           text,
         });
         sentCount += 1;
+        outboundSentThisTurn = true;
         continue;
       }
 
@@ -541,6 +599,26 @@ export async function maybeRunNativeWhatsAppFlow(input: {
       }
 
       if (step.step_type === "ai") {
+        if (outboundSentThisTurn) {
+          await insertSystemEvent(
+            input.tenantId,
+            FLOW_EVENT,
+            `Fluxo aguardando nova mensagem: ${flow.name}`,
+            {
+              ...eventBase,
+              status: "awaiting_inbound",
+              nextPosition: step.position,
+              sentCount,
+            },
+          );
+          return {
+            handled: true,
+            sent: sentCount > 0,
+            reason: "native_flow_awaiting_inbound",
+            flowId: flow.id,
+            flowName: flow.name,
+          };
+        }
         const reply = await aiReply({
           tenantId: input.tenantId,
           conversationId: input.conversationId,
@@ -555,6 +633,7 @@ export async function maybeRunNativeWhatsAppFlow(input: {
           text: reply,
         });
         sentCount += 1;
+        outboundSentThisTurn = true;
         continue;
       }
 
