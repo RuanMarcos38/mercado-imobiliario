@@ -80,11 +80,14 @@ type PropertyContext = {
 };
 
 type PendingAttachment = {
+  id: string;
   fileName: string;
   mimeType: string;
   base64: string;
   size: number;
 };
+
+const MAX_ATTACHMENT_BATCH = 10;
 
 type QueueTab = "waiting" | "in_service" | "automatic";
 type DashboardPeriod = "today" | "7d" | "30d";
@@ -251,7 +254,7 @@ function AtendimentoPage() {
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [propertyContext, setPropertyContext] = useState<PropertyContext | null>(null);
@@ -379,7 +382,7 @@ function AtendimentoPage() {
       recordingCancelledRef.current = true;
       mediaRecorderRef.current.stop();
     }
-    setPendingAttachment(null);
+    setPendingAttachments([]);
     setShowEmoji(false);
     setTagInput("");
     void markReadFn({ data: { conversationId: selectedId } }).then(() => conversations.refetch());
@@ -631,23 +634,56 @@ function AtendimentoPage() {
     }
   };
 
-  const selectAttachment = async (file: File | null) => {
-    if (!file) return;
-    const maxAttachmentMb = connection.data?.maxAttachmentMb ?? 8;
-    if (file.size > maxAttachmentMb * 1024 * 1024) {
-      toast.error(`O arquivo deve ter no máximo ${maxAttachmentMb} MB.`);
+  const selectAttachments = async (files: FileList | File[] | null) => {
+    if (!files) return;
+    const incoming = Array.from(files);
+    if (!incoming.length) return;
+
+    const availableSlots = Math.max(0, MAX_ATTACHMENT_BATCH - pendingAttachments.length);
+    if (!availableSlots) {
+      toast.info(`É possível enviar até ${MAX_ATTACHMENT_BATCH} arquivos por lote.`);
       return;
     }
-    const mimeType = file.type || "application/octet-stream";
-    try {
-      const base64 = await readFileBase64(file);
-      setPendingAttachment({ fileName: file.name, mimeType, base64, size: file.size });
-      setShowEmoji(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível anexar o arquivo.");
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
+
+    const selectedFiles = incoming.slice(0, availableSlots);
+    if (incoming.length > availableSlots) {
+      toast.info(
+        `Foram adicionados ${selectedFiles.length} arquivos. O limite é ${MAX_ATTACHMENT_BATCH} por lote.`,
+      );
     }
+
+    const maxAttachmentMb = connection.data?.maxAttachmentMb ?? 8;
+    const accepted: PendingAttachment[] = [];
+    let rejected = 0;
+
+    for (const file of selectedFiles) {
+      if (file.size > maxAttachmentMb * 1024 * 1024) {
+        rejected += 1;
+        continue;
+      }
+      try {
+        accepted.push({
+          id: crypto.randomUUID(),
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          base64: await readFileBase64(file),
+          size: file.size,
+        });
+      } catch {
+        rejected += 1;
+      }
+    }
+
+    if (accepted.length) {
+      setPendingAttachments((current) => [...current, ...accepted].slice(0, MAX_ATTACHMENT_BATCH));
+      setShowEmoji(false);
+    }
+    if (rejected) {
+      toast.error(
+        `${rejected} arquivo(s) não foram adicionados. Cada arquivo deve ter no máximo ${maxAttachmentMb} MB.`,
+      );
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const stopRecordingTracks = () => {
@@ -704,10 +740,10 @@ function AtendimentoPage() {
             : "webm";
         const blob = new Blob(chunks, { type: mimeType });
         const file = new File([blob], `audio-${Date.now()}.${extension}`, { type: mimeType });
-        void selectAttachment(file);
+        void selectAttachments([file]);
       };
       recorder.start(250);
-      setPendingAttachment(null);
+      setPendingAttachments([]);
       setShowEmoji(false);
       setIsRecording(true);
     } catch (error) {
@@ -738,7 +774,7 @@ function AtendimentoPage() {
   };
 
   const send = async () => {
-    if (!selectedId || sending || (!text.trim() && !pendingAttachment)) return;
+    if (!selectedId || sending || (!text.trim() && pendingAttachments.length === 0)) return;
     if (!connection.data?.connected) {
       toast.info("Conecte seu WhatsApp para enviar mensagens.");
       return;
@@ -749,24 +785,41 @@ function AtendimentoPage() {
       );
       return;
     }
+
     const outgoing = text.trim();
     setSending(true);
     try {
-      if (pendingAttachment) {
-        const sendingAudio = pendingAttachment.mimeType.startsWith("audio/");
-        await attachmentFn({
-          data: {
-            conversationId: selectedId,
-            fileName: pendingAttachment.fileName,
-            mimeType: pendingAttachment.mimeType,
-            base64: pendingAttachment.base64,
-            caption: sendingAudio ? undefined : outgoing || undefined,
-          },
-        });
-        setPendingAttachment(null);
-        setText(sendingAudio ? outgoing : "");
+      if (pendingAttachments.length > 0) {
+        const attachmentsToSend = [...pendingAttachments];
+        const captionIndex = attachmentsToSend.findIndex(
+          (attachment) => !attachment.mimeType.startsWith("audio/"),
+        );
+
+        for (let index = 0; index < attachmentsToSend.length; index += 1) {
+          const attachment = attachmentsToSend[index];
+          const isAudio = attachment.mimeType.startsWith("audio/");
+          await attachmentFn({
+            data: {
+              conversationId: selectedId,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              base64: attachment.base64,
+              caption: !isAudio && index === captionIndex ? outgoing || undefined : undefined,
+            },
+          });
+          setPendingAttachments((current) =>
+            current.filter((pending) => pending.id !== attachment.id),
+          );
+        }
+
+        if (outgoing && captionIndex === -1) {
+          await sendFn({ data: { conversationId: selectedId, text: outgoing } });
+        }
+        setText("");
         toast.success(
-          sendingAudio ? "Áudio enviado pelo WhatsApp." : "Arquivo enviado pelo WhatsApp.",
+          attachmentsToSend.length === 1
+            ? "Arquivo enviado pelo WhatsApp."
+            : `${attachmentsToSend.length} arquivos enviados pelo WhatsApp.`,
         );
       } else {
         await sendFn({ data: { conversationId: selectedId, text: outgoing } });
@@ -781,8 +834,9 @@ function AtendimentoPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "A mensagem não foi enviada. Verifique a conexão e tente novamente.",
+          : "Nem todos os arquivos foram enviados. Os pendentes continuam disponíveis para nova tentativa.",
       );
+      await Promise.all([messages.refetch(), conversations.refetch()]);
     } finally {
       setSending(false);
     }
@@ -883,8 +937,8 @@ function AtendimentoPage() {
 
   return (
     <div className="min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-112px)] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
-        <aside className="flex w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
+      <div className="mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
+        <aside className="flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
           <div className="border-b border-[var(--mi-border)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -1072,7 +1126,7 @@ function AtendimentoPage() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]">
             {filtered.map((conversation: AttendanceConversation) => (
               <button
                 type="button"
@@ -1138,7 +1192,7 @@ function AtendimentoPage() {
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {selected ? (
             <>
               <header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
@@ -1231,7 +1285,10 @@ function AtendimentoPage() {
                 </div>
               )}
 
-              <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
+              <div
+                ref={scrollRef}
+                className="min-h-0 flex-1 overflow-y-scroll overscroll-contain px-5 py-5 [scrollbar-gutter:stable]"
+              >
                 <div className="space-y-3">
                   {(messages.data ?? []).map((message) => {
                     const failed = message.direction === "outbound" && message.status === "failed";
@@ -1321,50 +1378,60 @@ function AtendimentoPage() {
                   </div>
                 )}
 
-                {pendingAttachment && (
-                  <div className="mb-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-slate-800">
-                    <div className="flex items-center gap-3">
-                      {pendingAttachment.mimeType.startsWith("image/") ? (
-                        <img
-                          src={`data:${pendingAttachment.mimeType};base64,${pendingAttachment.base64}`}
-                          alt={pendingAttachment.fileName}
-                          className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                        />
-                      ) : pendingAttachment.mimeType.startsWith("audio/") ? (
-                        <div className="min-w-0 flex-1">
-                          <p className="mb-1 truncate text-xs font-black">Mensagem de voz</p>
-                          <audio controls preload="metadata" className="h-9 w-full">
-                            <source
-                              src={`data:${pendingAttachment.mimeType};base64,${pendingAttachment.base64}`}
-                              type={pendingAttachment.mimeType}
-                            />
-                          </audio>
-                        </div>
-                      ) : (
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-blue-600">
-                          <FileText className="h-4 w-4" />
-                        </span>
-                      )}
-                      {!pendingAttachment.mimeType.startsWith("audio/") && (
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-black">
-                            {pendingAttachment.fileName}
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            {(pendingAttachment.size / 1024 / 1024).toFixed(2)} MB · pronto para
-                            enviar
-                          </p>
-                        </div>
-                      )}
+                {pendingAttachments.length > 0 && (
+                  <div className="mb-2 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-blue-200 bg-blue-50 p-2 text-slate-800 [scrollbar-gutter:stable]">
+                    <div className="flex items-center justify-between px-1">
+                      <p className="text-xs font-black">
+                        {pendingAttachments.length} arquivo(s) pronto(s) para enviar
+                      </p>
                       <button
                         type="button"
-                        onClick={() => setPendingAttachment(null)}
-                        className="rounded-lg p-1 text-slate-500 hover:bg-white"
-                        aria-label="Remover anexo"
+                        onClick={() => setPendingAttachments([])}
+                        className="text-[10px] font-black text-rose-600 hover:underline"
                       >
-                        <X className="h-4 w-4" />
+                        Remover todos
                       </button>
                     </div>
+                    {pendingAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="flex items-center gap-3 rounded-lg bg-white/80 px-2 py-2"
+                      >
+                        {attachment.mimeType.startsWith("image/") ? (
+                          <img
+                            src={`data:${attachment.mimeType};base64,${attachment.base64}`}
+                            alt={attachment.fileName}
+                            className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : attachment.mimeType.startsWith("audio/") ? (
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600">
+                            <Mic className="h-4 w-4" />
+                          </span>
+                        ) : (
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-black">{attachment.fileName}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {(attachment.size / 1024 / 1024).toFixed(2)} MB · pronto para enviar
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingAttachments((current) =>
+                              current.filter((pending) => pending.id !== attachment.id),
+                            )
+                          }
+                          className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+                          aria-label={`Remover ${attachment.fileName}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -1399,9 +1466,10 @@ function AtendimentoPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   className="hidden"
                   accept="audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/aac,audio/wav,image/*,video/mp4,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
-                  onChange={(event) => void selectAttachment(event.target.files?.[0] ?? null)}
+                  onChange={(event) => void selectAttachments(event.target.files)}
                 />
                 {isRecording ? (
                   <div className="flex min-h-12 items-center gap-2">
@@ -1465,15 +1533,16 @@ function AtendimentoPage() {
                       placeholder={
                         metaFreeformWindowClosed
                           ? "Use um modelo aprovado para reabrir esta conversa"
-                          : pendingAttachment?.mimeType.startsWith("audio/")
+                          : pendingAttachments.length === 1 &&
+                              pendingAttachments[0]?.mimeType.startsWith("audio/")
                             ? "Áudio pronto para enviar"
-                            : pendingAttachment
+                            : pendingAttachments.length > 0
                               ? "Adicione uma legenda (opcional)"
                               : "Digite uma mensagem"
                       }
                       className="max-h-32 min-h-12 flex-1 resize-none rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    {text.trim() || pendingAttachment ? (
+                    {text.trim() || pendingAttachments.length > 0 ? (
                       <Button
                         size="icon"
                         onClick={() => void send()}
@@ -1506,7 +1575,8 @@ function AtendimentoPage() {
                 )}
                 <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
                   WhatsApp: mensagens de voz, imagens, vídeo MP4, PDF, documentos Office e arquivos
-                  de texto · até {connection.data?.maxAttachmentMb ?? 8} MB.
+                  de texto · até {connection.data?.maxAttachmentMb ?? 8} MB por arquivo · até{" "}
+                  {MAX_ATTACHMENT_BATCH} arquivos por lote.
                 </p>
               </footer>
             </>
