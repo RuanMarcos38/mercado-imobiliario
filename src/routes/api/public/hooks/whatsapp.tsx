@@ -7,7 +7,10 @@ import {
   verifyMetaWhatsAppWebhookChallenge,
 } from "@/lib/meta-whatsapp.server";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
-import { isBlockedMetaReferralMessage } from "@/lib/whatsapp-conversation-scope.server";
+import {
+  isBlockedMetaReferralMessage,
+  metaConnectionMatchesExpectedPhone,
+} from "@/lib/whatsapp-conversation-scope.server";
 
 type JsonObject = Record<string, unknown>;
 
@@ -229,7 +232,9 @@ async function metaConnectionForPhoneNumber(db: any, phoneNumberId: string) {
   const instanceName = metaWhatsAppInstanceName(phoneNumberId);
   const providerLookup = await db
     .from("whatsapp_connections")
-    .select("tenant_id,id,instance_name,provider,provider_phone_number_id,provider_metadata")
+    .select(
+      "tenant_id,id,instance_name,provider,provider_phone_number_id,phone_number,provider_metadata",
+    )
     .eq("provider", "meta")
     .eq("provider_phone_number_id", phoneNumberId)
     .maybeSingle();
@@ -237,7 +242,9 @@ async function metaConnectionForPhoneNumber(db: any, phoneNumberId: string) {
 
   const instanceLookup = await db
     .from("whatsapp_connections")
-    .select("tenant_id,id,instance_name,provider,provider_phone_number_id,provider_metadata")
+    .select(
+      "tenant_id,id,instance_name,provider,provider_phone_number_id,phone_number,provider_metadata",
+    )
     .eq("instance_name", instanceName)
     .maybeSingle();
   if (!instanceLookup.error && instanceLookup.data?.tenant_id) return instanceLookup.data;
@@ -349,6 +356,7 @@ async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody:
   let processed = 0;
   let autoReplies = 0;
   let ignoredForeignReferrals = 0;
+  let ignoredWrongNumberMessages = 0;
   const statusUpdates = await applyMetaStatuses(db, payload);
 
   for (const value of metaWebhookValues(payload)) {
@@ -358,8 +366,13 @@ async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody:
     const connection = await metaConnectionForPhoneNumber(db, phoneNumberId);
     if (!connection?.tenant_id) continue;
 
-    const names = contactNamesByWaId(value);
     const messages = Array.isArray(value["messages"]) ? value["messages"] : [];
+    if (!metaConnectionMatchesExpectedPhone(connection)) {
+      ignoredWrongNumberMessages += messages.length;
+      continue;
+    }
+
+    const names = contactNamesByWaId(value);
     for (const rawMessage of messages) {
       const message = object(rawMessage);
       if (isBlockedMetaReferralMessage(connection, message)) {
@@ -491,6 +504,7 @@ async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody:
     autoReplies,
     statusUpdates,
     ignoredForeignReferrals,
+    ignoredWrongNumberMessages,
   });
 }
 
