@@ -438,6 +438,7 @@ export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" 
         provider_phone_number_id: config.phoneNumberId,
         provider_business_account_id: config.businessAccountId,
         provider_metadata: {
+          ...(savedConnection?.provider_metadata ?? {}),
           graphVersion: config.graphVersion,
           callbackUrl: config.callbackUrl,
           configuredBy: "platform-ui",
