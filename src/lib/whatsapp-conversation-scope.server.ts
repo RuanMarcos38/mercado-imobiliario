@@ -16,7 +16,8 @@ function phoneDigits(value: string | null | undefined) {
 
 export function expectedMetaPhoneE164(connection: TenantWhatsAppConnection | null) {
   const metadata = object(connection?.provider_metadata);
-  const raw = typeof metadata["expectedPhoneE164"] === "string" ? metadata["expectedPhoneE164"] : "";
+  const raw =
+    typeof metadata["expectedPhoneE164"] === "string" ? metadata["expectedPhoneE164"] : "";
   return phoneDigits(raw);
 }
 
@@ -86,7 +87,9 @@ export async function scopedMetaConversationIds(db: any, tenantId: string) {
   if (emptyConversationsResult.error) throw new Error(emptyConversationsResult.error.message);
 
   const currentPhoneConversations = new Set<string>(
-    (emptyConversationsResult.data ?? []).map((row: Record<string, unknown>) => String(row.id)),
+    (emptyConversationsResult.data ?? []).map((row: Record<string, unknown>) =>
+      String(row.id),
+    ),
   );
   const blockedConversations = new Set<string>();
 
