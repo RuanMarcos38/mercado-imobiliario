@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireTenantId } from "@/lib/tenant.server";
+import { scopedMetaConversationIds } from "@/lib/whatsapp-conversation-scope.server";
 
 export type AttendanceState = "waiting" | "in_service" | "automatic";
 export type AttendantPresenceStatus = "alert" | "in_service" | "free" | "paused" | "away";
@@ -274,7 +275,7 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = adminDb();
     const member = await membership(tenantId, context.userId);
-    const [events, conversationsResult] = await Promise.all([
+    const [events, conversationsResult, scopedConversationIds] = await Promise.all([
       loadOperationalEvents(tenantId),
       db
         .from("whatsapp_conversations")
@@ -284,6 +285,7 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
         .eq("tenant_id", tenantId)
         .order("last_message_at", { ascending: false, nullsFirst: false })
         .limit(300),
+      scopedMetaConversationIds(db, tenantId),
     ]);
     if (conversationsResult.error) throw new Error(conversationsResult.error.message);
 
@@ -335,6 +337,17 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
     for (const row of conversationRows) {
       const conversationId = String(row.id);
       const state = stateFromEvent(latestState.get(conversationId), row.assigned_user_id ?? null);
+
+      // When this tenant uses the official Meta number, only conversations proven to
+      // belong to that Phone Number ID remain visible. Empty/manual conversations are
+      // kept so an attendant can start a new chat before the first outbound message.
+      if (
+        scopedConversationIds &&
+        row.last_message_at &&
+        !scopedConversationIds.has(conversationId)
+      ) {
+        continue;
+      }
 
       // Encerrar um atendimento arquiva a conversa da Central sem apagar o histórico.
       // Uma nova mensagem inbound cria um novo estado com closedAt=null e a conversa reaparece.
