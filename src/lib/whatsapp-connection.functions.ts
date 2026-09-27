@@ -115,6 +115,18 @@ function optionalText(value: string | null | undefined) {
   return trimmed || null;
 }
 
+function expectedDisplayPhone(connection: Record<string, any> | null | undefined) {
+  const metadata =
+    connection?.provider_metadata && typeof connection.provider_metadata === "object"
+      ? connection.provider_metadata
+      : {};
+  const digits = String(metadata["expectedPhoneE164"] ?? "").replace(/\D/g, "");
+  if (digits.length === 13 && digits.startsWith("55")) {
+    return `+55 ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  return null;
+}
+
 function graphVersionValue(value: string | null | undefined, fallback?: string) {
   const raw = value?.trim() || fallback || "v26.0";
   const normalized = raw.startsWith("v") ? raw : `v${raw}`;
@@ -418,7 +430,10 @@ export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" 
       );
     }
 
-    const displayPhoneNumber = result.displayPhoneNumber || config.displayPhoneNumber;
+    const displayPhoneNumber =
+      expectedDisplayPhone(savedConnection) ||
+      result.displayPhoneNumber ||
+      config.displayPhoneNumber;
     const savedConfig = { ...config, displayPhoneNumber };
     const businessAccountMatched =
       "businessAccountMatched" in result ? result.businessAccountMatched : null;
