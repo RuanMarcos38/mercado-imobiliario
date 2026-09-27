@@ -1223,24 +1223,26 @@ function AtendimentoPage() {
                     <ArrowLeft className="h-5 w-5" />
                   </button>
                   <span className="mi-wa-chat-avatar grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#dfe5e7] text-xs font-black text-[#54656f]">
-                    {(selected.contact_name || selected.phone_e164 || "CO").slice(0, 2).toUpperCase()}
+                    {(selected.contact_name || selected.phone_e164 || "CO")
+                      .slice(0, 2)
+                      .toUpperCase()}
                   </span>
                   <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-black">
-                      {selected.contact_name || selected.phone_e164}
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-black">
+                        {selected.contact_name || selected.phone_e164}
+                      </p>
+                      <span className="rounded-full border border-[var(--mi-border)] px-2 py-0.5 text-[10px] font-black text-[var(--mi-text-soft)]">
+                        {QUEUE_LABELS[selected.attendance_state]}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--mi-text-soft)]">
+                      {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
+                      {selected.phone_e164}
                     </p>
-                    <span className="rounded-full border border-[var(--mi-border)] px-2 py-0.5 text-[10px] font-black text-[var(--mi-text-soft)]">
-                      {QUEUE_LABELS[selected.attendance_state]}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--mi-text-soft)]">
-                    {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
-                    {selected.phone_e164}
-                  </p>
-                  <p className="mi-wa-protocol mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
-                    Protocolo {selected.protocol_code}
-                  </p>
+                    <p className="mi-wa-protocol mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                      Protocolo {selected.protocol_code}
+                    </p>
                   </div>
                 </div>
                 <div className="mi-wa-chat-actions flex items-center gap-2">
