@@ -11,6 +11,10 @@ import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
 import {
+  assertConversationBelongsToCurrentWhatsApp,
+  scopedMetaConversationIds,
+} from "@/lib/whatsapp-conversation-scope.server";
+import {
   assertTenantWhatsAppFreeformWindow,
   getTenantWhatsAppConnection,
   sendTenantWhatsAppText,
@@ -255,14 +259,22 @@ export const listWhatsAppConversations = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<WhatsAppConversation[]> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
-    const { data, error } = await db
-      .from("whatsapp_conversations")
-      .select("id,phone_e164,contact_name,avatar_url,last_message,last_message_at,unread_count")
-      .eq("tenant_id", tenantId)
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    return (data ?? []) as WhatsAppConversation[];
+    const [conversationsResult, scopedConversationIds] = await Promise.all([
+      db
+        .from("whatsapp_conversations")
+        .select("id,phone_e164,contact_name,avatar_url,last_message,last_message_at,unread_count")
+        .eq("tenant_id", tenantId)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(200),
+      scopedMetaConversationIds(db, tenantId),
+    ]);
+    if (conversationsResult.error) throw new Error(conversationsResult.error.message);
+    return ((conversationsResult.data ?? []) as WhatsAppConversation[]).filter(
+      (conversation) =>
+        !scopedConversationIds ||
+        !conversation.last_message_at ||
+        scopedConversationIds.has(conversation.id),
+    );
   });
 
 export const listWhatsAppMessages = createServerFn({ method: "POST" })
@@ -279,6 +291,7 @@ export const listWhatsAppMessages = createServerFn({ method: "POST" })
       .maybeSingle();
     if (conversationError) throw new Error(conversationError.message);
     if (!conversation) throw new Error("Conversa não encontrada.");
+    await assertConversationBelongsToCurrentWhatsApp(db, tenantId, data.conversationId);
 
     const { data: messages, error } = await db
       .from("whatsapp_messages")
@@ -356,6 +369,7 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
       .maybeSingle();
     if (conversationError) throw new Error(conversationError.message);
     if (!conversation) throw new Error("Conversa não encontrada.");
+    await assertConversationBelongsToCurrentWhatsApp(db, tenantId, data.conversationId);
 
     const phone = normalizeWhatsAppPhone(String(conversation.phone_e164 ?? ""));
     if (!phone) throw new Error(whatsappPhoneErrorMessage(String(conversation.phone_e164 ?? "")));
@@ -393,7 +407,11 @@ export const sendWhatsAppText = createServerFn({ method: "POST" })
       status: "sent",
       sent_at: now,
       external_message_id: sent.externalMessageId,
-      raw_payload: { ...sent.payload, mercadoimobi_provider: sent.provider },
+      raw_payload: {
+        ...sent.payload,
+        mercadoimobi_provider: sent.provider,
+        phone_number_id: sent.phoneNumberId,
+      },
     });
     if (insertError && insertError.code !== "23505") throw new Error(insertError.message);
 
