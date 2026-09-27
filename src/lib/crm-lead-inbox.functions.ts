@@ -52,6 +52,7 @@ const qualificationSchema = z.object({
   notes: nullableText(4000),
 });
 
+// Score objetivo: prioriza dados que ajudam o corretor a decidir a próxima ação.
 function scoreLead(input: {
   contactName: string;
   contactPhone: string | null;
