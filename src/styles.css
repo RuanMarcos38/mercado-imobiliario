@@ -640,3 +640,315 @@ html.light-mode option {
     width: 330px !important;
   }
 }
+
+
+/* Atendimento WhatsApp responsivo: mantém a estrutura funcional e adapta a navegação
+ * para o padrão lista -> conversa em celular, duas colunas em tablet e três no desktop. */
+.mi-wa-mobile-back {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .mi-wa-layout {
+    height: calc(100vh - 96px) !important;
+    min-height: 560px !important;
+  }
+
+  .mi-wa-sidebar {
+    width: 330px !important;
+  }
+
+  .mi-wa-details {
+    display: none !important;
+  }
+
+  .mi-wa-message-list {
+    padding-inline: 4% !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mi-wa-shell {
+    box-sizing: border-box;
+    height: calc(100dvh - 72px) !important;
+    min-height: calc(100dvh - 72px) !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+
+  .mi-wa-layout {
+    height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .mi-wa-sidebar {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    border-right: 0 !important;
+  }
+
+  .mi-wa-chat {
+    display: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .mi-wa-shell.mi-mobile-chat-open .mi-wa-sidebar {
+    display: none !important;
+  }
+
+  .mi-wa-shell.mi-mobile-chat-open .mi-wa-chat {
+    display: flex !important;
+  }
+
+  .mi-wa-details {
+    display: none !important;
+  }
+
+  .mi-wa-sidebar-head {
+    padding: 10px 12px !important;
+  }
+
+  .mi-wa-sidebar-head > div:first-child {
+    margin-bottom: 10px !important;
+  }
+
+  .mi-wa-sidebar-head > div:first-child h1 {
+    font-size: 20px !important;
+  }
+
+  .mi-wa-sidebar-head > div:first-child button {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+  }
+
+  .mi-wa-dashboard-label {
+    display: none;
+  }
+
+  .mi-wa-sidebar-actions {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  .mi-wa-sidebar-actions > button:first-of-type {
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 40px !important;
+  }
+
+  .mi-wa-sidebar-actions > button:nth-of-type(2) {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px;
+    padding: 0 !important;
+  }
+
+  .mi-wa-sidebar-actions > button:nth-of-type(2) svg {
+    margin: 0 !important;
+  }
+
+  .mi-wa-photo-label {
+    display: none;
+  }
+
+  .mi-wa-connection-chip {
+    width: 40px !important;
+    min-width: 40px !important;
+    flex: 0 0 40px;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .mi-wa-connection-chip svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mi-wa-config {
+    margin-top: 8px !important;
+  }
+
+  .mi-wa-config > summary {
+    padding: 9px 11px !important;
+  }
+
+  .mi-wa-sidebar-head input {
+    height: 40px !important;
+  }
+
+  .mi-wa-tabs {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 auto;
+  }
+
+  .mi-wa-tabs button {
+    min-width: 0;
+    padding: 11px 4px !important;
+    font-size: 11px !important;
+  }
+
+  .mi-wa-tabs button span {
+    white-space: nowrap;
+  }
+
+  .mi-wa-conversation-list {
+    overflow-x: hidden !important;
+    scrollbar-gutter: auto !important;
+  }
+
+  .mi-wa-conversation-list > button {
+    min-height: 72px !important;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+
+  .mi-wa-conversation-list > button > span:first-child {
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  .mi-wa-conversation-list [class*="tracking-[0.08em]"] {
+    font-size: 9px !important;
+  }
+
+  .mi-wa-chat-header {
+    min-height: 60px !important;
+    flex: 0 0 auto;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+  }
+
+  .mi-wa-mobile-back {
+    display: grid !important;
+  }
+
+  .mi-wa-chat-avatar {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .mi-wa-chat-header p {
+    max-width: 48vw;
+  }
+
+  .mi-wa-chat-header [class*="rounded-full"][class*="border"] {
+    display: none;
+  }
+
+  .mi-wa-protocol {
+    display: none;
+  }
+
+  .mi-wa-chat-actions {
+    margin-left: auto;
+    gap: 4px !important;
+  }
+
+  .mi-wa-chat-actions button {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+  }
+
+  .mi-wa-chat-actions > div {
+    display: none !important;
+  }
+
+  .mi-wa-message-list {
+    overflow-x: hidden !important;
+    padding: 12px 10px !important;
+    scrollbar-gutter: auto !important;
+  }
+
+  .mi-wa-message-list div[class*="rounded-br-md"],
+  .mi-wa-message-list div[class*="rounded-bl-md"] {
+    max-width: 88% !important;
+    padding: 7px 9px 5px !important;
+    font-size: 14px !important;
+    line-height: 19px !important;
+  }
+
+  .mi-wa-composer {
+    flex: 0 0 auto;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .mi-wa-composer > div:first-child {
+    margin-bottom: 6px !important;
+  }
+
+  .mi-wa-ai-suggest {
+    height: 32px !important;
+    padding-inline: 10px !important;
+    font-size: 11px !important;
+  }
+
+  .mi-wa-composer button[class*="h-12"][class*="w-12"] {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+  }
+
+  .mi-wa-composer textarea {
+    min-height: 40px !important;
+    max-height: 92px !important;
+    padding: 9px 11px !important;
+    font-size: 14px !important;
+  }
+
+  .mi-wa-composer .flex.items-end {
+    gap: 4px !important;
+  }
+
+  .mi-wa-media-hint {
+    display: none !important;
+  }
+
+  .mi-wa-composer [class*="bottom-[82px]"] {
+    right: 8px !important;
+    bottom: 58px !important;
+    left: 8px !important;
+    width: auto !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .mi-wa-sidebar-head {
+    padding-inline: 10px !important;
+  }
+
+  .mi-wa-sidebar-actions > button:first-of-type {
+    font-size: 12px !important;
+  }
+
+  .mi-wa-chat-header p {
+    max-width: 42vw;
+  }
+
+  .mi-wa-chat-actions button {
+    padding-inline: 7px !important;
+    font-size: 10px !important;
+  }
+
+  .mi-wa-composer button[class*="h-12"][class*="w-12"] {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+  }
+}
