@@ -626,7 +626,7 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
     const [
       conversations,
       opportunities,
-      missingOpportunity,
+      leadInbox,
       contacts,
       missingContact,
       distributionLists,
@@ -645,8 +645,8 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId),
       admin
-        .from("whatsapp_conversations")
-        .select("id,crm_opportunities!crm_opportunities_conversation_id_fkey(id)")
+        .from("crm_lead_inbox")
+        .select("id,status,score", { count: "exact" })
         .eq("tenant_id", tenantId),
       admin
         .from("crm_contacts")
@@ -685,8 +685,11 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId),
     ]);
-    const missingLinks = (missingOpportunity.data ?? []).filter(
-      (row: any) => !Array.isArray(row.crm_opportunities) || row.crm_opportunities.length === 0,
+    const activeLeads = (leadInbox.data ?? []).filter((row: any) =>
+      ["new", "qualifying", "qualified"].includes(String(row.status)),
+    ).length;
+    const qualifiedLeads = (leadInbox.data ?? []).filter(
+      (row: any) => row.status === "qualified",
     ).length;
     const email = emailRuntimeStatus();
     const aiKeyConfigured = Boolean(process.env["OPENAI_API_KEY"]);
@@ -696,9 +699,9 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
     const checks = [
       {
         key: "whatsapp_to_crm",
-        label: "WhatsApp → oportunidade automática",
-        status: missingLinks === 0 ? "ok" : "error",
-        detail: `${Number(conversations.count ?? 0)} conversa(s), ${missingLinks} sem oportunidade vinculada.`,
+        label: "WhatsApp → Caixa de Leads → Pipeline",
+        status: leadInbox.error ? "error" : "ok",
+        detail: `${Number(conversations.count ?? 0)} conversa(s), ${activeLeads} lead(s) ativo(s), ${qualifiedLeads} qualificado(s). Oportunidades só são criadas após conversão controlada.`,
       },
       {
         key: "contacts",
@@ -739,6 +742,7 @@ export const runCrmPlatformDiagnostic = createServerFn({ method: "GET" })
       checkedAt: new Date().toISOString(),
       summary: {
         conversations: Number(conversations.count ?? 0),
+        leads: Number(leadInbox.count ?? 0),
         opportunities: Number(opportunities.count ?? 0),
         contacts: Number(contacts.count ?? 0),
       },
