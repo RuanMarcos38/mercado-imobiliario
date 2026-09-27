@@ -12,6 +12,8 @@ import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsap
 import { whatsappParameters } from "@/lib/platform-parameters.server";
 import {
   assertConversationBelongsToCurrentWhatsApp,
+  expectedMetaPhoneE164,
+  metaConnectionMatchesExpectedPhone,
   scopedMetaConversationIds,
 } from "@/lib/whatsapp-conversation-scope.server";
 import {
@@ -132,19 +134,22 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
     if (shouldUseMetaWhatsApp(savedConnection, tenantId)) {
       const runtime = await testTenantWhatsAppRuntime(db, tenantId);
       const now = new Date().toISOString();
-      const expectedPhoneDigits = configuredExpectedPhone(savedConnection);
-      const livePhoneDigits = phoneDigits(runtime.phoneNumber);
-      const identityMismatch = Boolean(
-        expectedPhoneDigits && livePhoneDigits && expectedPhoneDigits !== livePhoneDigits,
-      );
-      const connected = runtime.ok && !identityMismatch;
+      const expectedPhoneDigits =
+        expectedMetaPhoneE164(savedConnection) || configuredExpectedPhone(savedConnection);
+      const expectedPhoneNumber = expectedPhoneDigits
+        ? formatBrazilPhone(expectedPhoneDigits)
+        : null;
+      const identityTrusted = metaConnectionMatchesExpectedPhone(savedConnection);
+      const identityMismatch = !identityTrusted;
+      const connected = runtime.ok && identityTrusted;
+      const visiblePhoneNumber = expectedPhoneNumber || runtime.phoneNumber || savedConnection?.phone_number || null;
       if (savedConnection?.id) {
         await db
           .from("whatsapp_connections")
           .update({
             status: connected ? "connected" : runtime.configured ? "error" : "disconnected",
             last_connected_at: connected ? now : savedConnection.last_connected_at,
-            phone_number: runtime.phoneNumber ?? savedConnection.phone_number,
+            phone_number: visiblePhoneNumber,
             updated_at: now,
           })
           .eq("id", savedConnection.id);
@@ -156,10 +161,10 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         state: identityMismatch ? ("error" as const) : runtime.state,
         provider: "meta",
         displayName: runtime.displayName,
-        phoneNumber: runtime.phoneNumber,
+        phoneNumber: visiblePhoneNumber,
         instanceName: runtime.instanceName,
         phoneNumberId: runtime.phoneNumberId || null,
-        expectedPhoneNumber: expectedPhoneDigits ? formatBrazilPhone(expectedPhoneDigits) : null,
+        expectedPhoneNumber,
         identityMismatch,
         maxAttachmentMb,
       };
