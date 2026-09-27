@@ -111,11 +111,27 @@ export function connectionProvider(connection: TenantWhatsAppConnection | null):
   return "evolution";
 }
 
-export function shouldUseMetaWhatsApp(connection: TenantWhatsAppConnection | null) {
+export function metaWhatsAppEnvAllowedForTenant(tenantId: string | null | undefined) {
+  const defaultTenantId = process.env["META_WHATSAPP_DEFAULT_TENANT_ID"]?.trim() || "";
+  return Boolean(defaultTenantId && tenantId?.trim() === defaultTenantId);
+}
+
+export function shouldUseMetaWhatsApp(
+  connection: TenantWhatsAppConnection | null,
+  tenantId?: string | null,
+) {
+  // A persisted tenant connection always wins over global server environment settings.
+  // This prevents a Meta number configured for one project/tenant from hijacking another
+  // tenant that is explicitly using Evolution or has no Meta connection of its own.
+  if (connection) return connectionProvider(connection) === "meta";
+
   const mode = whatsappProviderMode();
-  if (mode === "meta") return true;
   if (mode === "evolution") return false;
-  if (connection && connectionProvider(connection) === "meta") return true;
+
+  // Environment credentials are legacy/bootstrap credentials and may only be used by
+  // the tenant explicitly assigned through META_WHATSAPP_DEFAULT_TENANT_ID.
+  if (!metaWhatsAppEnvAllowedForTenant(tenantId)) return false;
+  if (mode === "meta") return Boolean(metaWhatsAppConfig());
   return Boolean(metaWhatsAppConfig());
 }
 
@@ -127,7 +143,7 @@ export async function assertTenantWhatsAppFreeformWindow(input: {
 }) {
   const connection =
     input.connection ?? (await getTenantWhatsAppConnection(input.db, input.tenantId));
-  if (!shouldUseMetaWhatsApp(connection)) return;
+  if (!shouldUseMetaWhatsApp(connection, input.tenantId)) return;
 
   const { data, error } = await input.db
     .from("whatsapp_messages")
@@ -147,16 +163,11 @@ export async function assertTenantWhatsAppFreeformWindow(input: {
 }
 
 function metaPhoneNumberId(connection: TenantWhatsAppConnection | null) {
-  const stored = connection?.provider_phone_number_id?.trim();
-  return stored || metaWhatsAppConfig()?.phoneNumberId || "";
+  return connection?.provider_phone_number_id?.trim() || "";
 }
 
 function metaBusinessAccountId(connection: TenantWhatsAppConnection | null) {
-  return (
-    connection?.provider_business_account_id?.trim() ||
-    metaWhatsAppConfig()?.businessAccountId ||
-    null
-  );
+  return connection?.provider_business_account_id?.trim() || null;
 }
 
 export async function tenantMetaWhatsAppConfig(input: {
@@ -168,15 +179,28 @@ export async function tenantMetaWhatsAppConfig(input: {
   if (ownerUserId) {
     const stored = await readStoredMetaWhatsAppConfig(input.tenantId, ownerUserId);
     if (stored) {
+      const connectionPhoneNumberId = input.connection?.provider_phone_number_id?.trim();
+      const connectionBusinessAccountId =
+        input.connection?.provider_business_account_id?.trim();
       return {
         ...stored,
-        phoneNumberId: metaPhoneNumberId(input.connection) || stored.phoneNumberId,
-        businessAccountId: metaBusinessAccountId(input.connection) ?? stored.businessAccountId,
+        phoneNumberId: connectionPhoneNumberId || stored.phoneNumberId,
+        businessAccountId: connectionBusinessAccountId || stored.businessAccountId,
         displayPhoneNumber: input.connection?.phone_number?.trim() || stored.displayPhoneNumber,
       };
     }
   }
-  return metaWhatsAppConfig(input.connection?.provider_phone_number_id ?? undefined);
+
+  if (!metaWhatsAppEnvAllowedForTenant(input.tenantId)) return null;
+
+  const envConfig = metaWhatsAppConfig(input.connection?.provider_phone_number_id ?? undefined);
+  if (!envConfig) return null;
+  return {
+    ...envConfig,
+    businessAccountId:
+      input.connection?.provider_business_account_id?.trim() || envConfig.businessAccountId,
+    displayPhoneNumber: input.connection?.phone_number?.trim() || envConfig.displayPhoneNumber,
+  };
 }
 
 function metaWhatsAppRuntimeDetail(input: {
@@ -306,7 +330,7 @@ export async function sendTenantWhatsAppText(input: {
   delay?: number;
 }) {
   let connection = await getTenantWhatsAppConnection(input.db, input.tenantId);
-  if (!connection && input.userId && shouldUseMetaWhatsApp(null)) {
+  if (!connection && input.userId && shouldUseMetaWhatsApp(null, input.tenantId)) {
     connection = await ensureMetaWhatsAppConnection({
       db: input.db,
       tenantId: input.tenantId,
@@ -314,7 +338,7 @@ export async function sendTenantWhatsAppText(input: {
     });
   }
 
-  if (shouldUseMetaWhatsApp(connection)) {
+  if (shouldUseMetaWhatsApp(connection, input.tenantId)) {
     const config = await tenantMetaWhatsAppConfig({
       tenantId: input.tenantId,
       userId: input.userId,
@@ -367,7 +391,7 @@ export async function sendTenantWhatsAppMedia(input: {
   caption?: string;
 }) {
   let connection = await getTenantWhatsAppConnection(input.db, input.tenantId);
-  if (!connection && input.userId && shouldUseMetaWhatsApp(null)) {
+  if (!connection && input.userId && shouldUseMetaWhatsApp(null, input.tenantId)) {
     connection = await ensureMetaWhatsAppConnection({
       db: input.db,
       tenantId: input.tenantId,
@@ -375,7 +399,7 @@ export async function sendTenantWhatsAppMedia(input: {
     });
   }
 
-  if (shouldUseMetaWhatsApp(connection)) {
+  if (shouldUseMetaWhatsApp(connection, input.tenantId)) {
     const config = await tenantMetaWhatsAppConfig({
       tenantId: input.tenantId,
       userId: input.userId,
@@ -434,7 +458,7 @@ export async function sendTenantWhatsAppMedia(input: {
 
 export async function testTenantWhatsAppRuntime(db: any, tenantId: string) {
   const connection = await getTenantWhatsAppConnection(db, tenantId);
-  if (shouldUseMetaWhatsApp(connection)) {
+  if (shouldUseMetaWhatsApp(connection, input.tenantId)) {
     const config = await tenantMetaWhatsAppConfig({ tenantId, connection });
     const phoneNumberId = config?.phoneNumberId || metaPhoneNumberId(connection);
     const result = config
