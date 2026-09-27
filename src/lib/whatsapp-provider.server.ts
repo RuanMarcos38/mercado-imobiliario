@@ -267,6 +267,7 @@ export async function ensureMetaWhatsAppConnection(input: {
     provider_phone_number_id: config.phoneNumberId,
     provider_business_account_id: config.businessAccountId,
     provider_metadata: {
+      ...(existing?.provider_metadata ?? {}),
       graphVersion: config.graphVersion,
       callbackUrl: config.callbackUrl,
       configuredBy: existing?.provider === "meta" ? "platform-or-env" : "server-env",
