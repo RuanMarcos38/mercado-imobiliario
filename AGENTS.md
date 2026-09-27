@@ -62,6 +62,9 @@ Se qualquer etapa falhar, corrigir e repetir todo o ciclo. Não declarar a solu�
 
 ## Segurança
 
+- Isolamento entre projetos/tenants é obrigatório: nunca misturar repositórios, bancos, credenciais, tokens, Phone Number IDs, números de WhatsApp, webhooks, APIs, ambientes ou configurações de projetos diferentes.
+- Uma integração persistida no tenant sempre prevalece sobre variáveis globais de ambiente; credenciais globais só podem ser usadas quando houver vínculo explícito com aquele tenant.
+- O número exibido e usado pelo WhatsApp deve pertencer à conexão oficial do tenant atual. Nunca usar fallback de outro projeto, empresa ou tenant.
 - Não expor stack traces, nomes de segredos, credenciais ou informações internas na interface.
 - Não usar mocks/fakes em fluxos de produção.
 - Funções `SECURITY DEFINER` que escrevem, apagam ou expõem dados não podem permanecer executáveis por `anon` ou `authenticated` salvo necessidade comprovada e testada.
