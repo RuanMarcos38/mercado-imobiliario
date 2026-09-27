@@ -341,11 +341,7 @@ export const listAttendanceConversations = createServerFn({ method: "GET" })
       // When this tenant uses the official Meta number, only conversations proven to
       // belong to that Phone Number ID remain visible. Empty/manual conversations are
       // kept so an attendant can start a new chat before the first outbound message.
-      if (
-        scopedConversationIds &&
-        row.last_message_at &&
-        !scopedConversationIds.has(conversationId)
-      ) {
+      if (scopedConversationIds && !scopedConversationIds.has(conversationId)) {
         continue;
       }
 
