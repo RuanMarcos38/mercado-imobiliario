@@ -305,65 +305,70 @@ export function CrmLeadInboxPanel() {
       </div>
 
       {rows.length ? (
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {rows.map((lead) => (
             <article
               key={lead.id}
-              className="rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-4 shadow-sm"
+              className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-base font-black">{lead.contact_name}</p>
-                  <p className="mt-1 text-xs text-[var(--mi-text-muted)]">
+                  <p className="truncate text-sm font-black">{lead.contact_name}</p>
+                  <p className="mt-0.5 text-[11px] text-[var(--mi-text-muted)]">
                     {lead.contact_phone || "Sem telefone"}
                   </p>
                   {lead.protocol_code && (
-                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                    <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-blue-600">
                       {lead.protocol_code}
                     </p>
                   )}
                 </div>
                 <div
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-black ${temperatureClasses(lead.temperature)}`}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-black ${temperatureClasses(lead.temperature)}`}
                 >
                   <TemperatureIcon value={lead.temperature} />
                   {lead.score}/100
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl bg-[var(--mi-bg)] p-3">
-                <p className="line-clamp-2 text-sm leading-5 text-[var(--mi-text-muted)]">
+              <div className="mt-2 rounded-lg bg-[var(--mi-bg)] p-2.5">
+                <p className="line-clamp-1 text-xs leading-5 text-[var(--mi-text-muted)]">
                   {lead.last_message || "Lead capturado sem mensagem resumida."}
                 </p>
-                <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
+                <p className="mt-1 text-[9px] text-[var(--mi-text-soft)]">
                   Última atividade: {when(lead.last_activity_at)}
                 </p>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black">
-                <span className="rounded-lg border border-[var(--mi-border)] px-2 py-1">
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[9px] font-black">
+                <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5">
                   {statusLabel(lead.status)}
                 </span>
                 {lead.city && (
-                  <span className="rounded-lg border border-[var(--mi-border)] px-2 py-1">
+                  <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5">
                     {lead.city}
                   </span>
                 )}
                 {lead.property_type && (
-                  <span className="rounded-lg border border-[var(--mi-border)] px-2 py-1">
+                  <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5">
                     {lead.property_type}
                   </span>
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => openLead(lead)}>
-                  <UserCheck className="h-4 w-4" />
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <Button size="sm" className="h-8 px-2.5 text-xs" onClick={() => openLead(lead)}>
+                  <UserCheck className="h-3.5 w-3.5" />
                   Qualificar
                 </Button>
                 {lead.conversation_id && (
-                  <Button size="sm" variant="outline" onClick={() => openConversation(lead)}>
-                    <MessageCircle className="h-4 w-4" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2.5 text-xs"
+                    onClick={() => openConversation(lead)}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
                     Conversa
                   </Button>
                 )}
@@ -371,26 +376,28 @@ export function CrmLeadInboxPanel() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="h-8 px-2.5 text-xs"
                     onClick={async () => {
                       await restoreFn({ data: { id: lead.id } });
                       toast.success("Lead restaurado.");
                       await leads.refetch();
                     }}
                   >
-                    <ArchiveRestore className="h-4 w-4" />
+                    <ArchiveRestore className="h-3.5 w-3.5" />
                     Restaurar
                   </Button>
                 ) : lead.status !== "converted" ? (
                   <Button
                     size="sm"
                     variant="outline"
+                    className="h-8 px-2.5 text-xs"
                     onClick={async () => {
                       await discardFn({ data: { id: lead.id } });
                       toast.success("Lead descartado da fila ativa.");
                       await leads.refetch();
                     }}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                     Descartar
                   </Button>
                 ) : null}
