@@ -87,9 +87,7 @@ export async function scopedMetaConversationIds(db: any, tenantId: string) {
   if (emptyConversationsResult.error) throw new Error(emptyConversationsResult.error.message);
 
   const currentPhoneConversations = new Set<string>(
-    (emptyConversationsResult.data ?? []).map((row: Record<string, unknown>) =>
-      String(row.id),
-    ),
+    (emptyConversationsResult.data ?? []).map((row: Record<string, unknown>) => String(row.id)),
   );
   const blockedConversations = new Set<string>();
 
