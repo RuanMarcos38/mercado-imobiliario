@@ -355,6 +355,7 @@ export async function sendTenantWhatsAppText(input: {
       provider: "meta" as const,
       payload,
       externalMessageId: extractMetaWhatsAppMessageId(payload),
+      phoneNumberId: config.phoneNumberId,
     };
   }
 
@@ -375,6 +376,7 @@ export async function sendTenantWhatsAppText(input: {
     provider: "evolution" as const,
     payload,
     externalMessageId: evolutionMessageId(payload),
+    phoneNumberId: null as string | null,
   };
 }
 
@@ -420,6 +422,7 @@ export async function sendTenantWhatsAppMedia(input: {
       provider: "meta" as const,
       payload,
       externalMessageId: extractMetaWhatsAppMessageId(payload),
+      phoneNumberId: config.phoneNumberId,
     };
   }
 
@@ -452,6 +455,7 @@ export async function sendTenantWhatsAppMedia(input: {
     provider: "evolution" as const,
     payload,
     externalMessageId: evolutionMessageId(payload),
+    phoneNumberId: null as string | null,
   };
 }
 
