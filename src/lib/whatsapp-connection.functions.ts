@@ -619,7 +619,7 @@ export const prepareWhatsAppConnection = createServerFn({ method: "POST" })
     const db = context.supabase as any;
     const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
 
-    if (shouldUseMetaWhatsApp(savedConnection)) {
+    if (shouldUseMetaWhatsApp(savedConnection, tenantId)) {
       const officialConfig = await tenantMetaWhatsAppConfig({
         tenantId,
         userId: context.userId,
@@ -745,7 +745,7 @@ export const disconnectWhatsAppConnection = createServerFn({ method: "POST" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
     const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
-    if (shouldUseMetaWhatsApp(savedConnection)) {
+    if (shouldUseMetaWhatsApp(savedConnection, tenantId)) {
       if (savedConnection?.id) {
         const { error } = await db
           .from("whatsapp_connections")
