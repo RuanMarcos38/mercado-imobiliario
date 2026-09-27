@@ -101,7 +101,7 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
     const maxAttachmentMb = whatsappParameters().maxAttachmentMb;
     const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
 
-    if (shouldUseMetaWhatsApp(savedConnection)) {
+    if (shouldUseMetaWhatsApp(savedConnection, tenantId)) {
       const runtime = await testTenantWhatsAppRuntime(db, tenantId);
       const now = new Date().toISOString();
       if (savedConnection?.id) {
@@ -199,7 +199,7 @@ export const getWhatsAppQrCode = createServerFn({ method: "GET" })
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
     const savedConnection = await getTenantWhatsAppConnection(db, tenantId);
-    if (shouldUseMetaWhatsApp(savedConnection)) {
+    if (shouldUseMetaWhatsApp(savedConnection, tenantId)) {
       const config = await tenantMetaWhatsAppConfig({
         tenantId,
         userId: context.userId,
