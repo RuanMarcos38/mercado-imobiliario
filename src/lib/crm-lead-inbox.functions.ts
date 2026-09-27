@@ -96,9 +96,9 @@ function qualificationReady(input: {
 }) {
   return Boolean(
     input.city?.trim() &&
-      input.propertyType?.trim() &&
-      input.interest?.trim() &&
-      ((input.income ?? 0) > 0 || (input.downPayment ?? 0) > 0),
+    input.propertyType?.trim() &&
+    input.interest?.trim() &&
+    ((input.income ?? 0) > 0 || (input.downPayment ?? 0) > 0),
   );
 }
 

@@ -160,7 +160,8 @@ export function CrmLeadInboxPanel() {
   const metrics = useMemo(() => {
     const data = leads.data ?? [];
     return {
-      active: data.filter((lead) => ["new", "qualifying", "qualified"].includes(lead.status)).length,
+      active: data.filter((lead) => ["new", "qualifying", "qualified"].includes(lead.status))
+        .length,
       hot: data.filter((lead) => lead.temperature === "hot" && lead.status !== "discarded").length,
       qualified: data.filter((lead) => lead.status === "qualified").length,
       discarded: data.filter((lead) => lead.status === "discarded").length,
@@ -238,7 +239,9 @@ export function CrmLeadInboxPanel() {
   };
 
   if (leads.isLoading) {
-    return <div className="p-8 text-sm text-[var(--mi-text-soft)]">Carregando caixa de leads...</div>;
+    return (
+      <div className="p-8 text-sm text-[var(--mi-text-soft)]">Carregando caixa de leads...</div>
+    );
   }
 
   if (leads.error) {
@@ -518,19 +521,10 @@ export function CrmLeadInboxPanel() {
                   disso o lead fica qualificado e pode ser convertido em oportunidade.
                 </p>
                 <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                  <Check
-                    ok={Boolean(form.city.trim())}
-                    label="Cidade de interesse"
-                  />
-                  <Check
-                    ok={Boolean(form.propertyType.trim())}
-                    label="Tipo de imóvel"
-                  />
+                  <Check ok={Boolean(form.city.trim())} label="Cidade de interesse" />
+                  <Check ok={Boolean(form.propertyType.trim())} label="Tipo de imóvel" />
                   <Check ok={Boolean(form.interest.trim())} label="Interesse / perfil" />
-                  <Check
-                    ok={Boolean(form.income || form.downPayment)}
-                    label="Renda ou entrada"
-                  />
+                  <Check ok={Boolean(form.income || form.downPayment)} label="Renda ou entrada" />
                 </div>
               </div>
 
