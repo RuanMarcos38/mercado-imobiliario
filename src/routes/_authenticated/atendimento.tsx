@@ -272,6 +272,7 @@ function AtendimentoPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [savingProfilePicture, setSavingProfilePicture] = useState(false);
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
@@ -336,6 +337,7 @@ function AtendimentoPage() {
     const storedConversation = sessionStorage.getItem("mercadoimobi:selectedConversation");
     if (storedConversation) {
       setSelectedId(storedConversation);
+      setMobileConversationOpen(true);
       sessionStorage.removeItem("mercadoimobi:selectedConversation");
     }
     const storedProperty = sessionStorage.getItem("mercadoimobi:propertyContext");
@@ -628,6 +630,7 @@ function AtendimentoPage() {
       await Promise.all([conversations.refetch(), viewer.refetch()]);
       setQueueTab("in_service");
       setSelectedId(result.id);
+      setMobileConversationOpen(true);
       setPropertyContext(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível abrir a conversa.");
@@ -936,10 +939,12 @@ function AtendimentoPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6">
-      <div className="mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
-        <aside className="flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
-          <div className="border-b border-[var(--mi-border)] p-4">
+    <div
+      className={`mi-wa-shell min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
+    >
+      <div className="mi-wa-layout mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
+        <aside className="mi-wa-sidebar flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
+          <div className="mi-wa-sidebar-head border-b border-[var(--mi-border)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">
@@ -953,17 +958,19 @@ function AtendimentoPage() {
                 onClick={() => setShowRealtimePanel(true)}
                 className="rounded-xl border-blue-300/50 bg-[var(--mi-surface)] text-xs font-black text-blue-600"
               >
-                <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Dashboard Atendimento
+                <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="mi-wa-dashboard-label">Dashboard Atendimento</span>
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="mi-wa-sidebar-actions flex items-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => void startConversation()}
                 className="h-10 flex-1 rounded-xl border-[var(--mi-border)] bg-[var(--mi-surface)] font-black"
               >
-                <MessageCircle className="mr-2 h-4 w-4" /> Nova conversa
+                <MessageCircle className="mr-2 h-4 w-4" />
+                <span>Nova conversa</span>
               </Button>
               {isMetaWhatsApp && (
                 <>
@@ -988,12 +995,14 @@ function AtendimentoPage() {
                     ) : (
                       <Settings className="mr-2 h-4 w-4" />
                     )}
-                    {savingProfilePicture ? "Enviando foto..." : "Foto do WhatsApp"}
+                    <span className="mi-wa-photo-label">
+                      {savingProfilePicture ? "Enviando foto..." : "Foto do WhatsApp"}
+                    </span>
                   </Button>
                 </>
               )}
               <span
-                className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
+                className={`mi-wa-connection-chip inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
               >
                 {connection.data?.connected ? (
                   <Link2 className="h-4 w-4" />
@@ -1004,7 +1013,7 @@ function AtendimentoPage() {
               </span>
             </div>
             {viewer.data?.isPlatformAdmin && (
-              <details className="mt-3 overflow-hidden rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)]">
+              <details className="mi-wa-config mt-3 overflow-hidden rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)]">
                 <summary className="cursor-pointer px-3 py-2.5 text-xs font-black text-[var(--mi-text-muted)]">
                   Configurações do atendimento
                 </summary>
@@ -1105,7 +1114,7 @@ function AtendimentoPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">
+          <div className="mi-wa-tabs grid grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">
             {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
               <button
                 key={tab}
@@ -1126,13 +1135,14 @@ function AtendimentoPage() {
             ))}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]">
+          <div className="mi-wa-conversation-list min-h-0 flex-1 overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]">
             {filtered.map((conversation: AttendanceConversation) => (
               <button
                 type="button"
                 key={conversation.id}
                 onClick={() => {
                   setSelectedId(conversation.id);
+                  setMobileConversationOpen(true);
                   setPropertyContext(null);
                 }}
                 className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}
@@ -1192,11 +1202,23 @@ function AtendimentoPage() {
           </div>
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <main className="mi-wa-chat flex min-h-0 min-w-0 flex-1 flex-col">
           {selected ? (
             <>
-              <header className="flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
-                <div className="min-w-0">
+              <header className="mi-wa-chat-header flex items-center justify-between gap-3 border-b border-[var(--mi-border)] px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMobileConversationOpen(false)}
+                    className="mi-wa-mobile-back hidden h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--mi-text-muted)]"
+                    aria-label="Voltar para conversas"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                  <span className="mi-wa-chat-avatar grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#dfe5e7] text-xs font-black text-[#54656f]">
+                    {(selected.contact_name || selected.phone_e164 || "CO").slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-black">
                       {selected.contact_name || selected.phone_e164}
@@ -1209,11 +1231,12 @@ function AtendimentoPage() {
                     {selected.phone_masked && <LockKeyhole className="h-3 w-3" />}
                     {selected.phone_e164}
                   </p>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                  <p className="mi-wa-protocol mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
                     Protocolo {selected.protocol_code}
                   </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="mi-wa-chat-actions flex items-center gap-2">
                   {selected.attendance_state === "waiting" && (
                     <Button
                       size="sm"
@@ -1287,7 +1310,7 @@ function AtendimentoPage() {
 
               <div
                 ref={scrollRef}
-                className="min-h-0 flex-1 overflow-y-scroll overscroll-contain px-5 py-5 [scrollbar-gutter:stable]"
+                className="mi-wa-message-list min-h-0 flex-1 overflow-y-scroll overscroll-contain px-5 py-5 [scrollbar-gutter:stable]"
               >
                 <div className="space-y-3">
                   {(messages.data ?? []).map((message) => {
@@ -1351,14 +1374,14 @@ function AtendimentoPage() {
                 </div>
               </div>
 
-              <footer className="relative border-t border-[var(--mi-border)] p-4">
+              <footer className="mi-wa-composer relative border-t border-[var(--mi-border)] p-4">
                 <div className="mb-2 flex justify-end">
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={!aiStatus.data?.configured || drafting}
                     onClick={() => void suggest()}
-                    className="rounded-xl border-blue-300/40 text-blue-600"
+                    className="mi-wa-ai-suggest rounded-xl border-blue-300/40 text-blue-600"
                   >
                     <Sparkles className="mr-1.5 h-3.5 w-3.5" />{" "}
                     {drafting ? "Gerando..." : "Sugerir resposta com IA"}
@@ -1573,7 +1596,7 @@ function AtendimentoPage() {
                     )}
                   </div>
                 )}
-                <p className="mt-2 text-[10px] text-[var(--mi-text-soft)]">
+                <p className="mi-wa-media-hint mt-2 text-[10px] text-[var(--mi-text-soft)]">
                   WhatsApp: mensagens de voz, imagens, vídeo MP4, PDF, documentos Office e arquivos
                   de texto · até {connection.data?.maxAttachmentMb ?? 8} MB por arquivo · até{" "}
                   {MAX_ATTACHMENT_BATCH} arquivos por lote.
@@ -1602,7 +1625,7 @@ function AtendimentoPage() {
         </main>
 
         {selected && (
-          <aside className="hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
+          <aside className="mi-wa-details hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
             <div className="border-b border-[var(--mi-border)] px-5 py-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
                 Detalhes
@@ -1821,6 +1844,7 @@ function AtendimentoPage() {
                   startIso={startIsoForPeriod(dashboardPeriod)}
                   onOpenConversation={(conversationId, state) => {
                     setSelectedId(conversationId);
+                    setMobileConversationOpen(true);
                     setQueueTab(state);
                     setShowRealtimePanel(false);
                   }}
