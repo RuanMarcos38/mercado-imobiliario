@@ -7,6 +7,7 @@ import {
   verifyMetaWhatsAppWebhookChallenge,
 } from "@/lib/meta-whatsapp.server";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
+import { isBlockedMetaReferralMessage } from "@/lib/whatsapp-conversation-scope.server";
 
 type JsonObject = Record<string, unknown>;
 
@@ -228,7 +229,7 @@ async function metaConnectionForPhoneNumber(db: any, phoneNumberId: string) {
   const instanceName = metaWhatsAppInstanceName(phoneNumberId);
   const providerLookup = await db
     .from("whatsapp_connections")
-    .select("tenant_id,id,instance_name,provider,provider_phone_number_id")
+    .select("tenant_id,id,instance_name,provider,provider_phone_number_id,provider_metadata")
     .eq("provider", "meta")
     .eq("provider_phone_number_id", phoneNumberId)
     .maybeSingle();
@@ -236,7 +237,7 @@ async function metaConnectionForPhoneNumber(db: any, phoneNumberId: string) {
 
   const instanceLookup = await db
     .from("whatsapp_connections")
-    .select("tenant_id,id,instance_name")
+    .select("tenant_id,id,instance_name,provider,provider_phone_number_id,provider_metadata")
     .eq("instance_name", instanceName)
     .maybeSingle();
   if (!instanceLookup.error && instanceLookup.data?.tenant_id) return instanceLookup.data;
@@ -347,6 +348,7 @@ async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody:
   const autoReplyCandidates = new Map<string, AutoReplyCandidate>();
   let processed = 0;
   let autoReplies = 0;
+  let ignoredForeignReferrals = 0;
   const statusUpdates = await applyMetaStatuses(db, payload);
 
   for (const value of metaWebhookValues(payload)) {
@@ -360,6 +362,11 @@ async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody:
     const messages = Array.isArray(value["messages"]) ? value["messages"] : [];
     for (const rawMessage of messages) {
       const message = object(rawMessage);
+      if (isBlockedMetaReferralMessage(connection, message)) {
+        ignoredForeignReferrals += 1;
+        continue;
+      }
+
       const from = String(message["from"] ?? "").replace(/\D/g, "");
       const phone = normalizeWhatsAppPhone(from);
       if (!phone) continue;
@@ -477,7 +484,14 @@ async function handleMetaWebhook(request: Request, payload: JsonObject, rawBody:
     }
   }
 
-  return Response.json({ ok: true, provider: "meta", processed, autoReplies, statusUpdates });
+  return Response.json({
+    ok: true,
+    provider: "meta",
+    processed,
+    autoReplies,
+    statusUpdates,
+    ignoredForeignReferrals,
+  });
 }
 
 async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
