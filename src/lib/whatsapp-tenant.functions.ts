@@ -270,10 +270,7 @@ export const listWhatsAppConversations = createServerFn({ method: "GET" })
     ]);
     if (conversationsResult.error) throw new Error(conversationsResult.error.message);
     return ((conversationsResult.data ?? []) as WhatsAppConversation[]).filter(
-      (conversation) =>
-        !scopedConversationIds ||
-        !conversation.last_message_at ||
-        scopedConversationIds.has(conversation.id),
+      (conversation) => !scopedConversationIds || scopedConversationIds.has(conversation.id),
     );
   });
 
