@@ -142,7 +142,8 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
       const identityTrusted = metaConnectionMatchesExpectedPhone(savedConnection);
       const identityMismatch = !identityTrusted;
       const connected = runtime.ok && identityTrusted;
-      const visiblePhoneNumber = expectedPhoneNumber || runtime.phoneNumber || savedConnection?.phone_number || null;
+      const visiblePhoneNumber =
+        expectedPhoneNumber || runtime.phoneNumber || savedConnection?.phone_number || null;
       if (savedConnection?.id) {
         await db
           .from("whatsapp_connections")
