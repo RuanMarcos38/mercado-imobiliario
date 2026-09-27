@@ -23,9 +23,21 @@ export function expectedMetaPhoneE164(connection: TenantWhatsAppConnection | nul
 
 export function metaConnectionMatchesExpectedPhone(connection: TenantWhatsAppConnection | null) {
   if (!connection || connectionProvider(connection) !== "meta") return true;
+
   const expected = expectedMetaPhoneE164(connection);
-  if (!expected) return true;
-  return phoneDigits(connection.phone_number) === expected;
+  const actual = phoneDigits(connection.phone_number);
+  if (!expected || !actual || actual === expected) return true;
+
+  // Phone Number ID is the authoritative Meta routing key for inbound webhooks.
+  // A formatted display number can differ while the same validated Phone Number ID,
+  // WABA and connected Cloud API identity remain correct.
+  const metadata = object(connection.provider_metadata);
+  const metadataValidated = metadata["metadataValidated"] === true;
+  const businessAccountMatched = metadata["businessAccountMatched"] !== false;
+  const phoneConnected = String(metadata["phoneStatus"] ?? "").toUpperCase() === "CONNECTED";
+  const hasPhoneNumberId = Boolean(connection.provider_phone_number_id?.trim());
+
+  return metadataValidated && businessAccountMatched && phoneConnected && hasPhoneNumberId;
 }
 
 export function blockedMetaReferralSourceIds(connection: TenantWhatsAppConnection | null) {
