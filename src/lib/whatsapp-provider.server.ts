@@ -54,6 +54,18 @@ export const META_WHATSAPP_FREEFORM_WINDOW_ERROR = [
   "Envie um modelo aprovado da Meta para reabrir a conversa ou peça para o cliente enviar uma nova mensagem primeiro.",
 ].join(" ");
 
+function expectedDisplayPhone(connection: TenantWhatsAppConnection | null) {
+  const metadata =
+    connection?.provider_metadata && typeof connection.provider_metadata === "object"
+      ? connection.provider_metadata
+      : {};
+  const digits = String(metadata["expectedPhoneE164"] ?? "").replace(/\D/g, "");
+  if (digits.length === 13 && digits.startsWith("55")) {
+    return `+55 ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  return null;
+}
+
 function isMissingProviderColumn(error: any) {
   const code = String(error?.code ?? "");
   const message = String(error?.message ?? "");
@@ -252,7 +264,8 @@ export async function ensureMetaWhatsAppConnection(input: {
   const now = new Date().toISOString();
   const instanceName = metaWhatsAppInstanceName(config.phoneNumberId);
   const displayPhoneNumber =
-    live.ok && live.displayPhoneNumber ? live.displayPhoneNumber : config.displayPhoneNumber;
+    expectedDisplayPhone(existing) ||
+    (live.ok && live.displayPhoneNumber ? live.displayPhoneNumber : config.displayPhoneNumber);
   const businessAccountMatched =
     "businessAccountMatched" in live ? live.businessAccountMatched : null;
   const fullRow = {
