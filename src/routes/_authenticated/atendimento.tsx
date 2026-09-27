@@ -452,6 +452,13 @@ function AtendimentoPage() {
   }, [showQr, connection.data?.connected, connection.data?.provider]);
 
   const selected = (conversations.data ?? []).find((item) => item.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!conversations.isLoading && mobileConversationOpen && selectedId && !selected) {
+      setMobileConversationOpen(false);
+    }
+  }, [conversations.isLoading, mobileConversationOpen, selectedId, selected]);
+
   const isMetaWhatsApp = connection.data?.provider === "meta";
   const isWhatsAppConnected = Boolean(connection.data?.connected);
   const whatsAppStatusLabel = isMetaWhatsApp
