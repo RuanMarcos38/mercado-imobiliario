@@ -40,6 +40,8 @@ export interface WhatsAppConnectionStatus {
   phoneNumber: string | null;
   instanceName: string | null;
   phoneNumberId: string | null;
+  expectedPhoneNumber: string | null;
+  identityMismatch: boolean;
   maxAttachmentMb: number;
 }
 
@@ -64,6 +66,28 @@ export interface WhatsAppMessage {
   status: string;
   sender_name: string | null;
   sent_at: string;
+}
+
+function phoneDigits(value: string | null | undefined) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function configuredExpectedPhone(connection: Record<string, any> | null | undefined) {
+  const metadata =
+    connection?.provider_metadata && typeof connection.provider_metadata === "object"
+      ? connection.provider_metadata
+      : {};
+  return typeof metadata["expectedPhoneE164"] === "string"
+    ? phoneDigits(metadata["expectedPhoneE164"])
+    : "";
+}
+
+function formatBrazilPhone(value: string) {
+  const digits = phoneDigits(value);
+  if (digits.length === 13 && digits.startsWith("55")) {
+    return `+55 ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  return digits ? `+${digits}` : "";
 }
 
 function normalizeConnectionState(payload: unknown): WhatsAppConnectionStatus["state"] {
@@ -108,12 +132,18 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
     if (shouldUseMetaWhatsApp(savedConnection, tenantId)) {
       const runtime = await testTenantWhatsAppRuntime(db, tenantId);
       const now = new Date().toISOString();
+      const expectedPhoneDigits = configuredExpectedPhone(savedConnection);
+      const livePhoneDigits = phoneDigits(runtime.phoneNumber);
+      const identityMismatch = Boolean(
+        expectedPhoneDigits && livePhoneDigits && expectedPhoneDigits !== livePhoneDigits,
+      );
+      const connected = runtime.ok && !identityMismatch;
       if (savedConnection?.id) {
         await db
           .from("whatsapp_connections")
           .update({
-            status: runtime.ok ? "connected" : runtime.configured ? "error" : "disconnected",
-            last_connected_at: runtime.ok ? now : savedConnection.last_connected_at,
+            status: connected ? "connected" : runtime.configured ? "error" : "disconnected",
+            last_connected_at: connected ? now : savedConnection.last_connected_at,
             phone_number: runtime.phoneNumber ?? savedConnection.phone_number,
             updated_at: now,
           })
@@ -122,13 +152,15 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
       return {
         configured: runtime.configured,
         hasConnection: Boolean(savedConnection?.instance_name || runtime.phoneNumberId),
-        connected: runtime.ok,
-        state: runtime.state,
+        connected,
+        state: identityMismatch ? ("error" as const) : runtime.state,
         provider: "meta",
         displayName: runtime.displayName,
         phoneNumber: runtime.phoneNumber,
         instanceName: runtime.instanceName,
         phoneNumberId: runtime.phoneNumberId || null,
+        expectedPhoneNumber: expectedPhoneDigits ? formatBrazilPhone(expectedPhoneDigits) : null,
+        identityMismatch,
         maxAttachmentMb,
       };
     }
@@ -148,6 +180,8 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
         phoneNumberId: null,
+        expectedPhoneNumber: null,
+        identityMismatch: false,
         maxAttachmentMb,
       };
     }
@@ -179,6 +213,8 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
         phoneNumberId: null,
+        expectedPhoneNumber: null,
+        identityMismatch: false,
         maxAttachmentMb,
       };
     } catch {
@@ -192,6 +228,8 @@ export const getWhatsAppConnectionStatus = createServerFn({ method: "GET" })
         phoneNumber: savedConnection?.phone_number ?? null,
         instanceName,
         phoneNumberId: null,
+        expectedPhoneNumber: null,
+        identityMismatch: false,
         maxAttachmentMb,
       };
     }
