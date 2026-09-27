@@ -38,9 +38,38 @@ function endpointError(endpoint: string, status: number, payload: unknown) {
   return `${endpoint} HTTP ${status}${message ? `: ${message}` : ""}`;
 }
 
+function openAiBillingError(status: number, payload: unknown) {
+  if (status !== 429) return null;
+  const message = safeErrorMessage(payload).toLowerCase();
+  const error =
+    payload && typeof payload === "object"
+      ? ((payload as JsonObject)["error"] as JsonObject | undefined)
+      : undefined;
+  const code = typeof error?.["code"] === "string" ? String(error["code"]).toLowerCase() : "";
+  const type = typeof error?.["type"] === "string" ? String(error["type"]).toLowerCase() : "";
+
+  const exhausted =
+    code === "credit_balance_exhausted" ||
+    code === "insufficient_quota" ||
+    type === "insufficient_quota" ||
+    message.includes("no credits remaining") ||
+    message.includes("credit balance") ||
+    message.includes("billing") ||
+    message.includes("quota");
+
+  if (!exhausted) return null;
+
+  return new Error(
+    "AI_BILLING_REQUIRED: A OpenAI API está configurada, mas o projeto/organização está sem créditos disponíveis ou atingiu um limite de gastos. Adicione saldo ou ajuste o limite de uso da API e execute o teste novamente.",
+  );
+}
+
 export function describeOpenAIError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (!message) return "Falha de conexão com a OpenAI.";
+  if (message.startsWith("AI_BILLING_REQUIRED:")) {
+    return message.replace(/^AI_BILLING_REQUIRED:\s*/, "").slice(0, 320);
+  }
   return message.replace(/^AI_REQUEST_FAILED:\s*/, "").slice(0, 320);
 }
 
@@ -157,6 +186,8 @@ export async function createOpenAIText(
     if (text) return { text, model, endpoint: "responses" };
     responsesFailure = "Responses API retornou sem texto utilizável.";
   } else {
+    const billingError = openAiBillingError(response.status, responsePayload);
+    if (billingError) throw billingError;
     responsesFailure = endpointError("Responses API", response.status, responsePayload);
   }
 
@@ -177,6 +208,9 @@ export async function createOpenAIText(
       `AI_REQUEST_FAILED: ${responsesFailure}; Chat Completions retornou sem texto utilizável.`,
     );
   }
+
+  const billingError = openAiBillingError(chatResponse.status, chatPayload);
+  if (billingError) throw billingError;
 
   throw new Error(
     `AI_REQUEST_FAILED: ${responsesFailure}; ${endpointError(
