@@ -1,13 +1,24 @@
 import { useState } from "react";
-import { BarChart3, FileText, Layers3, Mail, Paperclip, PenLine, SearchCheck } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  Inbox,
+  Layers3,
+  Mail,
+  Paperclip,
+  PenLine,
+  SearchCheck,
+} from "lucide-react";
+import { CrmLeadInboxPanel } from "@/components/crm/CrmLeadInboxPanel";
 import { CrmPipelineWorkspace } from "@/components/crm/CrmPipelineWorkspace";
 import { CrmOperationsHub, type CrmOperationsMode } from "@/components/crm/CrmOperationsHub";
 import { CrmReportsPanel } from "@/components/crm/CrmReportsPanel";
 import { CrmDiagnosticsPanel } from "@/components/crm/CrmDiagnosticsPanel";
 
-type Module = "pipeline" | CrmOperationsMode | "reports" | "diagnostics";
+type Module = "leads" | "pipeline" | CrmOperationsMode | "reports" | "diagnostics";
 
 const modules: Array<{ id: Module; label: string; icon: typeof Layers3 }> = [
+  { id: "leads", label: "Leads", icon: Inbox },
   { id: "pipeline", label: "Pipeline", icon: Layers3 },
   { id: "proposals", label: "Propostas", icon: FileText },
   { id: "emails", label: "E-mails", icon: Mail },
@@ -18,7 +29,7 @@ const modules: Array<{ id: Module; label: string; icon: typeof Layers3 }> = [
 ];
 
 export function CrmWorkspaceShell() {
-  const [module, setModule] = useState<Module>("pipeline");
+  const [module, setModule] = useState<Module>("leads");
   return (
     <div className="min-h-screen bg-[var(--mi-bg)] text-[var(--mi-text)]">
       <div className="sticky top-0 z-20 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]/95 px-3 py-2 backdrop-blur sm:px-5">
@@ -45,6 +56,7 @@ export function CrmWorkspaceShell() {
           })}
         </nav>
       </div>
+      {module === "leads" && <CrmLeadInboxPanel />}
       {module === "pipeline" && <CrmPipelineWorkspace />}
       {module === "proposals" && <CrmOperationsHub mode="proposals" />}
       {module === "emails" && <CrmOperationsHub mode="emails" />}
