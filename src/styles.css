@@ -669,6 +669,36 @@ html.light-mode option {
     border-right: 0 !important;
   }
 
+  .mi-wa-shell .mi-wa-layout > .mi-wa-sidebar:first-child {
+    width: 100% !important;
+  }
+
+  .mi-wa-sidebar-head {
+    padding: 10px 12px !important;
+  }
+
+  .mi-wa-sidebar-head > div:first-child {
+    margin-bottom: 8px !important;
+  }
+
+  .mi-wa-dashboard-label,
+  .mi-wa-photo-label {
+    display: none;
+  }
+
+  .mi-wa-sidebar-actions {
+    gap: 6px !important;
+  }
+
+  .mi-wa-connection-chip {
+    width: 40px !important;
+    min-width: 40px !important;
+    justify-content: center !important;
+    overflow: hidden;
+    padding: 0 !important;
+    font-size: 0 !important;
+  }
+
   .mi-wa-chat {
     display: none !important;
     width: 100% !important;
@@ -685,6 +715,44 @@ html.light-mode option {
 
   .mi-wa-mobile-back {
     display: grid !important;
+  }
+
+  .mi-wa-chat-header {
+    min-height: 60px !important;
+    padding: 8px 10px !important;
+  }
+
+  .mi-wa-chat-header p {
+    max-width: 48vw;
+  }
+
+  .mi-wa-chat-actions {
+    gap: 4px !important;
+  }
+
+  .mi-wa-chat-actions button {
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+  }
+
+  .mi-wa-message-list {
+    padding: 12px 10px !important;
+    scrollbar-gutter: auto !important;
+  }
+
+  .mi-wa-message-list div[class*="rounded-br-md"],
+  .mi-wa-message-list div[class*="rounded-bl-md"] {
+    max-width: 88% !important;
+  }
+
+  .mi-wa-composer {
+    padding: 8px !important;
+  }
+
+  .mi-wa-media-hint {
+    display: none;
   }
 
   .mi-wa-details {
