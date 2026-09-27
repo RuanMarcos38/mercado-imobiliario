@@ -433,9 +433,9 @@ export function CrmPipelineWorkspace() {
             </p>
             <h1 className="mt-2 text-3xl font-black tracking-tight">Pipeline de oportunidades</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-              Todo novo contato do WhatsApp gera automaticamente uma oportunidade. Controle funis,
-              etapas, perdas, cadências, automações, campos personalizados e ações em massa sem sair
-              da estrutura atual da plataforma.
+              Leads qualificados entram no Pipeline de forma controlada. Controle funis, etapas,
+              perdas, cadências, automações, campos personalizados e ações em massa sem sair da
+              estrutura atual da plataforma.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -569,15 +569,15 @@ export function CrmPipelineWorkspace() {
               </div>
             )}
 
-            <div className="flex gap-4 overflow-x-auto pb-6">
+            <div className="flex gap-3 overflow-x-auto pb-5">
               {stages.map((stage) => (
                 <section
                   key={stage.id}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => draggingId && void moveOne(draggingId, stage.id)}
-                  className="w-[315px] shrink-0 rounded-[22px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3"
+                  className="w-[282px] shrink-0 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-2.5"
                 >
-                  <div className="flex items-start justify-between gap-2 px-1 py-2">
+                  <div className="flex items-start justify-between gap-2 px-1 py-1.5">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span
@@ -596,7 +596,7 @@ export function CrmPipelineWorkspace() {
                       {byStage.get(stage.id)?.length ?? 0}
                     </span>
                   </div>
-                  <div className="mt-2 min-h-[180px] space-y-3">
+                  <div className="mt-1.5 min-h-[150px] space-y-2">
                     {(byStage.get(stage.id) ?? []).map((item) => {
                       const pending = activitiesByOpportunity.get(item.id) ?? [];
                       return (
@@ -605,7 +605,7 @@ export function CrmPipelineWorkspace() {
                           draggable
                           onDragStart={() => setDraggingId(item.id)}
                           onDragEnd={() => setDraggingId(null)}
-                          className="group rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-4 shadow-sm"
+                          className="group rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 shadow-sm transition-shadow hover:shadow-md"
                         >
                           <div className="flex items-start gap-2">
                             <input
@@ -620,11 +620,11 @@ export function CrmPipelineWorkspace() {
                               onClick={() => openEdit(item)}
                               className="min-w-0 flex-1 text-left"
                             >
-                              <p className="truncate font-black">{item.contact_name}</p>
-                              <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-[0.08em] text-blue-600">
+                              <p className="truncate text-sm font-black">{item.contact_name}</p>
+                              <p className="mt-0.5 truncate text-[9px] font-black uppercase tracking-[0.06em] text-blue-600">
                                 {item.protocol_code}
                               </p>
-                              <p className="mt-1 truncate text-xs text-[var(--mi-text-muted)]">
+                              <p className="mt-0.5 truncate text-[11px] text-[var(--mi-text-muted)]">
                                 {item.property_reference ||
                                   item.contact_phone ||
                                   "Sem imóvel informado"}
@@ -634,15 +634,15 @@ export function CrmPipelineWorkspace() {
                           </div>
                           <button
                             onClick={() => openEdit(item)}
-                            className="mt-3 block w-full text-left"
+                            className="mt-2 block w-full text-left"
                           >
-                            <div className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center justify-between gap-2 text-[11px]">
                               <span className="font-black text-blue-600">{money(item.value)}</span>
-                              <span className="rounded-full bg-[var(--mi-surface)] px-2 py-1 text-[9px] font-black uppercase text-[var(--mi-text-soft)]">
+                              <span className="rounded-md bg-[var(--mi-surface)] px-1.5 py-0.5 text-[8px] font-black uppercase text-[var(--mi-text-soft)]">
                                 {item.source}
                               </span>
                             </div>
-                            <div className="mt-3 grid gap-1.5 text-[10px] text-[var(--mi-text-muted)]">
+                            <div className="mt-2 grid gap-1 text-[9px] text-[var(--mi-text-muted)]">
                               <span>Próxima ação: {when(item.next_action_at)}</span>
                               {pending[0] && (
                                 <span className="font-bold text-amber-600">
