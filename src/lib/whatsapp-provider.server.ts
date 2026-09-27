@@ -458,7 +458,7 @@ export async function sendTenantWhatsAppMedia(input: {
 
 export async function testTenantWhatsAppRuntime(db: any, tenantId: string) {
   const connection = await getTenantWhatsAppConnection(db, tenantId);
-  if (shouldUseMetaWhatsApp(connection, input.tenantId)) {
+  if (shouldUseMetaWhatsApp(connection, tenantId)) {
     const config = await tenantMetaWhatsAppConfig({ tenantId, connection });
     const phoneNumberId = config?.phoneNumberId || metaPhoneNumberId(connection);
     const result = config
