@@ -180,8 +180,7 @@ export async function tenantMetaWhatsAppConfig(input: {
     const stored = await readStoredMetaWhatsAppConfig(input.tenantId, ownerUserId);
     if (stored) {
       const connectionPhoneNumberId = input.connection?.provider_phone_number_id?.trim();
-      const connectionBusinessAccountId =
-        input.connection?.provider_business_account_id?.trim();
+      const connectionBusinessAccountId = input.connection?.provider_business_account_id?.trim();
       return {
         ...stored,
         phoneNumberId: connectionPhoneNumberId || stored.phoneNumberId,
