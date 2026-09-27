@@ -1033,13 +1033,21 @@ function AtendimentoPage() {
                           WhatsApp API Oficial da Meta
                         </div>
                         <p className="mt-1 text-emerald-800">
-                          {isWhatsAppConnected
-                            ? "Conexão oficial ativa para este atendimento."
-                            : "Configuração oficial encontrada. Valide a conexão para atualizar o status."}
+                          {connection.data?.identityMismatch
+                            ? "Conexão pausada porque o número ativo não corresponde ao número autorizado deste projeto."
+                            : isWhatsAppConnected
+                              ? "Conexão oficial ativa para este atendimento."
+                              : "Configuração oficial encontrada. Valide a conexão para atualizar o status."}
                         </p>
-                        {connection.data?.phoneNumber && (
-                          <p className="mt-1 font-bold">{connection.data.phoneNumber}</p>
-                        )}
+                        {connection.data?.identityMismatch
+                          ? connection.data.expectedPhoneNumber && (
+                              <p className="mt-1 font-bold">
+                                Número autorizado: {connection.data.expectedPhoneNumber}
+                              </p>
+                            )
+                          : connection.data?.phoneNumber && (
+                              <p className="mt-1 font-bold">{connection.data.phoneNumber}</p>
+                            )}
                       </div>
                       <Button
                         variant="outline"
