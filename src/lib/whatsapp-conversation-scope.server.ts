@@ -10,6 +10,23 @@ function object(value: unknown): JsonObject {
   return value && typeof value === "object" ? (value as JsonObject) : {};
 }
 
+function phoneDigits(value: string | null | undefined) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+export function expectedMetaPhoneE164(connection: TenantWhatsAppConnection | null) {
+  const metadata = object(connection?.provider_metadata);
+  const raw = typeof metadata["expectedPhoneE164"] === "string" ? metadata["expectedPhoneE164"] : "";
+  return phoneDigits(raw);
+}
+
+export function metaConnectionMatchesExpectedPhone(connection: TenantWhatsAppConnection | null) {
+  if (!connection || connectionProvider(connection) !== "meta") return true;
+  const expected = expectedMetaPhoneE164(connection);
+  if (!expected) return true;
+  return phoneDigits(connection.phone_number) === expected;
+}
+
 export function blockedMetaReferralSourceIds(connection: TenantWhatsAppConnection | null) {
   const metadata = object(connection?.provider_metadata);
   const raw = metadata["blockedReferralSourceIds"];
@@ -47,20 +64,33 @@ export async function scopedMetaConversationIds(db: any, tenantId: string) {
   const connection = await getTenantWhatsAppConnection(db, tenantId);
   if (!connection || connectionProvider(connection) !== "meta") return null;
 
+  if (!metaConnectionMatchesExpectedPhone(connection)) return new Set<string>();
+
   const phoneNumberId = connection.provider_phone_number_id?.trim() || "";
   if (!phoneNumberId) return new Set<string>();
 
-  const { data, error } = await db
-    .from("whatsapp_messages")
-    .select("conversation_id,raw_payload")
-    .eq("tenant_id", tenantId)
-    .limit(10000);
-  if (error) throw new Error(error.message);
+  const [messagesResult, emptyConversationsResult] = await Promise.all([
+    db
+      .from("whatsapp_messages")
+      .select("conversation_id,raw_payload")
+      .eq("tenant_id", tenantId)
+      .limit(10000),
+    db
+      .from("whatsapp_conversations")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .is("last_message_at", null)
+      .limit(500),
+  ]);
+  if (messagesResult.error) throw new Error(messagesResult.error.message);
+  if (emptyConversationsResult.error) throw new Error(emptyConversationsResult.error.message);
 
-  const currentPhoneConversations = new Set<string>();
+  const currentPhoneConversations = new Set<string>(
+    (emptyConversationsResult.data ?? []).map((row: Record<string, unknown>) => String(row.id)),
+  );
   const blockedConversations = new Set<string>();
 
-  for (const row of data ?? []) {
+  for (const row of messagesResult.data ?? []) {
     const conversationId = String(row.conversation_id ?? "").trim();
     if (!conversationId) continue;
     if (metaMessagePhoneNumberId(row.raw_payload) !== phoneNumberId) continue;
@@ -85,6 +115,8 @@ export async function conversationBelongsToCurrentWhatsApp(
 ) {
   const connection = await getTenantWhatsAppConnection(db, tenantId);
   if (!connection || connectionProvider(connection) !== "meta") return true;
+
+  if (!metaConnectionMatchesExpectedPhone(connection)) return false;
 
   const phoneNumberId = connection.provider_phone_number_id?.trim() || "";
   if (!phoneNumberId) return false;
