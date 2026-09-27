@@ -6,6 +6,7 @@ import { type EvolutionMediaType } from "@/lib/evolution-media.server";
 import { requireTenantId } from "@/lib/tenant.server";
 import { normalizeWhatsAppPhone, whatsappPhoneErrorMessage } from "@/lib/whatsapp-phone";
 import { whatsappParameters } from "@/lib/platform-parameters.server";
+import { assertConversationBelongsToCurrentWhatsApp } from "@/lib/whatsapp-conversation-scope.server";
 import {
   assertTenantWhatsAppFreeformWindow,
   sendTenantWhatsAppMedia,
@@ -75,6 +76,7 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!conversation) throw new Error("Conversa não encontrada.");
+    await assertConversationBelongsToCurrentWhatsApp(db, tenantId, data.conversationId);
 
     const phone = normalizeWhatsAppPhone(String(conversation.phone_e164 ?? ""));
     if (!phone) throw new Error(whatsappPhoneErrorMessage(String(conversation.phone_e164 ?? "")));
@@ -130,6 +132,7 @@ export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
       raw_payload: {
         ...sent.payload,
         mercadoimobi_provider: sent.provider,
+        phone_number_id: sent.phoneNumberId,
         mercadoimobi_file_name: data.fileName,
         mercadoimobi_mime_type: data.mimeType,
         mercadoimobi_storage_path: storagePath,
