@@ -424,7 +424,7 @@ export function CrmPipelineWorkspace() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--mi-bg)] p-4 text-[var(--mi-text)] sm:p-6 lg:p-8">
+    <div className="crm-pipeline-workspace min-h-screen bg-[var(--mi-bg)] p-4 text-[var(--mi-text)] sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1900px] space-y-5">
         <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
@@ -575,7 +575,7 @@ export function CrmPipelineWorkspace() {
                   key={stage.id}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => draggingId && void moveOne(draggingId, stage.id)}
-                  className="w-[282px] shrink-0 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-2.5"
+                  className="crm-kanban-column w-[300px] shrink-0 rounded-2xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-2.5"
                 >
                   <div className="flex items-start justify-between gap-2 px-1 py-1.5">
                     <div className="min-w-0">
@@ -605,52 +605,110 @@ export function CrmPipelineWorkspace() {
                           draggable
                           onDragStart={() => setDraggingId(item.id)}
                           onDragEnd={() => setDraggingId(null)}
-                          className="group rounded-xl border border-[var(--mi-border)] bg-[var(--mi-bg)] p-3 shadow-sm transition-shadow hover:shadow-md"
+                          className={classNames(
+                            "crm-kanban-card group rounded-xl border bg-[var(--mi-surface)] p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                            selectedIds.has(item.id)
+                              ? "border-blue-300 ring-2 ring-blue-100"
+                              : "border-[var(--mi-border)]",
+                          )}
                         >
-                          <div className="flex items-start gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(item.id)}
-                              onChange={() => toggleSelected(item.id)}
-                              onClick={(event) => event.stopPropagation()}
-                              className="mt-1 h-4 w-4"
-                              aria-label={`Selecionar ${item.contact_name}`}
-                            />
+                          <div className="flex items-start gap-3">
                             <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              className="crm-kanban-avatar grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-700"
+                              aria-label={`Abrir ${item.contact_name}`}
+                            >
+                              {(item.contact_name || "OP").slice(0, 2).toUpperCase()}
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => openEdit(item)}
                               className="min-w-0 flex-1 text-left"
                             >
-                              <p className="truncate text-sm font-black">{item.contact_name}</p>
-                              <p className="mt-0.5 truncate text-[9px] font-black uppercase tracking-[0.06em] text-blue-600">
-                                {item.protocol_code}
+                              <p className="truncate text-[14px] font-semibold tracking-[-0.01em] text-[var(--mi-text)]">
+                                {item.contact_name}
                               </p>
                               <p className="mt-0.5 truncate text-[11px] text-[var(--mi-text-muted)]">
                                 {item.property_reference ||
                                   item.contact_phone ||
                                   "Sem imóvel informado"}
                               </p>
-                            </button>
-                            <GripVertical className="h-4 w-4 shrink-0 text-[var(--mi-text-soft)]" />
-                          </div>
-                          <button
-                            onClick={() => openEdit(item)}
-                            className="mt-2 block w-full text-left"
-                          >
-                            <div className="flex items-center justify-between gap-2 text-[11px]">
-                              <span className="font-black text-blue-600">{money(item.value)}</span>
-                              <span className="rounded-md bg-[var(--mi-surface)] px-1.5 py-0.5 text-[8px] font-black uppercase text-[var(--mi-text-soft)]">
-                                {item.source}
-                              </span>
-                            </div>
-                            <div className="mt-2 grid gap-1 text-[9px] text-[var(--mi-text-muted)]">
-                              <span>Próxima ação: {when(item.next_action_at)}</span>
-                              {pending[0] && (
-                                <span className="font-bold text-amber-600">
-                                  Tarefa: {pending[0].title}
+                              <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--mi-text-soft)]">
+                                {item.protocol_code && (
+                                  <span className="truncate rounded-full bg-[var(--mi-bg)] px-2 py-0.5">
+                                    {item.protocol_code}
+                                  </span>
+                                )}
+                                <span className="truncate rounded-full bg-[var(--mi-bg)] px-2 py-0.5">
+                                  {item.source}
                                 </span>
-                              )}
+                              </div>
+                            </button>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(item.id)}
+                                onChange={() => toggleSelected(item.id)}
+                                onClick={(event) => event.stopPropagation()}
+                                className="h-4 w-4 rounded border-[var(--mi-border)]"
+                                aria-label={`Selecionar ${item.contact_name}`}
+                              />
+                              <GripVertical className="h-4 w-4 text-[var(--mi-text-soft)]" />
                             </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => openEdit(item)}
+                            className="mt-3 block w-full text-left"
+                          >
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="rounded-lg bg-[var(--mi-bg)] px-2.5 py-2">
+                                <span className="block text-[9px] font-semibold uppercase tracking-[0.07em] text-[var(--mi-text-soft)]">
+                                  Valor
+                                </span>
+                                <strong className="mt-0.5 block truncate text-[12px] font-semibold text-blue-700">
+                                  {money(item.value)}
+                                </strong>
+                              </div>
+                              <div className="rounded-lg bg-[var(--mi-bg)] px-2.5 py-2">
+                                <span className="block text-[9px] font-semibold uppercase tracking-[0.07em] text-[var(--mi-text-soft)]">
+                                  Próxima ação
+                                </span>
+                                <strong className="mt-0.5 block truncate text-[10px] font-medium text-[var(--mi-text-muted)]">
+                                  {when(item.next_action_at)}
+                                </strong>
+                              </div>
+                            </div>
+                            {pending[0] && (
+                              <p className="mt-2 truncate text-[10px] font-medium text-amber-600">
+                                Tarefa: {pending[0].title}
+                              </p>
+                            )}
                           </button>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--mi-border)] pt-3">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              className="h-8 rounded-lg border border-[var(--mi-border)] bg-[var(--mi-surface)] px-2 text-[11px] font-semibold text-[var(--mi-text-muted)] transition hover:bg-[var(--mi-bg)] hover:text-[var(--mi-text)]"
+                            >
+                              Detalhes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleSelected(item.id)}
+                              className={classNames(
+                                "h-8 rounded-lg border px-2 text-[11px] font-semibold transition",
+                                selectedIds.has(item.id)
+                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                  : "border-[var(--mi-border)] bg-[var(--mi-surface)] text-[var(--mi-text-muted)] hover:bg-[var(--mi-bg)]",
+                              )}
+                            >
+                              {selectedIds.has(item.id) ? "Selecionado" : "Selecionar"}
+                            </button>
+                          </div>
                         </article>
                       );
                     })}
