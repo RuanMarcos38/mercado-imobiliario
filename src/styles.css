@@ -759,3 +759,478 @@ html.light-mode option {
     display: none !important;
   }
 }
+
+
+/* CRM + Atendimento visual refresh — 2026-09-28 */
+.crm-workspace-shell,
+.crm-pipeline-workspace {
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.crm-workspace-tabs {
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.crm-workspace-tabs nav {
+  scrollbar-width: thin;
+}
+
+.crm-workspace-tabs button {
+  letter-spacing: -0.01em;
+}
+
+.crm-pipeline-workspace h1,
+.crm-pipeline-workspace h2,
+.crm-pipeline-workspace h3 {
+  letter-spacing: -0.025em;
+}
+
+.crm-kanban-column {
+  background: #f7f8fb !important;
+  border-color: #e9edf3 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.crm-kanban-card {
+  background: #ffffff !important;
+  border-color: #e7ebf0;
+  box-shadow: 0 2px 7px rgba(30, 41, 59, 0.045);
+}
+
+.crm-kanban-card:hover {
+  box-shadow: 0 9px 24px rgba(30, 41, 59, 0.09);
+}
+
+.crm-kanban-avatar {
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.dark .crm-kanban-column {
+  background: rgba(15, 23, 42, 0.44) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  box-shadow: none;
+}
+
+.dark .crm-kanban-card {
+  background: rgba(15, 23, 42, 0.78) !important;
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+/* Atendimento em formato inbox profissional, inspirado na referência enviada. */
+.mi-wa-shell {
+  --wa-accent: #42df96;
+  --wa-accent-strong: #20bf78;
+  --wa-text: #20242a;
+  --wa-muted: #8a929d;
+  --wa-border: #e8ebef;
+  --wa-soft: #f6f7f8;
+  --wa-soft-2: #f1f3f5;
+  --wa-green-bubble: #dff8e8;
+  --wa-company-bubble: #f1f2f4;
+  min-height: calc(100vh - 72px);
+  background: #d4d4d4;
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.mi-wa-layout {
+  height: calc(100vh - 112px) !important;
+  min-height: 560px !important;
+  max-width: 1480px !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14) !important;
+}
+
+.mi-wa-rail {
+  background: #f3f4f5 !important;
+  border-color: var(--wa-border) !important;
+}
+
+.mi-wa-rail-brand {
+  background: #111316;
+  color: #ffffff !important;
+  box-shadow: 0 5px 12px rgba(15, 23, 42, 0.16);
+}
+
+.mi-wa-rail-button {
+  display: grid;
+  height: 36px;
+  width: 36px;
+  place-items: center;
+  border-radius: 10px;
+  color: #5f6772;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.mi-wa-rail-button:hover {
+  background: #e7eaed;
+  color: #20242a;
+  transform: translateY(-1px);
+}
+
+.mi-wa-rail-button.is-active {
+  background: #17191c;
+  color: #ffffff;
+}
+
+.mi-wa-rail-avatar {
+  display: grid;
+  height: 30px;
+  width: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: #20242a;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.mi-wa-folders {
+  background: #ffffff !important;
+  border-color: var(--wa-border) !important;
+}
+
+.mi-wa-folder-row {
+  display: flex;
+  min-height: 34px;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: #646c77;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.mi-wa-folder-row:hover {
+  background: var(--wa-soft);
+  color: #20242a;
+}
+
+.mi-wa-folder-row.is-active {
+  background: #f0f2f4;
+  color: #17191c;
+}
+
+.mi-wa-conversations-panel {
+  width: 272px !important;
+  background: #ffffff !important;
+  border-color: var(--wa-border) !important;
+}
+
+.mi-wa-sidebar-head {
+  background: #ffffff !important;
+  border-color: var(--wa-border) !important;
+  padding: 14px 14px 12px !important;
+}
+
+.mi-wa-sidebar-head h1 {
+  color: var(--wa-text);
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.02em;
+}
+
+.mi-wa-sidebar-head p[class*="text-blue-600"] {
+  color: var(--wa-accent-strong) !important;
+  font-weight: 700 !important;
+}
+
+.mi-wa-sidebar-head button,
+.mi-wa-sidebar-head input,
+.mi-wa-sidebar-head summary {
+  border-radius: 8px !important;
+}
+
+.mi-wa-sidebar-head input {
+  background: #f7f8f9 !important;
+  border-color: transparent !important;
+  color: var(--wa-text) !important;
+  font-size: 12px;
+}
+
+.mi-wa-sidebar-head input:focus {
+  border-color: #d8dde3 !important;
+  box-shadow: 0 0 0 2px rgba(66, 223, 150, 0.1);
+}
+
+.mi-wa-sidebar-actions {
+  gap: 6px !important;
+}
+
+.mi-wa-sidebar-actions button {
+  height: 36px !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+.mi-wa-connection-chip {
+  height: 36px !important;
+  border-radius: 8px !important;
+  padding-inline: 9px !important;
+  font-size: 10px !important;
+}
+
+.mi-wa-tabs {
+  background: #ffffff !important;
+  border-color: var(--wa-border) !important;
+}
+
+.mi-wa-tabs button {
+  color: #8a929d !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+}
+
+.mi-wa-tabs button[class*="text-blue-600"] {
+  color: #20242a !important;
+}
+
+.mi-wa-tabs [class*="bg-blue-600"] {
+  background: var(--wa-accent) !important;
+}
+
+.mi-wa-conversation-list {
+  background: #ffffff !important;
+}
+
+.mi-wa-conversation-list > button {
+  min-height: 72px;
+  border-color: #f0f1f3 !important;
+  padding: 11px 13px !important;
+  color: var(--wa-text);
+}
+
+.mi-wa-conversation-list > button:hover {
+  background: #f8f9fa !important;
+}
+
+.mi-wa-conversation-list > button[class*="bg-blue-500/10"] {
+  background: #eefbf4 !important;
+  box-shadow: inset 3px 0 0 var(--wa-accent);
+}
+
+.mi-wa-conversation-list > button > span:first-child {
+  background: #f0f2f4 !important;
+  color: #4b5563 !important;
+  font-weight: 700 !important;
+}
+
+.mi-wa-conversation-list [class*="text-blue-600"] {
+  color: var(--wa-accent-strong) !important;
+}
+
+.mi-wa-conversation-list [class*="bg-blue-600"] {
+  background: var(--wa-accent-strong) !important;
+}
+
+.mi-wa-chat {
+  background: #ffffff !important;
+}
+
+.mi-wa-chat-header {
+  min-height: 58px !important;
+  background: #ffffff !important;
+  border-color: var(--wa-border) !important;
+  padding: 10px 16px !important;
+}
+
+.mi-wa-chat-header p {
+  color: var(--wa-text);
+}
+
+.mi-wa-chat-header .mi-wa-chat-avatar {
+  background: #edf0f2 !important;
+  color: #565f69 !important;
+}
+
+.mi-wa-chat-header [class*="text-blue-600"],
+.mi-wa-chat-header [class*="bg-blue-600"] {
+  color: var(--wa-accent-strong) !important;
+}
+
+.mi-wa-chat-header [class*="bg-blue-600"] {
+  background: #17191c !important;
+  color: #ffffff !important;
+}
+
+.mi-wa-message-list {
+  background: #ffffff !important;
+  padding: 22px 26px !important;
+  scrollbar-gutter: stable;
+}
+
+.mi-wa-message-list > div {
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+.mi-wa-bubble {
+  max-width: min(78%, 720px) !important;
+  border-radius: 10px !important;
+  padding: 10px 12px 8px !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+.mi-wa-bubble-in {
+  background: var(--wa-green-bubble) !important;
+  color: #20242a !important;
+  border-color: transparent !important;
+}
+
+.mi-wa-bubble-out {
+  background: var(--wa-company-bubble) !important;
+  color: #20242a !important;
+  border: 1px solid #eceef1 !important;
+}
+
+.mi-wa-bubble-out[class*="bg-rose-600"] {
+  background: #fff0f0 !important;
+  border-color: #ffd2d2 !important;
+  color: #9f2626 !important;
+}
+
+.mi-wa-bubble-author {
+  color: #40464f;
+}
+
+.mi-wa-bubble [class*="text-blue-100"],
+.mi-wa-bubble [class*="text-rose-100"],
+.mi-wa-bubble [class*="text-[var(--mi-text-soft)]"] {
+  color: #8c949d !important;
+}
+
+.mi-wa-composer {
+  background: #ffffff !important;
+  border-color: var(--wa-border) !important;
+  padding: 10px 14px 12px !important;
+}
+
+.mi-wa-composer textarea {
+  min-height: 42px !important;
+  border: 1px solid #e5e8ec !important;
+  border-radius: 9px !important;
+  background: #f7f8f9 !important;
+  color: var(--wa-text) !important;
+  padding: 10px 13px !important;
+  font-size: 12px !important;
+  box-shadow: none !important;
+}
+
+.mi-wa-composer textarea:focus {
+  border-color: #ced4db !important;
+  box-shadow: 0 0 0 2px rgba(66, 223, 150, 0.09) !important;
+}
+
+.mi-wa-composer button[class*="h-12"][class*="w-12"] {
+  height: 42px !important;
+  width: 42px !important;
+  border-radius: 9px !important;
+  border-color: #e5e8ec !important;
+  background: #ffffff !important;
+  color: #5e6670 !important;
+  box-shadow: none !important;
+}
+
+.mi-wa-composer button[class*="bg-emerald-600"] {
+  border-color: #17191c !important;
+  background: #17191c !important;
+  color: #ffffff !important;
+}
+
+.mi-wa-ai-suggest {
+  border-color: #dfe4e8 !important;
+  color: #5f6770 !important;
+  font-weight: 600 !important;
+}
+
+.mi-wa-details-panel {
+  width: 260px !important;
+  background: #fbfbfc !important;
+  border-color: var(--wa-border) !important;
+}
+
+.mi-wa-details-panel > div:first-child {
+  background: #ffffff;
+  border-color: var(--wa-border) !important;
+}
+
+.mi-wa-details-panel > div:last-child {
+  padding: 16px !important;
+}
+
+.mi-wa-details-panel [class*="text-blue-600"] {
+  color: var(--wa-accent-strong) !important;
+}
+
+.mi-wa-details-panel button {
+  border-radius: 8px !important;
+}
+
+@media (min-width: 1280px) {
+  .mi-wa-tabs {
+    display: none !important;
+  }
+
+  .mi-wa-conversations-panel {
+    width: 262px !important;
+  }
+}
+
+@media (max-width: 1279px) {
+  .mi-wa-folders {
+    display: none !important;
+  }
+
+  .mi-wa-conversations-panel {
+    width: 330px !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .mi-wa-rail {
+    display: none !important;
+  }
+
+  .mi-wa-layout {
+    max-width: 1180px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mi-wa-shell {
+    background: #ffffff !important;
+  }
+
+  .mi-wa-layout {
+    height: 100% !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .mi-wa-conversations-panel {
+    width: 100% !important;
+  }
+
+  .mi-wa-message-list {
+    padding: 12px 10px !important;
+  }
+}
