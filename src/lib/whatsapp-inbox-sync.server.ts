@@ -15,6 +15,7 @@ type NormalizedEvolutionMessage = {
   fromMe: boolean;
   phone: string;
   contactName: string | null;
+  avatarUrl: string | null;
   body: string | null;
   messageType: string;
   mediaUrl: string | null;
@@ -72,6 +73,25 @@ function mediaUrlFromMessage(message: JsonObject): string | null {
     for (const urlKey of ["url", "directPath", "mediaUrl"]) {
       if (typeof media[urlKey] === "string" && media[urlKey]) return media[urlKey] as string;
     }
+  }
+  return null;
+}
+
+function profilePictureUrlFromRecord(record: JsonObject): string | null {
+  const nestedProfile = object(record["profile"]);
+  const nestedContact = object(record["contact"]);
+  for (const value of [
+    record["profilePictureUrl"],
+    record["profilePicUrl"],
+    record["picture"],
+    record["avatarUrl"],
+    nestedProfile["picture"],
+    nestedProfile["profilePictureUrl"],
+    nestedContact["profilePictureUrl"],
+    nestedContact["profilePicUrl"],
+    nestedContact["picture"],
+  ]) {
+    if (typeof value === "string" && /^https?:\/\//i.test(value.trim())) return value.trim();
   }
   return null;
 }
@@ -163,6 +183,7 @@ export function normalizeEvolutionMessage(record: JsonObject): NormalizedEvoluti
       typeof record["pushName"] === "string" && record["pushName"]
         ? (record["pushName"] as string)
         : null,
+    avatarUrl: profilePictureUrlFromRecord(record),
     body,
     messageType: messageType(message, record["messageType"]),
     mediaUrl: mediaUrlFromMessage(message),
@@ -219,7 +240,7 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
     const phoneVariants = brazilianPhoneVariants(item.phone);
     let { data: conversation } = await db
       .from("whatsapp_conversations")
-      .select("id,phone_e164,unread_count,contact_name,last_message_at")
+      .select("id,phone_e164,unread_count,contact_name,avatar_url,last_message_at")
       .eq("tenant_id", tenantId)
       .in("phone_e164", phoneVariants)
       .limit(1)
@@ -232,17 +253,18 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
           tenant_id: tenantId,
           phone_e164: item.phone,
           contact_name: item.fromMe ? null : item.contactName,
+          avatar_url: item.fromMe ? null : item.avatarUrl,
           last_message: item.body ?? (item.mediaUrl ? "Mídia recebida" : item.messageType),
           last_message_at: item.sentAt,
           unread_count: item.fromMe ? 0 : 1,
         })
-        .select("id,phone_e164,unread_count,contact_name,last_message_at")
+        .select("id,phone_e164,unread_count,contact_name,avatar_url,last_message_at")
         .single();
       if (created.error) {
         // A webhook or another sync may have created the conversation concurrently.
         const retry = await db
           .from("whatsapp_conversations")
-          .select("id,phone_e164,unread_count,contact_name,last_message_at")
+          .select("id,phone_e164,unread_count,contact_name,avatar_url,last_message_at")
           .eq("tenant_id", tenantId)
           .in("phone_e164", phoneVariants)
           .limit(1)
@@ -287,6 +309,7 @@ export async function syncEvolutionInboxForTenant(db: DbClient, tenantId: string
       updated_at: new Date().toISOString(),
     };
     if (!item.fromMe && item.contactName) update.contact_name = item.contactName;
+    if (!item.fromMe && item.avatarUrl) update.avatar_url = item.avatarUrl;
     if (isNewest) {
       update.last_message = item.body ?? (item.mediaUrl ? "Mídia" : item.messageType);
       update.last_message_at = item.sentAt;
