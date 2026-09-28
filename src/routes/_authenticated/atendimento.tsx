@@ -947,7 +947,7 @@ function AtendimentoPage() {
 
   return (
     <div
-      className={`mi-wa-shell min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
+      className={`mi-wa-shell px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
     >
       <div className="mi-wa-layout mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
         <aside className="mi-wa-rail hidden w-[58px] shrink-0 flex-col items-center border-r border-[var(--mi-border)] bg-[var(--mi-surface)] py-3 lg:flex">
