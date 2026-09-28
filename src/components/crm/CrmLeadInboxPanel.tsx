@@ -327,7 +327,7 @@ export function CrmLeadInboxPanel() {
                   type="button"
                   onClick={() => openLead(lead)}
                   className="crm-lead-reference-avatar"
-                  aria-label={\`Abrir lead \${lead.contact_name}\`}
+                  aria-label={"Abrir lead " + lead.contact_name}
                 >
                   {initials(lead.contact_name || "Lead")}
                 </button>
