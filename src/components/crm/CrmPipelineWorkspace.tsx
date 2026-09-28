@@ -224,6 +224,14 @@ export function CrmPipelineWorkspace() {
   const [pipelineId, setPipelineId] = useState("");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      setSearch(String((event as CustomEvent<string>).detail ?? ""));
+    };
+    window.addEventListener("mercadoimobi:crm-search", handler);
+    return () => window.removeEventListener("mercadoimobi:crm-search", handler);
+  }, []);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [bulkStageId, setBulkStageId] = useState("");
   const [bulkLossReasonId, setBulkLossReasonId] = useState("");
