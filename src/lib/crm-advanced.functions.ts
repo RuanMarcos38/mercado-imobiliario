@@ -267,7 +267,7 @@ export const getCrmWorkspace = createServerFn({ method: "GET" })
     const opportunitiesWithAvatars = opportunityRows.map((row: any) => ({
       ...row,
       avatar_url: row.conversation_id
-        ? avatarByConversation.get(String(row.conversation_id)) ?? null
+        ? (avatarByConversation.get(String(row.conversation_id)) ?? null)
         : null,
     })) as CrmOpportunity[];
 
