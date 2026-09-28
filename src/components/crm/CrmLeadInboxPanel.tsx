@@ -6,7 +6,11 @@ import {
   ArchiveRestore,
   CheckCircle2,
   Flame,
+  House,
+  Mail,
+  MapPin,
   MessageCircle,
+  Phone,
   Search,
   Snowflake,
   Sparkles,
@@ -91,6 +95,16 @@ function when(value: string | null) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function initials(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "LE";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 function statusLabel(status: CrmLeadInboxStatus) {
@@ -305,78 +319,137 @@ export function CrmLeadInboxPanel() {
       </div>
 
       {rows.length ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="crm-lead-reference-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((lead) => (
-            <article
-              key={lead.id}
-              className="rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] p-3 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black">{lead.contact_name}</p>
-                  <p className="mt-0.5 text-[11px] text-[var(--mi-text-muted)]">
+            <article key={lead.id} className="crm-lead-reference-card">
+              <div className="crm-lead-reference-head">
+                <button
+                  type="button"
+                  onClick={() => openLead(lead)}
+                  className="crm-lead-reference-avatar"
+                  aria-label={\`Abrir lead \${lead.contact_name}\`}
+                >
+                  {initials(lead.contact_name || "Lead")}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openLead(lead)}
+                  className="crm-lead-reference-identity"
+                >
+                  <span className="crm-lead-reference-name">{lead.contact_name}</span>
+                  <span className="crm-lead-reference-role">
+                    {lead.interest || lead.property_type || lead.city || "Contato imobiliário"}
+                  </span>
+                  <span className="crm-lead-reference-phone">
                     {lead.contact_phone || "Sem telefone"}
-                  </p>
-                  {lead.protocol_code && (
-                    <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-blue-600">
-                      {lead.protocol_code}
-                    </p>
-                  )}
-                </div>
+                  </span>
+                </button>
+
                 <div
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-black ${temperatureClasses(lead.temperature)}`}
+                  className={
+                    "crm-lead-reference-score " + temperatureClasses(lead.temperature)
+                  }
+                  title="Score de qualificação"
                 >
                   <TemperatureIcon value={lead.temperature} />
                   {lead.score}/100
                 </div>
               </div>
 
-              <div className="mt-2 rounded-lg bg-[var(--mi-bg)] p-2.5">
-                <p className="line-clamp-1 text-xs leading-5 text-[var(--mi-text-muted)]">
-                  {lead.last_message || "Lead capturado sem mensagem resumida."}
-                </p>
-                <p className="mt-1 text-[9px] text-[var(--mi-text-soft)]">
-                  Última atividade: {when(lead.last_activity_at)}
-                </p>
-              </div>
-
-              <div className="mt-2 flex flex-wrap gap-1.5 text-[9px] font-black">
-                <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5">
-                  {statusLabel(lead.status)}
+              <div className="crm-lead-reference-icons" aria-label="Dados disponíveis do lead">
+                <span
+                  className={
+                    lead.contact_phone
+                      ? "crm-lead-reference-icon is-active"
+                      : "crm-lead-reference-icon"
+                  }
+                  title={lead.contact_phone || "Telefone não informado"}
+                >
+                  <Phone />
                 </span>
-                {lead.city && (
-                  <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5">
-                    {lead.city}
-                  </span>
-                )}
-                {lead.property_type && (
-                  <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5">
-                    {lead.property_type}
-                  </span>
-                )}
+                <span
+                  className={
+                    lead.contact_email
+                      ? "crm-lead-reference-icon is-active"
+                      : "crm-lead-reference-icon"
+                  }
+                  title={lead.contact_email || "E-mail não informado"}
+                >
+                  <Mail />
+                </span>
+                <span
+                  className={
+                    lead.city ? "crm-lead-reference-icon is-active" : "crm-lead-reference-icon"
+                  }
+                  title={lead.city || "Cidade não informada"}
+                >
+                  <MapPin />
+                </span>
+                <span
+                  className={
+                    lead.property_type
+                      ? "crm-lead-reference-icon is-active"
+                      : "crm-lead-reference-icon"
+                  }
+                  title={lead.property_type || "Tipo de imóvel não informado"}
+                >
+                  <House />
+                </span>
+                <button
+                  type="button"
+                  disabled={!lead.conversation_id}
+                  onClick={() => lead.conversation_id && openConversation(lead)}
+                  className={
+                    lead.conversation_id
+                      ? "crm-lead-reference-icon is-active"
+                      : "crm-lead-reference-icon"
+                  }
+                  title={
+                    lead.conversation_id
+                      ? "Abrir conversa do WhatsApp"
+                      : "Conversa não vinculada"
+                  }
+                >
+                  <MessageCircle />
+                </button>
               </div>
 
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                <Button size="sm" className="h-8 px-2.5 text-xs" onClick={() => openLead(lead)}>
+              <div className="crm-lead-reference-message">
+                <p>{lead.last_message || "Lead capturado sem mensagem resumida."}</p>
+                <div className="crm-lead-reference-message-meta">
+                  <span>Última atividade: {when(lead.last_activity_at)}</span>
+                  {lead.protocol_code && <span>{lead.protocol_code}</span>}
+                </div>
+              </div>
+
+              <div className="crm-lead-reference-tags">
+                <span>{statusLabel(lead.status)}</span>
+                {lead.city && <span>{lead.city}</span>}
+                {lead.property_type && <span>{lead.property_type}</span>}
+              </div>
+
+              <div className="crm-lead-reference-actions">
+                <Button size="sm" variant="outline" onClick={() => openLead(lead)}>
                   <UserCheck className="h-3.5 w-3.5" />
                   Qualificar
                 </Button>
+
                 {lead.conversation_id && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-2.5 text-xs"
                     onClick={() => openConversation(lead)}
                   >
                     <MessageCircle className="h-3.5 w-3.5" />
                     Conversa
                   </Button>
                 )}
+
                 {lead.status === "discarded" ? (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-2.5 text-xs"
                     onClick={async () => {
                       await restoreFn({ data: { id: lead.id } });
                       toast.success("Lead restaurado.");
@@ -390,7 +463,6 @@ export function CrmLeadInboxPanel() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-2.5 text-xs"
                     onClick={async () => {
                       await discardFn({ data: { id: lead.id } });
                       toast.success("Lead descartado da fila ativa.");
