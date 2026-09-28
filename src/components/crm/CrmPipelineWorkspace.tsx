@@ -619,7 +619,18 @@ export function CrmPipelineWorkspace() {
                               className="crm-kanban-avatar grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-700"
                               aria-label={`Abrir ${item.contact_name}`}
                             >
-                              {(item.contact_name || "OP").slice(0, 2).toUpperCase()}
+                              <span>{(item.contact_name || "OP").slice(0, 2).toUpperCase()}</span>
+                              {item.avatar_url && (
+                                <img
+                                  src={item.avatar_url}
+                                  alt=""
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  onError={(event) => {
+                                    event.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              )}
                             </button>
                             <button
                               type="button"
