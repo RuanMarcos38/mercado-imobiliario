@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,12 +6,12 @@ import {
   ArchiveRestore,
   CheckCircle2,
   Flame,
-  House,
+  Download,
   Mail,
-  MapPin,
   MessageCircle,
+  MoreVertical,
   Phone,
-  Search,
+  SlidersHorizontal,
   Snowflake,
   Sparkles,
   ThermometerSun,
@@ -143,12 +143,30 @@ export function CrmLeadInboxPanel() {
     refetchInterval: 60_000,
   });
 
-  const [filter, setFilter] = useState<Filter>("active");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<CrmLeadInboxItem | null>(null);
   const [form, setForm] = useState<LeadForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const next = String((event as CustomEvent<string>).detail ?? "");
+      setSearch(next);
+    };
+    window.addEventListener("mercadoimobi:crm-search", handler);
+    return () => window.removeEventListener("mercadoimobi:crm-search", handler);
+  }, []);
+
+  const sources = useMemo(
+    () =>
+      [...new Set((leads.data ?? []).map((lead) => lead.source).filter(Boolean))].sort((a, b) =>
+        String(a).localeCompare(String(b)),
+      ),
+    [leads.data],
+  );
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -163,24 +181,76 @@ export function CrmLeadInboxPanel() {
               : filter === "qualified"
                 ? lead.status === "qualified"
                 : lead.status === "discarded";
-      if (!byFilter) return false;
+      const bySource = sourceFilter === "all" || lead.source === sourceFilter;
+      if (!byFilter || !bySource) return false;
       if (!query) return true;
-      return [lead.contact_name, lead.contact_phone, lead.protocol_code, lead.city, lead.interest]
+      return [lead.contact_name, lead.contact_phone, lead.contact_email, lead.protocol_code, lead.city, lead.interest]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
     });
-  }, [filter, leads.data, search]);
+  }, [filter, leads.data, search, sourceFilter]);
 
-  const metrics = useMemo(() => {
-    const data = leads.data ?? [];
-    return {
-      active: data.filter((lead) => ["new", "qualifying", "qualified"].includes(lead.status))
-        .length,
-      hot: data.filter((lead) => lead.temperature === "hot" && lead.status !== "discarded").length,
-      qualified: data.filter((lead) => lead.status === "qualified").length,
-      discarded: data.filter((lead) => lead.status === "discarded").length,
-    };
-  }, [leads.data]);
+  const boardColumns = useMemo(() => {
+    const discardedMode = filter === "discarded";
+    return [
+      {
+        id: "new",
+        label: discardedMode ? "Descartados" : "Novo",
+        tone: "orange",
+        items: discardedMode ? rows.filter((lead) => lead.status === "discarded") : rows.filter((lead) => lead.status === "new"),
+      },
+      {
+        id: "open",
+        label: "Aberto",
+        tone: "blue",
+        items: discardedMode ? [] : rows.filter((lead) => lead.status === "qualifying"),
+      },
+      {
+        id: "progress",
+        label: "Em andamento",
+        tone: "yellow",
+        items: discardedMode ? [] : rows.filter((lead) => lead.status === "qualified"),
+      },
+      {
+        id: "deal",
+        label: "Negócio aberto",
+        tone: "cyan",
+        items: discardedMode
+          ? []
+          : rows.filter((lead) => lead.status === "converted" || lead.status === "discarded"),
+      },
+    ];
+  }, [filter, rows]);
+
+  const exportVisibleLeads = () => {
+    const header = ["Nome", "Telefone", "E-mail", "Status", "Score", "Origem", "Cidade", "Interesse"];
+    const csv = [
+      header,
+      ...rows.map((lead) => [
+        lead.contact_name,
+        lead.contact_phone ?? "",
+        lead.contact_email ?? "",
+        statusLabel(lead.status),
+        String(lead.score),
+        lead.source,
+        lead.city ?? "",
+        lead.interest ?? "",
+      ]),
+    ]
+      .map((line) =>
+        line
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+    const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `mercadoimobi-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   const openLead = (lead: CrmLeadInboxItem) => {
     setSelected(lead);
@@ -267,228 +337,169 @@ export function CrmLeadInboxPanel() {
   }
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="crm-template-leads">
+      <header className="crm-template-page-head">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">
-            Pré-Pipeline
-          </p>
-          <h1 className="mt-2 text-3xl font-black">Caixa de Leads</h1>
-          <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-            Conversas entram primeiro aqui. O Pipeline recebe somente leads qualificados e
-            convertidos de forma controlada, evitando oportunidades sem contexto ou de outra
-            conexão.
-          </p>
+          <h1>Leads</h1>
+          <p>Pré-Pipeline de atendimento e qualificação imobiliária</p>
         </div>
-        <div className="relative w-full xl:w-[380px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar nome, telefone, protocolo ou interesse..."
-            className="pl-9"
-          />
-        </div>
+        <Button className="crm-template-export" onClick={exportVisibleLeads}>
+          <Download />
+          Exportar
+        </Button>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Leads ativos" value={metrics.active} icon={Sparkles} />
-        <Metric label="Leads quentes" value={metrics.hot} icon={Flame} />
-        <Metric label="Qualificados" value={metrics.qualified} icon={UserCheck} />
-        <Metric label="Descartados" value={metrics.discarded} icon={Trash2} />
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {[
-          ["active", "Ativos"],
-          ["hot", "Quentes"],
-          ["qualified", "Qualificados"],
-          ["discarded", "Descartados"],
-          ["all", "Todos"],
-        ].map(([value, label]) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={filter === value ? "default" : "outline"}
-            className="shrink-0 rounded-xl"
-            onClick={() => setFilter(value as Filter)}
-          >
-            {label}
-          </Button>
-        ))}
+      <div className="crm-template-filterbar">
+        <div className="crm-template-filter-selects">
+          <label>
+            <span>Status</span>
+            <select value={filter} onChange={(event) => setFilter(event.target.value as Filter)}>
+              <option value="all">Todos os status</option>
+              <option value="active">Ativos</option>
+              <option value="hot">Quentes</option>
+              <option value="qualified">Qualificados</option>
+              <option value="discarded">Descartados</option>
+            </select>
+          </label>
+          <label>
+            <span>Origem</span>
+            <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+              <option value="all">Todas as origens</option>
+              {sources.map((source) => (
+                <option key={source} value={source}>
+                  {source}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <button type="button" className="crm-template-filter-button">
+          <SlidersHorizontal />
+          Filtrar
+        </button>
       </div>
 
       {rows.length ? (
-        <div className="crm-lead-reference-grid">
-          {rows.map((lead) => (
-            <article key={lead.id} className="crm-lead-reference-card">
-              <div className="crm-lead-reference-head">
-                <button
-                  type="button"
-                  onClick={() => openLead(lead)}
-                  className="crm-lead-reference-avatar"
-                  aria-label={"Abrir lead " + lead.contact_name}
-                >
-                  <span className="crm-lead-reference-avatar-fallback">
-                    {initials(lead.contact_name || "Lead")}
-                  </span>
-                  {lead.avatar_url && (
-                    <img
-                      src={lead.avatar_url}
-                      alt=""
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                      }}
-                    />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => openLead(lead)}
-                  className="crm-lead-reference-identity"
-                >
-                  <span className="crm-lead-reference-name">{lead.contact_name}</span>
-                  <span className="crm-lead-reference-role">
-                    {lead.interest || lead.property_type || lead.city || "Contato imobiliário"}
-                  </span>
-                  <span className="crm-lead-reference-phone">
-                    {lead.contact_phone || "Sem telefone"}
-                  </span>
-                </button>
-
-                <div
-                  className={"crm-lead-reference-score " + temperatureClasses(lead.temperature)}
-                  title="Score de qualificação"
-                >
-                  <TemperatureIcon value={lead.temperature} />
-                  {lead.score}/100
+        <div className="crm-template-board">
+          {boardColumns.map((column) => (
+            <section key={column.id} className="crm-template-column">
+              <header className="crm-template-column-head">
+                <div>
+                  <span className={`crm-template-column-dot is-${column.tone}`} />
+                  <strong>{column.label}</strong>
                 </div>
+                <span>{column.items.length} Leads</span>
+              </header>
+
+              <div className="crm-template-column-list">
+                {column.items.map((lead) => (
+                  <article key={lead.id} className="crm-template-lead-card">
+                    <div className="crm-template-lead-card-head">
+                      <button
+                        type="button"
+                        onClick={() => openLead(lead)}
+                        className="crm-template-card-avatar"
+                        aria-label={"Abrir lead " + lead.contact_name}
+                      >
+                        <span>{initials(lead.contact_name || "Lead")}</span>
+                        {lead.avatar_url && (
+                          <img
+                            src={lead.avatar_url}
+                            alt=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openLead(lead)}
+                        className="crm-template-lead-card-title"
+                      >
+                        <strong>{lead.contact_name}</strong>
+                        <span>{when(lead.last_activity_at)}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openLead(lead)}
+                        className="crm-template-kebab"
+                        aria-label="Abrir detalhes do lead"
+                      >
+                        <MoreVertical />
+                      </button>
+                    </div>
+
+                    <div className="crm-template-contact-lines">
+                      <span>
+                        <Phone />
+                        {lead.contact_phone || "Telefone não informado"}
+                      </span>
+                      <span>
+                        <Mail />
+                        {lead.contact_email || "E-mail não informado"}
+                      </span>
+                    </div>
+
+                    <div className="crm-template-card-footer">
+                      <span className={`crm-template-status-pill is-${lead.status}`}>
+                        {statusLabel(lead.status)}
+                      </span>
+                      <span className="crm-template-score">{lead.score}/100</span>
+                    </div>
+
+                    <div className="crm-template-hover-actions">
+                      <button type="button" onClick={() => openLead(lead)}>
+                        <UserCheck />
+                        Qualificar
+                      </button>
+                      {lead.conversation_id && (
+                        <button type="button" onClick={() => openConversation(lead)}>
+                          <MessageCircle />
+                          Conversa
+                        </button>
+                      )}
+                      {lead.status === "discarded" ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await restoreFn({ data: { id: lead.id } });
+                            toast.success("Lead restaurado.");
+                            await leads.refetch();
+                          }}
+                        >
+                          <ArchiveRestore />
+                          Restaurar
+                        </button>
+                      ) : lead.status !== "converted" ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await discardFn({ data: { id: lead.id } });
+                            toast.success("Lead descartado da fila ativa.");
+                            await leads.refetch();
+                          }}
+                        >
+                          <Trash2 />
+                          Descartar
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
               </div>
-
-              <div className="crm-lead-reference-icons" aria-label="Dados disponíveis do lead">
-                <span
-                  className={
-                    lead.contact_phone
-                      ? "crm-lead-reference-icon is-active"
-                      : "crm-lead-reference-icon"
-                  }
-                  title={lead.contact_phone || "Telefone não informado"}
-                >
-                  <Phone />
-                </span>
-                <span
-                  className={
-                    lead.contact_email
-                      ? "crm-lead-reference-icon is-active"
-                      : "crm-lead-reference-icon"
-                  }
-                  title={lead.contact_email || "E-mail não informado"}
-                >
-                  <Mail />
-                </span>
-                <span
-                  className={
-                    lead.city ? "crm-lead-reference-icon is-active" : "crm-lead-reference-icon"
-                  }
-                  title={lead.city || "Cidade não informada"}
-                >
-                  <MapPin />
-                </span>
-                <span
-                  className={
-                    lead.property_type
-                      ? "crm-lead-reference-icon is-active"
-                      : "crm-lead-reference-icon"
-                  }
-                  title={lead.property_type || "Tipo de imóvel não informado"}
-                >
-                  <House />
-                </span>
-                <button
-                  type="button"
-                  disabled={!lead.conversation_id}
-                  onClick={() => lead.conversation_id && openConversation(lead)}
-                  className={
-                    lead.conversation_id
-                      ? "crm-lead-reference-icon is-active"
-                      : "crm-lead-reference-icon"
-                  }
-                  title={
-                    lead.conversation_id ? "Abrir conversa do WhatsApp" : "Conversa não vinculada"
-                  }
-                >
-                  <MessageCircle />
-                </button>
-              </div>
-
-              <div className="crm-lead-reference-message">
-                <p>{lead.last_message || "Lead capturado sem mensagem resumida."}</p>
-                <div className="crm-lead-reference-message-meta">
-                  <span>Última atividade: {when(lead.last_activity_at)}</span>
-                  {lead.protocol_code && <span>{lead.protocol_code}</span>}
-                </div>
-              </div>
-
-              <div className="crm-lead-reference-tags">
-                <span>{statusLabel(lead.status)}</span>
-                {lead.city && <span>{lead.city}</span>}
-                {lead.property_type && <span>{lead.property_type}</span>}
-              </div>
-
-              <div className="crm-lead-reference-actions">
-                <Button size="sm" variant="outline" onClick={() => openLead(lead)}>
-                  <UserCheck className="h-3.5 w-3.5" />
-                  Qualificar
-                </Button>
-
-                {lead.conversation_id && (
-                  <Button size="sm" variant="outline" onClick={() => openConversation(lead)}>
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    Conversa
-                  </Button>
-                )}
-
-                {lead.status === "discarded" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      await restoreFn({ data: { id: lead.id } });
-                      toast.success("Lead restaurado.");
-                      await leads.refetch();
-                    }}
-                  >
-                    <ArchiveRestore className="h-3.5 w-3.5" />
-                    Restaurar
-                  </Button>
-                ) : lead.status !== "converted" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      await discardFn({ data: { id: lead.id } });
-                      toast.success("Lead descartado da fila ativa.");
-                      await leads.refetch();
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Descartar
-                  </Button>
-                ) : null}
-              </div>
-            </article>
+            </section>
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-[var(--mi-border)] bg-[var(--mi-surface)] py-16 text-center">
-          <Sparkles className="mx-auto h-9 w-9 text-[var(--mi-text-soft)]" />
-          <p className="mt-3 font-black">Nenhum lead nesta visualização</p>
-          <p className="mt-1 text-sm text-[var(--mi-text-soft)]">
-            Novos contatos válidos do WhatsApp entram aqui antes do Pipeline.
-          </p>
+        <div className="crm-template-empty">
+          <Sparkles />
+          <strong>Nenhum lead nesta visualização</strong>
+          <span>Novos contatos válidos do WhatsApp entram aqui antes do Pipeline.</span>
         </div>
       )}
 
