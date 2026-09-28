@@ -13,6 +13,7 @@ export interface CrmLeadInboxItem {
   id: string;
   owner_user_id: string | null;
   conversation_id: string | null;
+  avatar_url: string | null;
   protocol_code: string | null;
   contact_name: string;
   contact_phone: string | null;
@@ -120,9 +121,15 @@ async function leadById(db: any, tenantId: string, id: string) {
   return result.data as any;
 }
 
-function mapLead(row: any): CrmLeadInboxItem {
+function mapLead(
+  row: any,
+  avatarByConversation: Map<string, string | null> = new Map(),
+): CrmLeadInboxItem {
   return {
     ...row,
+    avatar_url: row.conversation_id
+      ? avatarByConversation.get(String(row.conversation_id)) ?? null
+      : null,
     score: Number(row.score ?? 0),
     income: row.income == null ? null : Number(row.income),
     down_payment: row.down_payment == null ? null : Number(row.down_payment),
@@ -144,7 +151,30 @@ export const listCrmLeadInbox = createServerFn({ method: "GET" })
       .order("last_activity_at", { ascending: false, nullsFirst: false })
       .limit(1000);
     if (result.error) throw new Error(result.error.message);
-    return (result.data ?? []).map(mapLead);
+
+    const rows = result.data ?? [];
+    const conversationIds = [
+      ...new Set(
+        rows
+          .map((row: any) => row.conversation_id)
+          .filter((value: unknown): value is string => typeof value === "string" && Boolean(value)),
+      ),
+    ];
+    const avatarByConversation = new Map<string, string | null>();
+
+    if (conversationIds.length) {
+      const avatars = await db
+        .from("whatsapp_conversations")
+        .select("id,avatar_url")
+        .eq("tenant_id", tenantId)
+        .in("id", conversationIds);
+      if (avatars.error) throw new Error(avatars.error.message);
+      for (const row of avatars.data ?? []) {
+        avatarByConversation.set(String(row.id), row.avatar_url ? String(row.avatar_url) : null);
+      }
+    }
+
+    return rows.map((row: any) => mapLead(row, avatarByConversation));
   });
 
 export const updateCrmLeadQualification = createServerFn({ method: "POST" })
