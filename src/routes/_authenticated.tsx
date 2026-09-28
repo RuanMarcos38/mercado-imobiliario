@@ -253,8 +253,7 @@ const toolItems = [
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const crmStandalone =
-    location.pathname === "/crm" || location.pathname.startsWith("/crm/");
+  const crmStandalone = location.pathname === "/crm" || location.pathname.startsWith("/crm/");
   const { roles, tenant, user, access } = Route.useRouteContext();
   const isAdmin = roles.includes("admin");
   const allowedFeatures = new Set(access.allowedFeatures ?? []);
@@ -347,192 +346,196 @@ function AuthenticatedLayout() {
     <div className="mi-shell min-h-screen">
       {!crmStandalone && (
         <nav className="mi-appbar sticky top-0 z-50 border-b">
-        <div className="mx-auto flex h-14 max-w-[1720px] items-center gap-3 px-3 sm:px-5 lg:px-6">
-          <Link
-            to={isFeatureAllowed("dashboard") ? "/dashboard" : "/assinatura"}
-            className="mi-brand flex shrink-0 items-center gap-2.5"
-            aria-label="MercadoImobi"
-          >
-            <span className="mi-brand-mark grid h-9 w-9 place-items-center">
-              <TrendingUp className="h-5 w-5" strokeWidth={2.5} />
-            </span>
-            <span className="hidden flex-col leading-none sm:flex">
-              <span className="text-[15px] font-black tracking-[-0.025em] text-[var(--mi-text)]">
-                MercadoImobi<span className="text-[var(--mi-accent)]">.</span>
-              </span>
-              <span className="mt-[3px] text-[8px] font-bold uppercase tracking-[0.22em] text-[var(--mi-text-soft)]">
-                Plataforma imobiliária
-              </span>
-            </span>
-          </Link>
-
-          <span className="hidden h-4 w-px bg-[var(--mi-border)] lg:block" />
-
-          <div className="hidden items-center gap-1 lg:flex">
-            {visiblePrimaryItems.map((item) => (
-              <TopNavLink key={item.to} item={item} pathname={location.pathname} />
-            ))}
-          </div>
-
-          {isFeatureAllowed("buscar") && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                runGlobalSearch();
-              }}
-              className="mi-global-search ml-auto hidden h-9 min-w-0 max-w-[430px] flex-1 items-center gap-2 rounded-lg border px-3 xl:flex"
+          <div className="mx-auto flex h-14 max-w-[1720px] items-center gap-3 px-3 sm:px-5 lg:px-6">
+            <Link
+              to={isFeatureAllowed("dashboard") ? "/dashboard" : "/assinatura"}
+              className="mi-brand flex shrink-0 items-center gap-2.5"
+              aria-label="MercadoImobi"
             >
-              <Search className="h-3.5 w-3.5 shrink-0 text-[var(--mi-text-soft)]" />
-              <input
-                value={globalSearch}
-                onChange={(event) => setGlobalSearch(event.target.value)}
-                placeholder="Buscar cidade, bairro ou imóvel..."
-                className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]"
-              />
-              <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[8px] font-bold text-[var(--mi-text-soft)]">
-                Enter
+              <span className="mi-brand-mark grid h-9 w-9 place-items-center">
+                <TrendingUp className="h-5 w-5" strokeWidth={2.5} />
               </span>
-            </form>
-          )}
+              <span className="hidden flex-col leading-none sm:flex">
+                <span className="text-[15px] font-black tracking-[-0.025em] text-[var(--mi-text)]">
+                  MercadoImobi<span className="text-[var(--mi-accent)]">.</span>
+                </span>
+                <span className="mt-[3px] text-[8px] font-bold uppercase tracking-[0.22em] text-[var(--mi-text-soft)]">
+                  Plataforma imobiliária
+                </span>
+              </span>
+            </Link>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:ml-0">
-            {isFeatureAllowed("atendimento") && (
-              <Link to="/atendimento" className="mi-icon-button hidden sm:grid" title="Atendimento">
-                <MessageCircle className="h-4 w-4" />
-              </Link>
-            )}
-            {isFeatureAllowed("midias") && (
-              <Link
-                to="/midias-sociais"
-                className="mi-icon-button hidden sm:grid"
-                title="Direct / Messenger"
-              >
-                <Camera className="h-4 w-4" />
-              </Link>
-            )}
-            {isFeatureAllowed("alertas") && (
-              <Link
-                to="/alertas"
-                className="mi-icon-button relative hidden sm:grid"
-                title="Alertas"
-              >
-                <Bell className="h-4 w-4" />
-              </Link>
-            )}
-            <ThemeToggle compact />
+            <span className="hidden h-4 w-px bg-[var(--mi-border)] lg:block" />
 
-            <div className="relative hidden lg:block">
-              <button
-                onClick={() => {
-                  setToolsOpen((value) => !value);
-                  setAccountOpen(false);
+            <div className="hidden items-center gap-1 lg:flex">
+              {visiblePrimaryItems.map((item) => (
+                <TopNavLink key={item.to} item={item} pathname={location.pathname} />
+              ))}
+            </div>
+
+            {isFeatureAllowed("buscar") && (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  runGlobalSearch();
                 }}
-                className={`mi-toolbar-button ${toolsOpen ? "mi-toolbar-button-active" : ""}`}
+                className="mi-global-search ml-auto hidden h-9 min-w-0 max-w-[430px] flex-1 items-center gap-2 rounded-lg border px-3 xl:flex"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className="hidden 2xl:inline">Ferramentas</span>
-                <ChevronDown className="h-3 w-3" />
-              </button>
-              {toolsOpen && (
-                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border p-1.5 shadow-xl">
-                  {visibleToolItems.map((item) => (
+                <Search className="h-3.5 w-3.5 shrink-0 text-[var(--mi-text-soft)]" />
+                <input
+                  value={globalSearch}
+                  onChange={(event) => setGlobalSearch(event.target.value)}
+                  placeholder="Buscar cidade, bairro ou imóvel..."
+                  className="min-w-0 flex-1 bg-transparent text-xs text-[var(--mi-text)] outline-none placeholder:text-[var(--mi-text-soft)]"
+                />
+                <span className="rounded-md border border-[var(--mi-border)] px-1.5 py-0.5 text-[8px] font-bold text-[var(--mi-text-soft)]">
+                  Enter
+                </span>
+              </form>
+            )}
+
+            <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:ml-0">
+              {isFeatureAllowed("atendimento") && (
+                <Link
+                  to="/atendimento"
+                  className="mi-icon-button hidden sm:grid"
+                  title="Atendimento"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </Link>
+              )}
+              {isFeatureAllowed("midias") && (
+                <Link
+                  to="/midias-sociais"
+                  className="mi-icon-button hidden sm:grid"
+                  title="Direct / Messenger"
+                >
+                  <Camera className="h-4 w-4" />
+                </Link>
+              )}
+              {isFeatureAllowed("alertas") && (
+                <Link
+                  to="/alertas"
+                  className="mi-icon-button relative hidden sm:grid"
+                  title="Alertas"
+                >
+                  <Bell className="h-4 w-4" />
+                </Link>
+              )}
+              <ThemeToggle compact />
+
+              <div className="relative hidden lg:block">
+                <button
+                  onClick={() => {
+                    setToolsOpen((value) => !value);
+                    setAccountOpen(false);
+                  }}
+                  className={`mi-toolbar-button ${toolsOpen ? "mi-toolbar-button-active" : ""}`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span className="hidden 2xl:inline">Ferramentas</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {toolsOpen && (
+                  <div className="mi-nav-popover absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border p-1.5 shadow-xl">
+                    {visibleToolItems.map((item) => (
+                      <PopoverLink
+                        key={item.to}
+                        item={item}
+                        pathname={location.pathname}
+                        onClick={() => setToolsOpen(false)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative hidden sm:block">
+                <button
+                  onClick={() => {
+                    setAccountOpen((value) => !value);
+                    setToolsOpen(false);
+                  }}
+                  className="mi-account-button flex h-9 items-center gap-2 rounded-lg px-2 transition"
+                >
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--mi-text)] text-[9px] font-black text-[var(--mi-bg)]">
+                    {initials}
+                  </span>
+                  <span className="hidden max-w-[150px] text-left 2xl:block">
+                    <span className="block truncate text-[10px] font-black text-[var(--mi-text)]">
+                      {displayName}
+                    </span>
+                    <span className="block truncate text-[8px] text-[var(--mi-text-soft)]">
+                      {access.planName && access.planSlug !== "legacy_full"
+                        ? access.planName
+                        : tenant?.tenantName || "MercadoImobi"}
+                    </span>
+                  </span>
+                  <ChevronDown className="hidden h-3 w-3 text-[var(--mi-text-soft)] 2xl:block" />
+                </button>
+                {accountOpen && (
+                  <div className="mi-nav-popover absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border p-1.5 shadow-xl">
                     <PopoverLink
-                      key={item.to}
-                      item={item}
+                      item={{ to: "/settings/security", label: "Minha conta", icon: UserRound }}
                       pathname={location.pathname}
-                      onClick={() => setToolsOpen(false)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="relative hidden sm:block">
-              <button
-                onClick={() => {
-                  setAccountOpen((value) => !value);
-                  setToolsOpen(false);
-                }}
-                className="mi-account-button flex h-9 items-center gap-2 rounded-lg px-2 transition"
-              >
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--mi-text)] text-[9px] font-black text-[var(--mi-bg)]">
-                  {initials}
-                </span>
-                <span className="hidden max-w-[150px] text-left 2xl:block">
-                  <span className="block truncate text-[10px] font-black text-[var(--mi-text)]">
-                    {displayName}
-                  </span>
-                  <span className="block truncate text-[8px] text-[var(--mi-text-soft)]">
-                    {access.planName && access.planSlug !== "legacy_full"
-                      ? access.planName
-                      : tenant?.tenantName || "MercadoImobi"}
-                  </span>
-                </span>
-                <ChevronDown className="hidden h-3 w-3 text-[var(--mi-text-soft)] 2xl:block" />
-              </button>
-              {accountOpen && (
-                <div className="mi-nav-popover absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border p-1.5 shadow-xl">
-                  <PopoverLink
-                    item={{ to: "/settings/security", label: "Minha conta", icon: UserRound }}
-                    pathname={location.pathname}
-                    onClick={() => setAccountOpen(false)}
-                  />
-                  <PopoverLink
-                    item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }}
-                    pathname={location.pathname}
-                    onClick={() => setAccountOpen(false)}
-                  />
-                  {isAdmin && (
-                    <>
-                      <PopoverLink
-                        item={{
-                          to: "/admin/usuarios",
-                          label: "Usuários e assinantes",
-                          icon: Users,
-                        }}
-                        pathname={location.pathname}
-                        onClick={() => setAccountOpen(false)}
-                      />
-                      <PopoverLink
-                        item={{
-                          to: "/admin/parametros",
-                          label: "Parâmetros do sistema",
-                          icon: Settings,
-                        }}
-                        pathname={location.pathname}
-                        onClick={() => setAccountOpen(false)}
-                      />
-                    </>
-                  )}
-                  {isAdmin && (
-                    <Link
-                      to="/settings/security"
                       onClick={() => setAccountOpen(false)}
-                      className="mi-popover-link"
+                    />
+                    <PopoverLink
+                      item={{ to: "/assinatura", label: "Assinatura", icon: CreditCard }}
+                      pathname={location.pathname}
+                      onClick={() => setAccountOpen(false)}
+                    />
+                    {isAdmin && (
+                      <>
+                        <PopoverLink
+                          item={{
+                            to: "/admin/usuarios",
+                            label: "Usuários e assinantes",
+                            icon: Users,
+                          }}
+                          pathname={location.pathname}
+                          onClick={() => setAccountOpen(false)}
+                        />
+                        <PopoverLink
+                          item={{
+                            to: "/admin/parametros",
+                            label: "Parâmetros do sistema",
+                            icon: Settings,
+                          }}
+                          pathname={location.pathname}
+                          onClick={() => setAccountOpen(false)}
+                        />
+                      </>
+                    )}
+                    {isAdmin && (
+                      <Link
+                        to="/settings/security"
+                        onClick={() => setAccountOpen(false)}
+                        className="mi-popover-link"
+                      >
+                        <Settings className="h-4 w-4" /> Configurações
+                      </Link>
+                    )}
+                    <div className="my-1 h-px bg-[var(--mi-border)]" />
+                    <button
+                      onClick={() => void signOut()}
+                      className="mi-popover-link w-full text-rose-600"
                     >
-                      <Settings className="h-4 w-4" /> Configurações
-                    </Link>
-                  )}
-                  <div className="my-1 h-px bg-[var(--mi-border)]" />
-                  <button
-                    onClick={() => void signOut()}
-                    className="mi-popover-link w-full text-rose-600"
-                  >
-                    <LogOut className="h-4 w-4" /> Sair
-                  </button>
-                </div>
-              )}
-            </div>
+                      <LogOut className="h-4 w-4" /> Sair
+                    </button>
+                  </div>
+                )}
+              </div>
 
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="mi-icon-button lg:hidden"
-              aria-label="Abrir menu"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="mi-icon-button lg:hidden"
+                aria-label="Abrir menu"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
         </nav>
       )}
 

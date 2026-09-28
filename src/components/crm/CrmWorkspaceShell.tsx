@@ -61,7 +61,9 @@ export function CrmWorkspaceShell() {
         <nav className="crm-template-nav" aria-label="Módulos do CRM">
           <button
             type="button"
-            className={module === "pipeline" ? "crm-template-nav-item is-active" : "crm-template-nav-item"}
+            className={
+              module === "pipeline" ? "crm-template-nav-item is-active" : "crm-template-nav-item"
+            }
             onClick={() => setModule("pipeline")}
           >
             <Layers3 />
@@ -91,7 +93,9 @@ export function CrmWorkspaceShell() {
 
           <button
             type="button"
-            className={module === "leads" ? "crm-template-nav-item is-active" : "crm-template-nav-item"}
+            className={
+              module === "leads" ? "crm-template-nav-item is-active" : "crm-template-nav-item"
+            }
             onClick={() => setModule("leads")}
           >
             <Inbox />
@@ -100,7 +104,11 @@ export function CrmWorkspaceShell() {
           </button>
 
           {module === "leads" && (
-            <button type="button" className="crm-template-subnav" onClick={() => setModule("leads")}>
+            <button
+              type="button"
+              className="crm-template-subnav"
+              onClick={() => setModule("leads")}
+            >
               <span />
               <Settings2 />
               Configurações de leads
@@ -129,7 +137,9 @@ export function CrmWorkspaceShell() {
 
           <button
             type="button"
-            className={module === "reports" ? "crm-template-nav-item is-active" : "crm-template-nav-item"}
+            className={
+              module === "reports" ? "crm-template-nav-item is-active" : "crm-template-nav-item"
+            }
             onClick={() => setModule("reports")}
           >
             <BarChart3 />
@@ -178,7 +188,11 @@ export function CrmWorkspaceShell() {
             <button type="button" className="crm-template-top-icon" aria-label="Mensagens">
               <Mail />
             </button>
-            <button type="button" className="crm-template-top-icon crm-template-bell" aria-label="Notificações">
+            <button
+              type="button"
+              className="crm-template-top-icon crm-template-bell"
+              aria-label="Notificações"
+            >
               <Bell />
               <span />
             </button>

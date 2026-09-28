@@ -184,7 +184,14 @@ export function CrmLeadInboxPanel() {
       const bySource = sourceFilter === "all" || lead.source === sourceFilter;
       if (!byFilter || !bySource) return false;
       if (!query) return true;
-      return [lead.contact_name, lead.contact_phone, lead.contact_email, lead.protocol_code, lead.city, lead.interest]
+      return [
+        lead.contact_name,
+        lead.contact_phone,
+        lead.contact_email,
+        lead.protocol_code,
+        lead.city,
+        lead.interest,
+      ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
     });
@@ -197,7 +204,9 @@ export function CrmLeadInboxPanel() {
         id: "new",
         label: discardedMode ? "Descartados" : "Novo",
         tone: "orange",
-        items: discardedMode ? rows.filter((lead) => lead.status === "discarded") : rows.filter((lead) => lead.status === "new"),
+        items: discardedMode
+          ? rows.filter((lead) => lead.status === "discarded")
+          : rows.filter((lead) => lead.status === "new"),
       },
       {
         id: "open",
@@ -223,7 +232,16 @@ export function CrmLeadInboxPanel() {
   }, [filter, rows]);
 
   const exportVisibleLeads = () => {
-    const header = ["Nome", "Telefone", "E-mail", "Status", "Score", "Origem", "Cidade", "Interesse"];
+    const header = [
+      "Nome",
+      "Telefone",
+      "E-mail",
+      "Status",
+      "Score",
+      "Origem",
+      "Cidade",
+      "Interesse",
+    ];
     const csv = [
       header,
       ...rows.map((lead) => [
@@ -237,11 +255,7 @@ export function CrmLeadInboxPanel() {
         lead.interest ?? "",
       ]),
     ]
-      .map((line) =>
-        line
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(","),
-      )
+      .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
       .join("\n");
     const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
