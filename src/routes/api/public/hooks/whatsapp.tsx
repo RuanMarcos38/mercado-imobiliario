@@ -63,6 +63,25 @@ function mediaUrlFromMessage(message: JsonObject): string | null {
   return null;
 }
 
+function evolutionProfilePictureUrl(data: JsonObject): string | null {
+  const profile = object(data["profile"]);
+  const contact = object(data["contact"]);
+  for (const value of [
+    data["profilePictureUrl"],
+    data["profilePicUrl"],
+    data["picture"],
+    data["avatarUrl"],
+    profile["picture"],
+    profile["profilePictureUrl"],
+    contact["profilePictureUrl"],
+    contact["profilePicUrl"],
+    contact["picture"],
+  ]) {
+    if (typeof value === "string" && /^https?:\/\//i.test(value.trim())) return value.trim();
+  }
+  return null;
+}
+
 function normalizeEvent(value: unknown): string {
   return String(value ?? "")
     .replace(/[.-]/g, "_")
@@ -623,6 +642,7 @@ async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
     // Em mensagens fromMe o pushName pertence à própria conta conectada.
     // Ele pode ser salvo na mensagem, mas nunca deve substituir o nome do cliente.
     const contactName = fromMe ? null : senderName;
+    const avatarUrl = fromMe ? null : evolutionProfilePictureUrl(data);
 
     let { data: conversation } = await db
       .from("whatsapp_conversations")
@@ -638,6 +658,7 @@ async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
           tenant_id: connection.tenant_id,
           phone_e164: phone,
           contact_name: contactName,
+          avatar_url: avatarUrl,
           last_message: body ?? (mediaUrl ? "Mídia recebida" : "Nova mensagem"),
           last_message_at: sentAt,
           unread_count: fromMe ? 0 : 1,
@@ -672,6 +693,7 @@ async function handleEvolutionWebhook(request: Request, payload: JsonObject) {
       .from("whatsapp_conversations")
       .update({
         contact_name: contactName ?? undefined,
+        avatar_url: avatarUrl ?? undefined,
         last_message: body ?? (mediaUrl ? "Mídia" : type),
         last_message_at: sentAt,
         unread_count: nextUnread,
