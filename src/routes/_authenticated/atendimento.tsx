@@ -950,7 +950,124 @@ function AtendimentoPage() {
       className={`mi-wa-shell min-h-[calc(100vh-72px)] bg-[var(--mi-bg)] px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
     >
       <div className="mi-wa-layout mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
-        <aside className="mi-wa-sidebar flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
+        <aside className="mi-wa-rail hidden w-[58px] shrink-0 flex-col items-center border-r border-[var(--mi-border)] bg-[var(--mi-surface)] py-3 lg:flex">
+          <button
+            type="button"
+            onClick={() => setQueueTab("waiting")}
+            className="mi-wa-rail-brand grid h-9 w-9 place-items-center rounded-xl text-emerald-600"
+            title="Caixa de entrada"
+          >
+            <MessageCircle className="h-5 w-5" />
+          </button>
+          <div className="mt-4 flex flex-1 flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setQueueTab("waiting")}
+              className={`mi-wa-rail-button ${queueTab === "waiting" ? "is-active" : ""}`}
+              title="Esperando"
+            >
+              <Users className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setQueueTab("in_service")}
+              className={`mi-wa-rail-button ${queueTab === "in_service" ? "is-active" : ""}`}
+              title="Em atendimento"
+            >
+              <UserCheck className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setQueueTab("automatic")}
+              className={`mi-wa-rail-button ${queueTab === "automatic" ? "is-active" : ""}`}
+              title="Automático"
+            >
+              <Bot className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRealtimePanel(true)}
+              className="mi-wa-rail-button"
+              title="Dashboard"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowRealtimePanel(true)}
+            className="mi-wa-rail-avatar"
+            title="Atendimento"
+          >
+            MI
+          </button>
+        </aside>
+
+        <aside className="mi-wa-folders hidden w-[176px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface)] xl:flex">
+          <div className="border-b border-[var(--mi-border)] px-4 py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                  Atendimento
+                </p>
+                <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.01em]">Inbox</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => void startConversation()}
+                className="grid h-7 w-7 place-items-center rounded-full bg-[#17191c] text-white transition hover:opacity-85"
+                title="Nova conversa"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-2 py-3">
+            <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+              Conversas
+            </p>
+            <div className="mt-2 space-y-1">
+              {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setQueueTab(tab)}
+                  className={`mi-wa-folder-row ${queueTab === tab ? "is-active" : ""}`}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    {tab === "waiting" ? (
+                      <Clock3 className="h-3.5 w-3.5" />
+                    ) : tab === "in_service" ? (
+                      <UserCheck className="h-3.5 w-3.5" />
+                    ) : (
+                      <Bot className="h-3.5 w-3.5" />
+                    )}
+                    <span className="truncate">{QUEUE_LABELS[tab]}</span>
+                  </span>
+                  <span className="text-[10px] text-[var(--mi-text-soft)]">{queueCounts[tab]}</span>
+                </button>
+              ))}
+            </div>
+
+            <p className="mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+              Ações
+            </p>
+            <div className="mt-2 space-y-1">
+              <button type="button" onClick={() => void startConversation()} className="mi-wa-folder-row">
+                <span className="flex items-center gap-2">
+                  <MessageCircle className="h-3.5 w-3.5" /> Nova conversa
+                </span>
+              </button>
+              <button type="button" onClick={() => setShowRealtimePanel(true)} className="mi-wa-folder-row">
+                <span className="flex items-center gap-2">
+                  <BarChart3 className="h-3.5 w-3.5" /> Dashboard
+                </span>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <aside className="mi-wa-sidebar mi-wa-conversations-panel flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
           <div className="mi-wa-sidebar-head border-b border-[var(--mi-border)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -1338,14 +1455,27 @@ function AtendimentoPage() {
                         className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${
+                          className={`mi-wa-bubble max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-sm ${
                             message.direction === "outbound"
                               ? failed
-                                ? "rounded-br-md bg-rose-600 text-white"
-                                : "rounded-br-md bg-blue-600 text-white"
-                              : "rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"
+                                ? "mi-wa-bubble-out rounded-br-md bg-rose-600 text-white"
+                                : "mi-wa-bubble-out rounded-br-md bg-blue-600 text-white"
+                              : "mi-wa-bubble-in rounded-bl-md border border-[var(--mi-border)] bg-[var(--mi-surface-soft)] text-[var(--mi-text)]"
                           }`}
                         >
+                          <div className="mi-wa-bubble-author mb-1 flex items-center justify-between gap-4 text-[10px] font-semibold">
+                            <span>
+                              {message.direction === "outbound"
+                                ? "Empresa"
+                                : selected.contact_name || selected.phone_e164}
+                            </span>
+                            <span className="font-normal opacity-60">
+                              {new Date(message.sent_at).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
                           {message.message_type === "text" ? (
                             message.body ? (
                               <p className="whitespace-pre-wrap">{message.body}</p>
@@ -1642,7 +1772,7 @@ function AtendimentoPage() {
         </main>
 
         {selected && (
-          <aside className="mi-wa-details hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
+          <aside className="mi-wa-details mi-wa-details-panel hidden w-[300px] shrink-0 flex-col border-l border-[var(--mi-border)] bg-[var(--mi-surface-soft)] xl:flex">
             <div className="border-b border-[var(--mi-border)] px-5 py-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
                 Detalhes
