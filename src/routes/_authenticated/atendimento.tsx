@@ -1044,9 +1044,7 @@ function AtendimentoPage() {
                     )}
                     <span className="truncate">{QUEUE_LABELS[tab]}</span>
                   </span>
-                  <span className="text-[10px] text-[var(--mi-text-soft)]">
-                    {queueCounts[tab]}
-                  </span>
+                  <span className="text-[10px] text-[var(--mi-text-soft)]">{queueCounts[tab]}</span>
                 </button>
               ))}
             </div>
