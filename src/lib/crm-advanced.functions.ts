@@ -34,6 +34,7 @@ export type CrmOpportunity = {
   stage_id: string;
   owner_user_id: string | null;
   conversation_id: string | null;
+  avatar_url: string | null;
   contact_name: string;
   contact_phone: string | null;
   contact_email: string | null;
@@ -241,10 +242,39 @@ export const getCrmWorkspace = createServerFn({ method: "GET" })
     const failure = results.find((result) => result.error);
     if (failure?.error) throw new Error(failure.error.message);
 
+    const opportunityRows = opportunities.data ?? [];
+    const conversationIds = [
+      ...new Set(
+        opportunityRows
+          .map((row: any) => row.conversation_id)
+          .filter((value: unknown): value is string => typeof value === "string" && Boolean(value)),
+      ),
+    ];
+    const avatarByConversation = new Map<string, string | null>();
+
+    if (conversationIds.length) {
+      const avatars = await db
+        .from("whatsapp_conversations")
+        .select("id,avatar_url")
+        .eq("tenant_id", tenantId)
+        .in("id", conversationIds);
+      if (avatars.error) throw new Error(avatars.error.message);
+      for (const row of avatars.data ?? []) {
+        avatarByConversation.set(String(row.id), row.avatar_url ? String(row.avatar_url) : null);
+      }
+    }
+
+    const opportunitiesWithAvatars = opportunityRows.map((row: any) => ({
+      ...row,
+      avatar_url: row.conversation_id
+        ? avatarByConversation.get(String(row.conversation_id)) ?? null
+        : null,
+    })) as CrmOpportunity[];
+
     return {
       pipelines: (pipelines.data ?? []) as CrmPipeline[],
       stages: (stages.data ?? []) as CrmStage[],
-      opportunities: (opportunities.data ?? []) as CrmOpportunity[],
+      opportunities: opportunitiesWithAvatars,
       lossReasons: (lossReasons.data ?? []) as CrmLossReason[],
       customFields: (customFields.data ?? []) as CrmCustomField[],
       cadences: (cadences.data ?? []) as CrmCadence[],
