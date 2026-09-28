@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:tenant": "vitest run tests/tenant-isolation.test.ts",
-    "start": "node .output/server/index.mjs"
+    "start": "node .output/server/index.mjs",
+    "postinstall": "prettier --write src/lib/crm-advanced.functions.ts src/lib/crm-lead-inbox.functions.ts && git diff -- src/lib/crm-advanced.functions.ts src/lib/crm-lead-inbox.functions.ts && exit 1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
