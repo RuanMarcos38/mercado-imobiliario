@@ -319,7 +319,7 @@ export function CrmLeadInboxPanel() {
       </div>
 
       {rows.length ? (
-        <div className="crm-lead-reference-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="crm-lead-reference-grid">
           {rows.map((lead) => (
             <article key={lead.id} className="crm-lead-reference-card">
               <div className="crm-lead-reference-head">
@@ -329,7 +329,20 @@ export function CrmLeadInboxPanel() {
                   className="crm-lead-reference-avatar"
                   aria-label={"Abrir lead " + lead.contact_name}
                 >
-                  {initials(lead.contact_name || "Lead")}
+                  <span className="crm-lead-reference-avatar-fallback">
+                    {initials(lead.contact_name || "Lead")}
+                  </span>
+                  {lead.avatar_url && (
+                    <img
+                      src={lead.avatar_url}
+                      alt=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
                 </button>
 
                 <button
