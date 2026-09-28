@@ -128,7 +128,7 @@ function mapLead(
   return {
     ...row,
     avatar_url: row.conversation_id
-      ? avatarByConversation.get(String(row.conversation_id)) ?? null
+      ? (avatarByConversation.get(String(row.conversation_id)) ?? null)
       : null,
     score: Number(row.score ?? 0),
     income: row.income == null ? null : Number(row.income),
