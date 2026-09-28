@@ -347,9 +347,7 @@ export function CrmLeadInboxPanel() {
                 </button>
 
                 <div
-                  className={
-                    "crm-lead-reference-score " + temperatureClasses(lead.temperature)
-                  }
+                  className={"crm-lead-reference-score " + temperatureClasses(lead.temperature)}
                   title="Score de qualificação"
                 >
                   <TemperatureIcon value={lead.temperature} />
@@ -406,9 +404,7 @@ export function CrmLeadInboxPanel() {
                       : "crm-lead-reference-icon"
                   }
                   title={
-                    lead.conversation_id
-                      ? "Abrir conversa do WhatsApp"
-                      : "Conversa não vinculada"
+                    lead.conversation_id ? "Abrir conversa do WhatsApp" : "Conversa não vinculada"
                   }
                 >
                   <MessageCircle />
@@ -436,11 +432,7 @@ export function CrmLeadInboxPanel() {
                 </Button>
 
                 {lead.conversation_id && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openConversation(lead)}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => openConversation(lead)}>
                     <MessageCircle className="h-3.5 w-3.5" />
                     Conversa
                   </Button>
