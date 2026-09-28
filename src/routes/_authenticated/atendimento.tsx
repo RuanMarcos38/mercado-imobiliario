@@ -1044,7 +1044,9 @@ function AtendimentoPage() {
                     )}
                     <span className="truncate">{QUEUE_LABELS[tab]}</span>
                   </span>
-                  <span className="text-[10px] text-[var(--mi-text-soft)]">{queueCounts[tab]}</span>
+                  <span className="text-[10px] text-[var(--mi-text-soft)]">
+                    {queueCounts[tab]}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1053,12 +1055,20 @@ function AtendimentoPage() {
               Ações
             </p>
             <div className="mt-2 space-y-1">
-              <button type="button" onClick={() => void startConversation()} className="mi-wa-folder-row">
+              <button
+                type="button"
+                onClick={() => void startConversation()}
+                className="mi-wa-folder-row"
+              >
                 <span className="flex items-center gap-2">
                   <MessageCircle className="h-3.5 w-3.5" /> Nova conversa
                 </span>
               </button>
-              <button type="button" onClick={() => setShowRealtimePanel(true)} className="mi-wa-folder-row">
+              <button
+                type="button"
+                onClick={() => setShowRealtimePanel(true)}
+                className="mi-wa-folder-row"
+              >
                 <span className="flex items-center gap-2">
                   <BarChart3 className="h-3.5 w-3.5" /> Dashboard
                 </span>
