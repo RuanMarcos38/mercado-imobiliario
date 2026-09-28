@@ -253,6 +253,8 @@ const toolItems = [
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const crmStandalone =
+    location.pathname === "/crm" || location.pathname.startsWith("/crm/");
   const { roles, tenant, user, access } = Route.useRouteContext();
   const isAdmin = roles.includes("admin");
   const allowedFeatures = new Set(access.allowedFeatures ?? []);
@@ -343,7 +345,8 @@ function AuthenticatedLayout() {
 
   return (
     <div className="mi-shell min-h-screen">
-      <nav className="mi-appbar sticky top-0 z-50 border-b">
+      {!crmStandalone && (
+        <nav className="mi-appbar sticky top-0 z-50 border-b">
         <div className="mx-auto flex h-14 max-w-[1720px] items-center gap-3 px-3 sm:px-5 lg:px-6">
           <Link
             to={isFeatureAllowed("dashboard") ? "/dashboard" : "/assinatura"}
@@ -530,9 +533,10 @@ function AuthenticatedLayout() {
             </button>
           </div>
         </div>
-      </nav>
+        </nav>
+      )}
 
-      {mobileOpen && (
+      {!crmStandalone && mobileOpen && (
         <div
           className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileOpen(false)}
