@@ -31,10 +31,10 @@ const modules: Array<{ id: Module; label: string; icon: typeof Layers3 }> = [
 export function CrmWorkspaceShell() {
   const [module, setModule] = useState<Module>("leads");
   return (
-    <div className="min-h-screen bg-[var(--mi-bg)] text-[var(--mi-text)]">
-      <div className="sticky top-0 z-20 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]/95 px-3 py-2 backdrop-blur sm:px-5">
+    <div className="crm-workspace-shell min-h-screen bg-[var(--mi-bg)] text-[var(--mi-text)]">
+      <div className="crm-workspace-tabs sticky top-0 z-20 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]/95 px-4 py-3 backdrop-blur sm:px-6">
         <nav
-          className="mx-auto flex max-w-[1900px] gap-1 overflow-x-auto"
+          className="mx-auto flex max-w-[1900px] gap-1.5 overflow-x-auto"
           aria-label="Módulos do CRM"
         >
           {modules.map((item) => {
@@ -46,7 +46,7 @@ export function CrmWorkspaceShell() {
                 onClick={() => setModule(item.id)}
                 className={`flex min-w-[92px] items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${
                   module === item.id
-                    ? "bg-blue-600 text-white shadow-sm"
+                    ? "bg-[#4f7df3] text-white shadow-sm"
                     : "text-[var(--mi-text-muted)] hover:bg-[var(--mi-surface-soft)] hover:text-[var(--mi-text)]"
                 }`}
               >
