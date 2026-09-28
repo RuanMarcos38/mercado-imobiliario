@@ -1972,7 +1972,7 @@ button.crm-lead-reference-icon:not(:disabled) {
 .crm-template-shell {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 40;
   display: grid;
   grid-template-columns: 218px minmax(0, 1fr);
   height: 100vh;
