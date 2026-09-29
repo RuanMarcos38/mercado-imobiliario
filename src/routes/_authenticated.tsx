@@ -452,6 +452,17 @@ function AuthenticatedLayout() {
       <section className="mi-platform-stage">
         <header className="mi-platform-topbar">
           <div className="mi-platform-topbar-title">
+            {sidebarCollapsed && (
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                className="mi-platform-sidebar-reopen"
+                aria-label="Reabrir menu lateral"
+                title="Reabrir menu lateral"
+              >
+                <PanelLeftOpen />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
