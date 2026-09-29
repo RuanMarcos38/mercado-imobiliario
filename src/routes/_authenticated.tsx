@@ -291,6 +291,13 @@ const operationMenuEntries: PlatformMenuEntry[] = [
   },
 ];
 
+
+const internalPlatformTools = [
+  { to: "/diagnostico", label: "Diagnóstico" },
+  { to: "/integracoes", label: "Fontes de imóveis" },
+  { to: "/fluxos", label: "Fluxos" },
+] as const;
+
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -418,7 +425,7 @@ function AuthenticatedLayout() {
     ...flattenMenuEntries(visiblePrincipalEntries),
     ...flattenMenuEntries(visibleOperationEntries),
   ];
-  const currentItem = [...allVisibleItems, ...accountItems].find(
+  const currentItem = [...allVisibleItems, ...accountItems, ...internalPlatformTools].find(
     (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
   );
   const currentTitle = currentItem?.label || "MercadoImobi";
