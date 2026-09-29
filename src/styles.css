@@ -5103,3 +5103,900 @@ button.crm-lead-reference-icon:not(:disabled) {
     min-height: 40px;
   }
 }
+
+
+/* Corporate Medcare-style CRM + prospecting cleanup — 2026-09-29 */
+/* Prospecting: remove AI-themed chrome and match the platform's corporate visual language. */
+.prospect-corporate-page {
+  min-height: calc(100vh - 64px);
+  padding: 22px 24px 30px;
+  background: #f3f5f8;
+  color: #2f3948;
+}
+
+.prospect-corporate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: 1760px;
+  margin: 0 auto;
+}
+
+.prospect-corporate-header h1 {
+  margin: 0;
+  color: #202938;
+  font-size: 22px;
+  font-weight: 720;
+  letter-spacing: -0.03em;
+}
+
+.prospect-corporate-header > div > span {
+  display: block;
+  margin-top: 3px;
+  color: #98a1ad;
+  font-size: 9px;
+  font-weight: 550;
+}
+
+.prospect-primary-action {
+  height: 36px !important;
+  border-radius: 7px !important;
+  background: #3975ee !important;
+  padding-inline: 14px !important;
+  font-size: 9px !important;
+  font-weight: 680 !important;
+  box-shadow: none !important;
+}
+
+.prospect-primary-action svg {
+  width: 13px !important;
+  height: 13px !important;
+  margin-right: 5px;
+}
+
+.prospect-toolbar {
+  display: grid;
+  max-width: 1760px;
+  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(145px, 0.8fr));
+  gap: 9px;
+  margin: 18px auto 0;
+  padding: 13px;
+  border: 1px solid #e5e9ef;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.prospect-field {
+  min-width: 0;
+}
+
+.prospect-field > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #8b95a3;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.prospect-field > div {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  border: 1px solid #e3e7ed;
+  border-radius: 6px;
+  background: #f9fafb;
+  padding: 0 10px;
+}
+
+.prospect-field input,
+.prospect-field select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #3f4a5a;
+  font-size: 9px;
+}
+
+.prospect-field input::placeholder {
+  color: #a4acb7;
+}
+
+.prospect-network-bar {
+  display: flex;
+  max-width: 1760px;
+  align-items: center;
+  gap: 12px;
+  margin: 10px auto 0;
+  padding: 10px 13px;
+  border: 1px solid #e5e9ef;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.prospect-network-bar > strong {
+  flex: 0 0 auto;
+  color: #596577;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.prospect-network-bar > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.prospect-network-bar label {
+  position: relative;
+  display: inline-flex;
+  min-height: 27px;
+  align-items: center;
+  border: 1px solid #e8ebef;
+  border-radius: 6px;
+  background: #f8f9fb;
+  padding: 0 8px;
+  color: #8a93a0;
+  font-size: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prospect-network-bar label.is-active {
+  border-color: #d8e4fb;
+  background: #eef4ff;
+  color: #3568c9;
+}
+
+.prospect-network-bar input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.prospect-summary-row {
+  display: grid;
+  max-width: 1760px;
+  grid-template-columns: repeat(3, minmax(150px, 1fr)) minmax(230px, 1.25fr);
+  gap: 9px;
+  margin: 10px auto 0;
+}
+
+.prospect-metric,
+.prospect-update-status {
+  min-height: 74px;
+  border: 1px solid #e5e9ef;
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 13px 14px;
+}
+
+.prospect-metric span,
+.prospect-update-status span {
+  display: block;
+  color: #8c96a5;
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.prospect-metric strong {
+  display: block;
+  margin-top: 8px;
+  color: #253043;
+  font-size: 20px;
+  font-weight: 720;
+  line-height: 1;
+}
+
+.prospect-update-status strong {
+  display: block;
+  margin-top: 8px;
+  overflow: hidden;
+  color: #4d596a;
+  font-size: 9px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prospect-results {
+  max-width: 1760px;
+  margin: 12px auto 0;
+  border: 1px solid #e3e7ed;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.prospect-results-head {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #edf0f3;
+  padding: 0 2px 11px;
+}
+
+.prospect-results-head h2 {
+  margin: 0;
+  color: #263244;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.prospect-results-head span {
+  display: block;
+  margin-top: 2px;
+  color: #9ba3ae;
+  font-size: 8px;
+}
+
+.prospect-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(210px, 1fr));
+  gap: 9px;
+  margin-top: 11px;
+}
+
+.prospect-card {
+  min-width: 0;
+  border: 1px solid #e8ebef;
+  border-radius: 8px;
+  background: #f8f9fb;
+  padding: 11px;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.prospect-card:hover {
+  border-color: #dce2ea;
+  background: #ffffff;
+}
+
+.prospect-card-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.prospect-card-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7edf6;
+  color: #506078;
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.prospect-card-head > div {
+  min-width: 0;
+}
+
+.prospect-card-head strong,
+.prospect-card-head > div > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prospect-card-head strong {
+  color: #2e394a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.prospect-card-head > div > span {
+  margin-top: 2px;
+  color: #99a2ae;
+  font-size: 7.5px;
+}
+
+.prospect-score {
+  display: grid;
+  min-width: 28px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid #e3e8ee;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #647083;
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.prospect-score.is-hot {
+  border-color: #f0d9dc;
+  background: #fff7f7;
+  color: #b75b67;
+}
+
+.prospect-card-meta {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  border-top: 1px solid #e7ebef;
+  padding-top: 9px;
+}
+
+.prospect-card-meta span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: #7f8997;
+  font-size: 7.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prospect-card-meta svg {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  color: #a2abb7;
+}
+
+.prospect-card-note {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 9px 0 0;
+  color: #596576;
+  font-size: 8px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.prospect-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid #e7ebef;
+  padding-top: 8px;
+}
+
+.prospect-card-footer > span {
+  color: #8b95a3;
+  font-size: 7px;
+  font-weight: 650;
+}
+
+.prospect-card-footer > div {
+  display: flex;
+  gap: 5px;
+}
+
+.prospect-card-footer a {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #dde3ea;
+  border-radius: 5px;
+  background: #ffffff;
+  padding: 0 7px;
+  color: #4f6fae;
+  font-size: 7.5px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.prospect-card-footer a:hover {
+  border-color: #cdd9ed;
+  color: #2f66ce;
+}
+
+.prospect-card-footer a svg {
+  width: 9px;
+  height: 9px;
+}
+
+.prospect-empty {
+  display: grid;
+  min-height: 250px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  color: #98a1ad;
+}
+
+.prospect-empty strong {
+  color: #526071;
+  font-size: 10px;
+}
+
+.prospect-empty span {
+  font-size: 8px;
+}
+
+/* CRM: one clean corporate surface, aligned to the supplied management-system reference. */
+.crm-medcare-workspace {
+  min-height: calc(100vh - 64px);
+  padding: 22px 24px 30px;
+  background: #f2f5f7;
+}
+
+.crm-medcare-header {
+  display: flex;
+  max-width: 1760px;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 auto;
+}
+
+.crm-medcare-header h1 {
+  margin: 0;
+  color: #202938;
+  font-size: 22px;
+  font-weight: 720;
+  letter-spacing: -0.03em;
+}
+
+.crm-medcare-header > div > span {
+  display: block;
+  margin-top: 3px;
+  color: #9aa3af;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.crm-medcare-search {
+  display: grid;
+  width: min(340px, 32vw);
+  height: 36px;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e3e7ed;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 0 10px;
+}
+
+.crm-medcare-search svg {
+  width: 13px;
+  height: 13px;
+  color: #9ca5b1;
+}
+
+.crm-medcare-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #3f4a5a;
+  font-size: 9px;
+}
+
+.crm-medcare-nav {
+  display: flex;
+  max-width: 1760px;
+  gap: 5px;
+  margin: 12px auto 0;
+  overflow-x: auto;
+  border-bottom: 1px solid #e1e6ec;
+  padding-bottom: 7px;
+  scrollbar-width: thin;
+}
+
+.crm-medcare-nav button {
+  display: inline-flex;
+  min-height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0 9px;
+  color: #7c8694;
+  font-size: 8.5px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.crm-medcare-nav button:hover {
+  background: #ffffff;
+  color: #3d4859;
+}
+
+.crm-medcare-nav button.is-active {
+  border-color: #d9e4fb;
+  background: #eef4ff;
+  color: #2f67d1;
+}
+
+.crm-medcare-nav button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.crm-medcare-content {
+  max-width: 1760px;
+  margin: 0 auto;
+  padding-top: 14px;
+}
+
+.crm-medcare-content .crm-template-leads {
+  padding: 0;
+}
+
+.crm-medcare-content .crm-template-page-head {
+  min-height: 42px;
+}
+
+.crm-medcare-content .crm-template-page-head h1 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.crm-template-page-count {
+  display: block;
+  margin-top: 3px;
+  color: #9aa3af;
+  font-size: 8px;
+}
+
+.crm-medcare-content .crm-template-page-head p {
+  display: none;
+}
+
+.crm-medcare-content .crm-template-export {
+  height: 34px !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+.crm-medcare-content .crm-template-filterbar {
+  margin-top: 9px;
+  padding: 9px 0;
+  border-top: 1px solid #e4e8ed;
+  border-bottom: 1px solid #e4e8ed;
+}
+
+.crm-medcare-content .crm-template-filter-selects select {
+  width: 128px;
+  height: 31px;
+  border-color: #e2e7ed;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #6f7988;
+  font-size: 8px;
+}
+
+.crm-client-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 11px;
+}
+
+.crm-client-card {
+  min-width: 0;
+  border: 1px solid #e4e8ed;
+  border-radius: 8px;
+  background: #f8f9fb;
+  padding: 11px;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.crm-client-card:hover,
+.crm-client-card:focus-within {
+  border-color: #d5dce5;
+  background: #ffffff;
+}
+
+.crm-client-card-head {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 8px;
+}
+
+.crm-client-card .crm-template-card-avatar {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.crm-client-card-title {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-client-card-title strong,
+.crm-client-card-title span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-client-card-title strong {
+  color: #2e3949;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.crm-client-card-title span {
+  margin-top: 2px;
+  color: #99a2ae;
+  font-size: 7.5px;
+}
+
+.crm-client-card-divider {
+  height: 1px;
+  margin: 9px 0 8px;
+  background: #e6eaef;
+}
+
+.crm-client-card-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: #818b99;
+  font-size: 7.5px;
+}
+
+.crm-client-card-line svg {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  color: #a2abb7;
+}
+
+.crm-client-card-line span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-client-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.crm-client-card-bottom > button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #3975ee;
+  font-size: 7.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.crm-client-card-actions {
+  display: grid;
+  max-height: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 140ms ease,
+    margin-top 140ms ease,
+    opacity 140ms ease;
+}
+
+.crm-client-card:hover .crm-client-card-actions,
+.crm-client-card:focus-within .crm-client-card-actions {
+  max-height: 32px;
+  margin-top: 8px;
+  opacity: 1;
+}
+
+.crm-client-card-actions button {
+  display: inline-flex;
+  min-width: 0;
+  height: 27px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+  border: 1px solid #e3e8ee;
+  border-radius: 5px;
+  background: #ffffff;
+  padding: 0 4px;
+  color: #687386;
+  font-size: 7px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crm-client-card-actions button:hover {
+  border-color: #d3dae4;
+  color: #365f9f;
+}
+
+.crm-client-card-actions button svg {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+}
+
+.crm-medcare-content .crm-pipeline-workspace {
+  min-height: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.crm-medcare-content .crm-pipeline-workspace > div {
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+.crm-medcare-content .crm-pipeline-workspace > div > header {
+  border: 1px solid #e2e7ed !important;
+  border-radius: 9px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.crm-medcare-content .crm-kanban-column {
+  border: 1px solid #e5e9ef !important;
+  border-radius: 8px !important;
+  background: #f7f8fa !important;
+  box-shadow: none !important;
+}
+
+.crm-medcare-content .crm-kanban-card {
+  border: 1px solid #e3e7ed !important;
+  border-radius: 7px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.crm-medcare-content [class*="shadow-"] {
+  box-shadow: none !important;
+}
+
+.dark .prospect-corporate-page,
+.dark .crm-medcare-workspace {
+  background: #111827;
+}
+
+.dark .prospect-toolbar,
+.dark .prospect-network-bar,
+.dark .prospect-metric,
+.dark .prospect-update-status,
+.dark .prospect-results,
+.dark .prospect-card,
+.dark .crm-client-card,
+.dark .crm-medcare-search {
+  border-color: rgba(148, 163, 184, 0.15);
+  background: #18212f;
+}
+
+.dark .prospect-card:hover,
+.dark .crm-client-card:hover,
+.dark .crm-client-card:focus-within {
+  background: #202b3a;
+}
+
+.dark .prospect-corporate-header h1,
+.dark .prospect-results-head h2,
+.dark .prospect-card-head strong,
+.dark .crm-medcare-header h1,
+.dark .crm-client-card-title strong {
+  color: #f1f5f9;
+}
+
+.dark .prospect-field > div {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: #202b3a;
+}
+
+.dark .prospect-network-bar label {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.dark .prospect-network-bar label.is-active,
+.dark .crm-medcare-nav button.is-active {
+  border-color: rgba(96, 165, 250, 0.18);
+  background: rgba(59, 130, 246, 0.12);
+  color: #bfdbfe;
+}
+
+@media (max-width: 1180px) {
+  .prospect-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .prospect-field.is-wide {
+    grid-column: 1 / -1;
+  }
+
+  .prospect-card-grid,
+  .crm-client-grid {
+    grid-template-columns: repeat(3, minmax(190px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .prospect-corporate-page,
+  .crm-medcare-workspace {
+    min-height: calc(100vh - 58px);
+    padding: 18px 14px 24px;
+  }
+
+  .prospect-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-medcare-search {
+    width: min(300px, 45vw);
+  }
+
+  .prospect-card-grid,
+  .crm-client-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .prospect-corporate-header,
+  .crm-medcare-header {
+    align-items: flex-start;
+  }
+
+  .prospect-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .prospect-field.is-wide {
+    grid-column: auto;
+  }
+
+  .prospect-summary-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .prospect-network-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .prospect-card-grid,
+  .crm-client-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-medcare-search {
+    display: none;
+  }
+
+  .crm-client-card-actions {
+    max-height: 32px;
+    margin-top: 8px;
+    opacity: 1;
+  }
+}
