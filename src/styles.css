@@ -4703,3 +4703,117 @@ button.crm-lead-reference-icon:not(:disabled) {
     display: block;
   }
 }
+
+
+/* Grouped platform navigation — 2026-09-29 */
+.mi-platform-nav-group {
+  display: grid;
+  gap: 3px;
+}
+
+.mi-platform-nav-group-trigger {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 14px;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 8px 10px;
+  color: #687386;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.mi-platform-nav-group-trigger:hover {
+  border-color: #edf0f4;
+  background: #f7f9fb;
+  color: #394557;
+}
+
+.mi-platform-nav-group.is-active > .mi-platform-nav-group-trigger {
+  border-color: #e1e9f8;
+  background: #f4f7fd;
+  color: #285fca;
+}
+
+.mi-platform-nav-group-trigger > svg:first-child {
+  width: 14px;
+  height: 14px;
+  color: #8d96a4;
+  stroke-width: 1.8;
+}
+
+.mi-platform-nav-group.is-active > .mi-platform-nav-group-trigger > svg:first-child {
+  color: #3975ee;
+}
+
+.mi-platform-nav-group-trigger > svg:last-child {
+  width: 12px;
+  height: 12px;
+  justify-self: end;
+  color: #9da5b1;
+  transition: transform 160ms ease;
+}
+
+.mi-platform-nav-group-trigger > svg:last-child.is-open {
+  transform: rotate(180deg);
+}
+
+.mi-platform-nav-group-items {
+  display: grid;
+  gap: 2px;
+  margin: 1px 0 4px 18px;
+  padding-left: 8px;
+  border-left: 1px solid #e7ebf0;
+}
+
+.mi-platform-nav-link.is-nested {
+  min-height: 34px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  padding: 7px 9px;
+  font-size: 9.5px;
+}
+
+.mi-platform-nav-link.is-nested svg {
+  width: 12px;
+  height: 12px;
+}
+
+.mi-platform-nav-link.is-nested.is-active {
+  border-color: transparent;
+  background: #eef4ff;
+}
+
+.dark .mi-platform-nav-group-trigger {
+  color: #aeb7c4;
+}
+
+.dark .mi-platform-nav-group-trigger:hover,
+.dark .mi-platform-nav-group.is-active > .mi-platform-nav-group-trigger {
+  border-color: rgba(96, 165, 250, 0.16);
+  background: rgba(59, 130, 246, 0.08);
+  color: #bfdbfe;
+}
+
+.dark .mi-platform-nav-group-items {
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+@media (max-width: 900px) {
+  .mi-platform-nav-group-trigger {
+    min-height: 40px;
+  }
+
+  .mi-platform-nav-group-items {
+    margin-left: 17px;
+  }
+}
