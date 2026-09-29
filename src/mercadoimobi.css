@@ -1385,16 +1385,11 @@ html.dark-mode body {
   color: #37373e;
 }
 
-.crm-aligno-content .crm-pipeline-workspace .crm-kanban-card [class*="bg-[var(--mi-bg)]"] {
-  background: #f8f8f9 !important;
-}
-
 .crm-aligno-content .crm-pipeline-workspace .crm-kanban-card .text-blue-700,
 .crm-aligno-content .crm-pipeline-workspace .text-blue-600 {
   color: var(--crm-ref-accent) !important;
 }
 
-.crm-aligno-content .crm-pipeline-workspace button[class*="border-[var(--mi-border)]"],
 .crm-aligno-content .crm-pipeline-workspace button.border-input,
 .crm-aligno-content .crm-pipeline-workspace button[class*="bg-background"] {
   border-color: var(--crm-ref-border) !important;
@@ -1403,7 +1398,6 @@ html.dark-mode body {
   box-shadow: none !important;
 }
 
-.crm-aligno-content .crm-pipeline-workspace button[class*="border-[var(--mi-border)]"]:hover,
 .crm-aligno-content .crm-pipeline-workspace button.border-input:hover,
 .crm-aligno-content .crm-pipeline-workspace button[class*="bg-background"]:hover {
   border-color: #dad6ee !important;
