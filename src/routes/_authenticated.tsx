@@ -605,6 +605,7 @@ function PlatformNavSection({
               to={item.to}
               onClick={onNavigate}
               className={active ? "mi-platform-nav-link is-active" : "mi-platform-nav-link"}
+              title={platformNavigationLabel(item)}
             >
               <Icon />
               <span>{platformNavigationLabel(item)}</span>
