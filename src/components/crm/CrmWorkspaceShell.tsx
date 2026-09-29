@@ -4,7 +4,7 @@ import {
   FileSignature,
   FileText,
   FolderOpen,
-  KanbanSquare,
+  Columns3,
   Mail,
   MessageCircle,
   Users,
@@ -28,7 +28,7 @@ type CrmModuleItem = {
 const modules: CrmModuleItem[] = [
   { id: "attendance", label: "Atendimento", icon: MessageCircle, section: "main" },
   { id: "leads", label: "Leads", icon: Users, section: "main" },
-  { id: "pipeline", label: "Pipeline", icon: KanbanSquare, section: "main" },
+  { id: "pipeline", label: "Pipeline", icon: Columns3, section: "main" },
   { id: "signatures", label: "Assinaturas", icon: FileSignature, section: "other" },
   { id: "documents", label: "Documentos", icon: FolderOpen, section: "other" },
   { id: "emails", label: "E-mails", icon: Mail, section: "other" },
