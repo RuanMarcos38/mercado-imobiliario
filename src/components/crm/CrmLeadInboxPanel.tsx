@@ -11,9 +11,7 @@ import {
   MessageCircle,
   MoreVertical,
   Phone,
-  SlidersHorizontal,
   Snowflake,
-  Sparkles,
   ThermometerSun,
   Trash2,
   UserCheck,
@@ -197,40 +195,6 @@ export function CrmLeadInboxPanel() {
     });
   }, [filter, leads.data, search, sourceFilter]);
 
-  const boardColumns = useMemo(() => {
-    const discardedMode = filter === "discarded";
-    return [
-      {
-        id: "new",
-        label: discardedMode ? "Descartados" : "Novo",
-        tone: "orange",
-        items: discardedMode
-          ? rows.filter((lead) => lead.status === "discarded")
-          : rows.filter((lead) => lead.status === "new"),
-      },
-      {
-        id: "open",
-        label: "Aberto",
-        tone: "blue",
-        items: discardedMode ? [] : rows.filter((lead) => lead.status === "qualifying"),
-      },
-      {
-        id: "progress",
-        label: "Em andamento",
-        tone: "yellow",
-        items: discardedMode ? [] : rows.filter((lead) => lead.status === "qualified"),
-      },
-      {
-        id: "deal",
-        label: "Negócio aberto",
-        tone: "cyan",
-        items: discardedMode
-          ? []
-          : rows.filter((lead) => lead.status === "converted" || lead.status === "discarded"),
-      },
-    ];
-  }, [filter, rows]);
-
   const exportVisibleLeads = () => {
     const header = [
       "Nome",
@@ -355,7 +319,7 @@ export function CrmLeadInboxPanel() {
       <header className="crm-template-page-head">
         <div>
           <h1>Leads</h1>
-          <p>Pré-Pipeline de atendimento e qualificação imobiliária</p>
+          <span className="crm-template-page-count">{rows.length} registros</span>
         </div>
         <Button className="crm-template-export" onClick={exportVisibleLeads}>
           <Download />
@@ -387,133 +351,112 @@ export function CrmLeadInboxPanel() {
             </select>
           </label>
         </div>
-        <button type="button" className="crm-template-filter-button">
-          <SlidersHorizontal />
-          Filtrar
-        </button>
       </div>
 
       {rows.length ? (
-        <div className="crm-template-board">
-          {boardColumns.map((column) => (
-            <section key={column.id} className="crm-template-column">
-              <header className="crm-template-column-head">
-                <div>
-                  <span className={`crm-template-column-dot is-${column.tone}`} />
-                  <strong>{column.label}</strong>
-                </div>
-                <span>{column.items.length} Leads</span>
-              </header>
+        <div className="crm-client-grid">
+          {rows.map((lead) => (
+            <article key={lead.id} className="crm-client-card">
+              <div className="crm-client-card-head">
+                <button
+                  type="button"
+                  onClick={() => openLead(lead)}
+                  className="crm-template-card-avatar"
+                  aria-label={"Abrir lead " + lead.contact_name}
+                >
+                  <span>{initials(lead.contact_name || "Lead")}</span>
+                  {lead.avatar_url && (
+                    <img
+                      src={lead.avatar_url}
+                      alt=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
+                </button>
 
-              <div className="crm-template-column-list">
-                {column.items.map((lead) => (
-                  <article key={lead.id} className="crm-template-lead-card">
-                    <div className="crm-template-lead-card-head">
-                      <button
-                        type="button"
-                        onClick={() => openLead(lead)}
-                        className="crm-template-card-avatar"
-                        aria-label={"Abrir lead " + lead.contact_name}
-                      >
-                        <span>{initials(lead.contact_name || "Lead")}</span>
-                        {lead.avatar_url && (
-                          <img
-                            src={lead.avatar_url}
-                            alt=""
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            onError={(event) => {
-                              event.currentTarget.style.display = "none";
-                            }}
-                          />
-                        )}
-                      </button>
+                <button
+                  type="button"
+                  onClick={() => openLead(lead)}
+                  className="crm-client-card-title"
+                >
+                  <strong>{lead.contact_name}</strong>
+                  <span>{lead.contact_email || "E-mail não informado"}</span>
+                </button>
 
-                      <button
-                        type="button"
-                        onClick={() => openLead(lead)}
-                        className="crm-template-lead-card-title"
-                      >
-                        <strong>{lead.contact_name}</strong>
-                        <span>{when(lead.last_activity_at)}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openLead(lead)}
-                        className="crm-template-kebab"
-                        aria-label="Abrir detalhes do lead"
-                      >
-                        <MoreVertical />
-                      </button>
-                    </div>
-
-                    <div className="crm-template-contact-lines">
-                      <span>
-                        <Phone />
-                        {lead.contact_phone || "Telefone não informado"}
-                      </span>
-                      <span>
-                        <Mail />
-                        {lead.contact_email || "E-mail não informado"}
-                      </span>
-                    </div>
-
-                    <div className="crm-template-card-footer">
-                      <span className={`crm-template-status-pill is-${lead.status}`}>
-                        {statusLabel(lead.status)}
-                      </span>
-                      <span className="crm-template-score">{lead.score}/100</span>
-                    </div>
-
-                    <div className="crm-template-hover-actions">
-                      <button type="button" onClick={() => openLead(lead)}>
-                        <UserCheck />
-                        Qualificar
-                      </button>
-                      {lead.conversation_id && (
-                        <button type="button" onClick={() => openConversation(lead)}>
-                          <MessageCircle />
-                          Conversa
-                        </button>
-                      )}
-                      {lead.status === "discarded" ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await restoreFn({ data: { id: lead.id } });
-                            toast.success("Lead restaurado.");
-                            await leads.refetch();
-                          }}
-                        >
-                          <ArchiveRestore />
-                          Restaurar
-                        </button>
-                      ) : lead.status !== "converted" ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await discardFn({ data: { id: lead.id } });
-                            toast.success("Lead descartado da fila ativa.");
-                            await leads.refetch();
-                          }}
-                        >
-                          <Trash2 />
-                          Descartar
-                        </button>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => openLead(lead)}
+                  className="crm-template-kebab"
+                  aria-label="Abrir detalhes do lead"
+                >
+                  <MoreVertical />
+                </button>
               </div>
-            </section>
+
+              <div className="crm-client-card-divider" />
+
+              <div className="crm-client-card-line">
+                <Phone />
+                <span>{lead.contact_phone || "Telefone não informado"}</span>
+              </div>
+
+              <div className="crm-client-card-bottom">
+                <span className={`crm-template-status-pill is-${lead.status}`}>
+                  {statusLabel(lead.status)}
+                </span>
+                <button type="button" onClick={() => openLead(lead)}>
+                  Ver detalhes
+                </button>
+              </div>
+
+              <div className="crm-client-card-actions">
+                <button type="button" onClick={() => openLead(lead)}>
+                  <UserCheck />
+                  Qualificar
+                </button>
+                {lead.conversation_id && (
+                  <button type="button" onClick={() => openConversation(lead)}>
+                    <MessageCircle />
+                    Conversa
+                  </button>
+                )}
+                {lead.status === "discarded" ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await restoreFn({ data: { id: lead.id } });
+                      toast.success("Lead restaurado.");
+                      await leads.refetch();
+                    }}
+                  >
+                    <ArchiveRestore />
+                    Restaurar
+                  </button>
+                ) : lead.status !== "converted" ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await discardFn({ data: { id: lead.id } });
+                      toast.success("Lead descartado da fila ativa.");
+                      await leads.refetch();
+                    }}
+                  >
+                    <Trash2 />
+                    Descartar
+                  </button>
+                ) : null}
+              </div>
+            </article>
           ))}
         </div>
       ) : (
         <div className="crm-template-empty">
-          <Sparkles />
           <strong>Nenhum lead nesta visualização</strong>
-          <span>Novos contatos válidos do WhatsApp entram aqui antes do Pipeline.</span>
+          <span>Altere os filtros para visualizar outros registros.</span>
         </div>
       )}
 
