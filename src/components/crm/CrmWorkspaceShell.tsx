@@ -26,13 +26,7 @@ import { CrmReportsPanel } from "@/components/crm/CrmReportsPanel";
 import { CrmDiagnosticsPanel } from "@/components/crm/CrmDiagnosticsPanel";
 import { AtendimentoPage } from "@/routes/_authenticated/atendimento";
 
-type Module =
-  | "leads"
-  | "pipeline"
-  | "attendance"
-  | CrmOperationsMode
-  | "reports"
-  | "diagnostics";
+type Module = "leads" | "pipeline" | "attendance" | CrmOperationsMode | "reports" | "diagnostics";
 
 const modules: Array<{ id: Module; label: string; icon: typeof Layers3 }> = [
   { id: "leads", label: "Leads", icon: Inbox },
@@ -129,9 +123,7 @@ export function CrmWorkspaceShell() {
           <button
             type="button"
             className={
-              module === "attendance"
-                ? "crm-template-nav-item is-active"
-                : "crm-template-nav-item"
+              module === "attendance" ? "crm-template-nav-item is-active" : "crm-template-nav-item"
             }
             onClick={() => setModule("attendance")}
           >
