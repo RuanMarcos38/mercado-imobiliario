@@ -291,7 +291,6 @@ const operationMenuEntries: PlatformMenuEntry[] = [
   },
 ];
 
-
 function AuthenticatedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -757,11 +756,7 @@ function PlatformNavLink({
     <Link
       to={item.to}
       onClick={onNavigate}
-      className={[
-        "mi-platform-nav-link",
-        nested ? "is-nested" : "",
-        active ? "is-active" : "",
-      ]
+      className={["mi-platform-nav-link", nested ? "is-nested" : "", active ? "is-active" : ""]
         .filter(Boolean)
         .join(" ")}
       title={platformNavigationLabel(item)}
