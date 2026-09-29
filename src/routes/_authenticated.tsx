@@ -376,7 +376,9 @@ function AuthenticatedLayout() {
         : null;
 
   return (
-    <div className={sidebarCollapsed ? "mi-platform-shell is-sidebar-collapsed" : "mi-platform-shell"}>
+    <div
+      className={sidebarCollapsed ? "mi-platform-shell is-sidebar-collapsed" : "mi-platform-shell"}
+    >
       <aside
         className={sidebarCollapsed ? "mi-platform-sidebar is-collapsed" : "mi-platform-sidebar"}
       >

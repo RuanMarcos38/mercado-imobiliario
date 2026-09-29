@@ -4447,7 +4447,6 @@ button.crm-lead-reference-icon:not(:disabled) {
   }
 }
 
-
 /* Collapsible desktop sidebar — 2026-09-29 */
 .mi-platform-shell {
   transition: grid-template-columns 180ms ease;
@@ -4627,7 +4626,6 @@ button.crm-lead-reference-icon:not(:disabled) {
     display: none;
   }
 }
-
 
 /* Full desktop sidebar hide/reopen override — 2026-09-29 */
 .mi-platform-brand-full {
