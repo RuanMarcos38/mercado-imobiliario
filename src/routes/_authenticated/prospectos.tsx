@@ -11,11 +11,7 @@ import {
   searchHotRealEstateProspects,
   type ProspectSearchResponse,
 } from "@/lib/prospect-leads.functions";
-import {
-  SOCIAL_NETWORKS,
-  type ProspectLead,
-  type SocialNetwork,
-} from "@/lib/prospect-leads.core";
+import { SOCIAL_NETWORKS, type ProspectLead, type SocialNetwork } from "@/lib/prospect-leads.core";
 
 export const Route = createFileRoute("/_authenticated/prospectos")({
   component: ProspectRadarPage,
@@ -166,11 +162,7 @@ function ProspectRadarPage() {
             const checked = selectedNetworks.includes(network);
             return (
               <label key={network} className={checked ? "is-active" : ""}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleNetwork(network)}
-                />
+                <input type="checkbox" checked={checked} onChange={() => toggleNetwork(network)} />
                 <span>{NETWORK_LABELS[network]}</span>
               </label>
             );
@@ -237,7 +229,9 @@ function LeadCard({ lead }: { lead: ProspectLead }) {
           <strong>{lead.displayName}</strong>
           <span>{lead.profileHandle || NETWORK_LABELS[lead.network]}</span>
         </div>
-        <span className={lead.intentStage === "quente" ? "prospect-score is-hot" : "prospect-score"}>
+        <span
+          className={lead.intentStage === "quente" ? "prospect-score is-hot" : "prospect-score"}
+        >
           {lead.intentScore}
         </span>
       </div>
