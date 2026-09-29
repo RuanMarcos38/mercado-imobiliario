@@ -4446,3 +4446,184 @@ button.crm-lead-reference-icon:not(:disabled) {
     height: calc(100vh - 190px) !important;
   }
 }
+
+
+/* Collapsible desktop sidebar — 2026-09-29 */
+.mi-platform-shell {
+  transition: grid-template-columns 180ms ease;
+}
+
+.mi-platform-shell.is-sidebar-collapsed {
+  grid-template-columns: 68px minmax(0, 1fr);
+}
+
+.mi-platform-sidebar {
+  transition: width 180ms ease;
+}
+
+.mi-platform-brand-row {
+  position: relative;
+  display: flex;
+  min-height: 74px;
+  align-items: center;
+  border-bottom: 1px solid #edf0f4;
+  background: #ffffff;
+}
+
+.mi-platform-brand-row .mi-platform-brand {
+  min-width: 0;
+  flex: 1 1 auto;
+  border-bottom: 0;
+  padding-right: 48px;
+}
+
+.mi-platform-brand-compact {
+  display: none;
+}
+
+.mi-platform-sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  transform: translateY(-50%);
+  place-items: center;
+  border: 1px solid #e4e9ef;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #778293;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.mi-platform-sidebar-toggle:hover {
+  border-color: #cfd9e8;
+  background: #f7f9fc;
+  color: #3975ee;
+}
+
+.mi-platform-sidebar-toggle svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
+.mi-platform-sidebar.is-collapsed {
+  width: 68px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-brand-row {
+  justify-content: center;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-brand {
+  display: none;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-sidebar-toggle {
+  position: static;
+  transform: none;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-sidebar-scroll {
+  padding-inline: 8px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-nav-section + .mi-platform-nav-section {
+  margin-top: 12px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-nav-section h2 {
+  display: none;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-nav-section nav {
+  gap: 5px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-nav-link {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 42px;
+  min-height: 38px;
+  margin-inline: auto;
+  place-items: center;
+  padding: 0;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-nav-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-nav-link > span {
+  display: none;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-sidebar-footer {
+  padding: 8px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-user-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 42px;
+  min-height: 42px;
+  margin-inline: auto;
+  place-items: center;
+  padding: 4px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-user-card > span:last-child {
+  display: none;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-user-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-signout {
+  width: 42px;
+  min-height: 34px;
+  margin: 5px auto 0;
+  justify-content: center;
+  padding: 0;
+  font-size: 0;
+}
+
+.mi-platform-sidebar.is-collapsed .mi-platform-signout svg {
+  width: 14px;
+  height: 14px;
+}
+
+.dark .mi-platform-brand-row,
+.dark .mi-platform-sidebar-toggle {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: #18212f;
+}
+
+.dark .mi-platform-sidebar-toggle {
+  color: #aeb7c4;
+}
+
+.dark .mi-platform-sidebar-toggle:hover {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: rgba(59, 130, 246, 0.1);
+  color: #bfdbfe;
+}
+
+@media (max-width: 900px) {
+  .mi-platform-shell.is-sidebar-collapsed {
+    display: block;
+  }
+
+  .mi-platform-brand-row {
+    display: none;
+  }
+}
