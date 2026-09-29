@@ -291,7 +291,6 @@ const operationMenuEntries: PlatformMenuEntry[] = [
   },
 ];
 
-
 const internalPlatformTools = [
   { to: "/diagnostico", label: "Diagnóstico" },
   { to: "/integracoes", label: "Fontes de imóveis" },
