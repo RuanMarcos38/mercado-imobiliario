@@ -957,8 +957,6 @@ export function AtendimentoPage({ embedded = false }: { embedded?: boolean } = {
       className={`mi-wa-shell ${embedded ? "mi-wa-embedded" : "mi-wa-standalone"} px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
     >
       <div className="mi-wa-layout mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
-
-
         <aside className="mi-wa-sidebar mi-wa-conversations-panel flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
           <div className="mi-wa-sidebar-head wa-clean-head border-b border-[var(--mi-border)]">
             <div className="wa-clean-headline">
@@ -967,7 +965,9 @@ export function AtendimentoPage({ embedded = false }: { embedded?: boolean } = {
                 <h1>Conversas</h1>
               </div>
               <span
-                className={connection.data?.connected ? "wa-clean-status is-online" : "wa-clean-status"}
+                className={
+                  connection.data?.connected ? "wa-clean-status is-online" : "wa-clean-status"
+                }
                 title={whatsAppStatusLabel}
               >
                 <span />
