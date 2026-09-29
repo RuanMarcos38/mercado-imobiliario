@@ -1557,7 +1557,7 @@ function AutomationPanel({
   return (
     <SimplePanel
       title="Ações automáticas"
-      description="Regras executadas pelo backend quando uma oportunidade é criada ou entra em determinada etapa."
+      description="Regras automáticas aplicadas quando uma oportunidade é criada ou entra em determinada etapa."
     >
       <div className="grid gap-3 rounded-2xl border border-[var(--mi-border)] p-4 lg:grid-cols-4">
         <Input
