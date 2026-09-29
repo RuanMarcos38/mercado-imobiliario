@@ -368,7 +368,9 @@ function AuthenticatedLayout() {
           className="mi-platform-brand"
           aria-label="MercadoImobi"
         >
-          <strong>MercadoImobi<span>.</span></strong>
+          <strong>
+            MercadoImobi<span>.</span>
+          </strong>
           <small>Plataforma imobiliária</small>
         </Link>
 
@@ -389,7 +391,11 @@ function AuthenticatedLayout() {
         <div className="mi-platform-sidebar-footer">
           <Link to="/settings/security" className="mi-platform-user-card">
             <span className="mi-platform-user-avatar">
-              {profileImage ? <img src={profileImage} alt="" referrerPolicy="no-referrer" /> : initials}
+              {profileImage ? (
+                <img src={profileImage} alt="" referrerPolicy="no-referrer" />
+              ) : (
+                initials
+              )}
             </span>
             <span>
               <strong>{displayName}</strong>
@@ -444,7 +450,9 @@ function AuthenticatedLayout() {
               <input
                 value={globalSearch}
                 onChange={(event) => setGlobalSearch(event.target.value)}
-                placeholder={searchIsCrm ? "Buscar no CRM..." : "Buscar cidade, bairro ou imóvel..."}
+                placeholder={
+                  searchIsCrm ? "Buscar no CRM..." : "Buscar cidade, bairro ou imóvel..."
+                }
               />
               <button type="submit">Buscar</button>
             </form>
@@ -464,7 +472,11 @@ function AuthenticatedLayout() {
             )}
             <ThemeToggle compact />
             <Link to="/settings/security" className="mi-platform-top-user" aria-label="Minha conta">
-              {profileImage ? <img src={profileImage} alt="" referrerPolicy="no-referrer" /> : initials}
+              {profileImage ? (
+                <img src={profileImage} alt="" referrerPolicy="no-referrer" />
+              ) : (
+                initials
+              )}
             </Link>
           </div>
         </header>
@@ -475,17 +487,13 @@ function AuthenticatedLayout() {
       </section>
 
       {mobileOpen && (
-        <div
-          className="mi-platform-mobile-overlay"
-          onClick={() => setMobileOpen(false)}
-        >
-          <aside
-            className="mi-platform-mobile-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="mi-platform-mobile-overlay" onClick={() => setMobileOpen(false)}>
+          <aside className="mi-platform-mobile-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="mi-platform-mobile-head">
               <div className="mi-platform-brand">
-                <strong>MercadoImobi<span>.</span></strong>
+                <strong>
+                  MercadoImobi<span>.</span>
+                </strong>
                 <small>Plataforma imobiliária</small>
               </div>
               <button type="button" onClick={() => setMobileOpen(false)} aria-label="Fechar menu">
