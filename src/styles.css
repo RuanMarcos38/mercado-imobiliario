@@ -3296,7 +3296,6 @@ button.crm-lead-reference-icon:not(:disabled) {
   }
 }
 
-
 /* CRM embedded attendance isolation — prevent legacy/new layout mixing */
 .crm-template-attendance .mi-wa-embedded {
   --wa-accent: #3975ee;
@@ -3611,9 +3610,7 @@ button.crm-lead-reference-icon:not(:disabled) {
     flex-basis: 100% !important;
   }
 
-  .crm-template-attendance
-    .mi-wa-embedded.mi-mobile-chat-open
-    .mi-wa-conversations-panel {
+  .crm-template-attendance .mi-wa-embedded.mi-mobile-chat-open .mi-wa-conversations-panel {
     display: none !important;
   }
 
