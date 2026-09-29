@@ -468,14 +468,10 @@ export function AtendimentoPage({ embedded = false }: { embedded?: boolean } = {
 
   const isMetaWhatsApp = connection.data?.provider === "meta";
   const isWhatsAppConnected = Boolean(connection.data?.connected);
-  const whatsAppStatusLabel = isMetaWhatsApp
-    ? isWhatsAppConnected
-      ? "WhatsApp API Oficial"
-      : connection.data?.configured
-        ? "WhatsApp em validação"
-        : "WhatsApp pendente"
-    : isWhatsAppConnected
-      ? "WhatsApp online"
+  const whatsAppStatusLabel = isWhatsAppConnected
+    ? "WhatsApp online"
+    : connection.data?.configured
+      ? "WhatsApp em validação"
       : "WhatsApp offline";
   const queueCounts = useMemo(() => {
     const result: Record<QueueTab, number> = { waiting: 0, in_service: 0, automatic: 0 };
@@ -1363,9 +1359,8 @@ export function AtendimentoPage({ embedded = false }: { embedded?: boolean } = {
                     <div className="flex items-start gap-2">
                       <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                       <span>
-                        A API Oficial permite mensagem livre somente até 24 horas após a última
-                        resposta do cliente. Para reabrir esta conversa, envie um modelo aprovado da
-                        Meta ou peça para o cliente mandar uma nova mensagem.
+                        Esta conversa está fora da janela de envio livre. Para retomar o contato,
+                        utilize um modelo aprovado ou aguarde uma nova mensagem do cliente.
                       </span>
                     </div>
                   </div>
