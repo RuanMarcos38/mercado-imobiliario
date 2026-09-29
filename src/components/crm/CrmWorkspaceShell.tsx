@@ -60,7 +60,9 @@ export function CrmWorkspaceShell() {
       </header>
 
       <nav className="crm-corporate-nav" aria-label="Módulos do CRM">
-        {modules.map((item) => (
+        {modules
+          .filter((item) => item.id !== "diagnostics")
+          .map((item) => (
           <button
             key={item.id}
             type="button"
