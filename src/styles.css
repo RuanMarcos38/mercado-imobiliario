@@ -5999,3 +5999,370 @@ button.crm-lead-reference-icon:not(:disabled) {
     opacity: 1;
   }
 }
+
+
+/* Clean WhatsApp attendance workspace — 2026-09-29 */
+.mi-wa-standalone {
+  min-height: calc(100vh - 64px);
+  background: #f3f5f8 !important;
+  padding: 18px 22px 24px !important;
+}
+
+.mi-wa-standalone .mi-wa-layout {
+  width: 100% !important;
+  height: calc(100vh - 106px) !important;
+  min-height: 560px !important;
+  max-width: 1760px !important;
+  margin-inline: auto !important;
+  overflow: hidden !important;
+  border: 1px solid #e1e6ec !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.mi-wa-standalone .mi-wa-rail,
+.mi-wa-standalone .mi-wa-folders {
+  display: none !important;
+}
+
+.mi-wa-standalone .mi-wa-conversations-panel {
+  width: 304px !important;
+  flex: 0 0 304px !important;
+  border-right: 1px solid #e5e9ef !important;
+  background: #fafbfc !important;
+}
+
+.wa-clean-head {
+  padding: 13px !important;
+  background: #ffffff !important;
+}
+
+.wa-clean-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wa-clean-headline > div {
+  min-width: 0;
+}
+
+.wa-clean-headline > div > span {
+  display: block;
+  color: #9aa3af;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.wa-clean-headline h1 {
+  margin: 3px 0 0 !important;
+  color: #273244 !important;
+  font-size: 15px !important;
+  font-weight: 720 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.wa-clean-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #e3e7ed;
+  border-radius: 999px;
+  background: #f8f9fb;
+  padding: 0 8px;
+  color: #7f8997;
+  font-size: 7.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.wa-clean-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #aeb6c1;
+}
+
+.wa-clean-status.is-online {
+  border-color: #d9eee5;
+  background: #f2fbf6;
+  color: #458467;
+}
+
+.wa-clean-status.is-online > span {
+  background: #22b573;
+}
+
+.wa-clean-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.wa-clean-actions > button {
+  display: inline-flex;
+  min-width: 0;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid #e4e8ed;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0 6px;
+  color: #687386;
+  font-size: 7.5px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.wa-clean-actions > button:hover {
+  border-color: #d3dae4;
+  background: #f7f9fb;
+  color: #345f9e;
+}
+
+.wa-clean-actions > button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.wa-clean-actions > button svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  stroke-width: 1.8;
+}
+
+.wa-clean-search {
+  display: grid;
+  height: 34px;
+  grid-template-columns: 14px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  border: 1px solid #e3e7ed;
+  border-radius: 6px;
+  background: #f8f9fb;
+  padding: 0 4px 0 9px;
+}
+
+.wa-clean-search > svg {
+  width: 13px;
+  height: 13px;
+  color: #9ba4b0;
+}
+
+.wa-clean-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #455063;
+  font-size: 8.5px;
+}
+
+.wa-clean-search input::placeholder {
+  color: #a5adb8;
+}
+
+.wa-clean-search button {
+  display: grid;
+  width: 28px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8d96a3;
+  cursor: pointer;
+}
+
+.wa-clean-search button:hover {
+  background: #ffffff;
+  color: #3975ee;
+}
+
+.wa-clean-search button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.mi-wa-standalone .mi-wa-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  border-bottom: 1px solid #e5e9ef !important;
+  background: #ffffff !important;
+  padding: 7px 9px !important;
+}
+
+.mi-wa-standalone .mi-wa-tabs > button {
+  min-height: 30px !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  padding: 0 6px !important;
+  color: #8a94a2 !important;
+  font-size: 7.5px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+}
+
+.mi-wa-standalone .mi-wa-tabs > button:hover {
+  background: #f6f8fa !important;
+  color: #536071 !important;
+}
+
+.mi-wa-standalone .mi-wa-tabs > button[class*="text-blue"],
+.mi-wa-standalone .mi-wa-tabs > button[class*="is-active"] {
+  border-color: #dbe6fb !important;
+  background: #eef4ff !important;
+  color: #3267ce !important;
+}
+
+.mi-wa-standalone .mi-wa-conversation-list {
+  padding: 6px !important;
+  background: #fafbfc !important;
+}
+
+.mi-wa-standalone .mi-wa-conversation-list > button {
+  min-height: 62px !important;
+  margin-bottom: 3px !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  padding: 8px 9px !important;
+}
+
+.mi-wa-standalone .mi-wa-conversation-list > button:hover {
+  border-color: #e7ebf0 !important;
+  background: #ffffff !important;
+}
+
+.mi-wa-standalone .mi-wa-conversation-list > button[class*="bg-blue"] {
+  border-color: #dbe6fb !important;
+  background: #eef4ff !important;
+}
+
+.mi-wa-standalone .mi-wa-chat-header {
+  min-height: 58px !important;
+  border-color: #e5e9ef !important;
+  background: #ffffff !important;
+  padding: 9px 14px !important;
+}
+
+.mi-wa-standalone .mi-wa-message-list {
+  background: #f5f6f8 !important;
+  padding: 18px 22px !important;
+}
+
+.mi-wa-standalone .mi-wa-bubble {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.mi-wa-standalone .mi-wa-composer {
+  border-color: #e5e9ef !important;
+  background: #ffffff !important;
+  padding: 9px 12px !important;
+}
+
+.mi-wa-standalone .mi-wa-details-panel {
+  border-left: 1px solid #e5e9ef !important;
+  background: #fafbfc !important;
+}
+
+.mi-wa-standalone .mi-wa-config {
+  display: none !important;
+}
+
+.mi-wa-standalone [class*="rounded-2xl"],
+.mi-wa-standalone [class*="rounded-[26px]"],
+.mi-wa-standalone [class*="rounded-[28px]"] {
+  border-radius: 8px !important;
+}
+
+.mi-wa-standalone [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+.dark .mi-wa-standalone {
+  background: #111827 !important;
+}
+
+.dark .mi-wa-standalone .mi-wa-layout,
+.dark .mi-wa-standalone .mi-wa-conversations-panel,
+.dark .wa-clean-head,
+.dark .mi-wa-standalone .mi-wa-tabs,
+.dark .mi-wa-standalone .mi-wa-chat-header,
+.dark .mi-wa-standalone .mi-wa-composer {
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  background: #18212f !important;
+}
+
+.dark .wa-clean-headline h1 {
+  color: #f1f5f9 !important;
+}
+
+.dark .wa-clean-actions > button,
+.dark .wa-clean-search {
+  border-color: rgba(148, 163, 184, 0.15);
+  background: #202b3a;
+  color: #cbd5e1;
+}
+
+.dark .mi-wa-standalone .mi-wa-message-list {
+  background: #111827 !important;
+}
+
+@media (max-width: 980px) {
+  .mi-wa-standalone {
+    padding: 12px !important;
+  }
+
+  .mi-wa-standalone .mi-wa-layout {
+    height: calc(100vh - 82px) !important;
+  }
+
+  .mi-wa-standalone .mi-wa-conversations-panel {
+    width: 320px !important;
+    flex-basis: 320px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mi-wa-standalone {
+    padding: 0 !important;
+  }
+
+  .mi-wa-standalone .mi-wa-layout {
+    height: calc(100vh - 58px) !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .mi-wa-standalone .mi-wa-conversations-panel {
+    width: 100% !important;
+    flex-basis: 100% !important;
+  }
+
+  .wa-clean-actions {
+    grid-template-columns: repeat(4, minmax(62px, 1fr));
+    overflow-x: auto;
+  }
+}
