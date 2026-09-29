@@ -1167,8 +1167,7 @@ html.dark-mode body {
   color: #242429;
 }
 
-.crm-aligno-content .crm-template-page-head p,
-.crm-aligno-content .text-[var(--mi-text-muted)] {
+.crm-aligno-content .crm-template-page-head p {
   color: #82828b !important;
 }
 
