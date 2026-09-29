@@ -21,6 +21,8 @@ import {
   Menu,
   MessageCircle,
   Plug,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Settings,
   ShieldCheck,
@@ -264,10 +266,20 @@ function AuthenticatedLayout() {
       (!("feature" in item) || isFeatureAllowed(item.feature)),
   );
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const touchPresenceFn = useServerFn(touchUserPresence);
   const recordActivityFn = useServerFn(recordUserActivity);
   const presenceSessionId = useRef("");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("mercadoimobi:sidebarCollapsed");
+    if (saved === "1") setSidebarCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("mercadoimobi:sidebarCollapsed", sidebarCollapsed ? "1" : "0");
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     const existing = sessionStorage.getItem("mercadoimobi:presenceSessionId");
@@ -364,18 +376,35 @@ function AuthenticatedLayout() {
         : null;
 
   return (
-    <div className="mi-platform-shell">
-      <aside className="mi-platform-sidebar">
-        <Link
-          to={isFeatureAllowed("dashboard") ? "/dashboard" : "/assinatura"}
-          className="mi-platform-brand"
-          aria-label="MercadoImobi"
-        >
-          <strong>
-            MercadoImobi<span>.</span>
-          </strong>
-          <small>Plataforma imobiliária</small>
-        </Link>
+    <div className={sidebarCollapsed ? "mi-platform-shell is-sidebar-collapsed" : "mi-platform-shell"}>
+      <aside
+        className={sidebarCollapsed ? "mi-platform-sidebar is-collapsed" : "mi-platform-sidebar"}
+      >
+        <div className="mi-platform-brand-row">
+          <Link
+            to={isFeatureAllowed("dashboard") ? "/dashboard" : "/assinatura"}
+            className="mi-platform-brand"
+            aria-label="MercadoImobi"
+          >
+            <strong>
+              <span className="mi-platform-brand-full">
+                MercadoImobi<span>.</span>
+              </span>
+              <span className="mi-platform-brand-compact">MI</span>
+            </strong>
+            <small>Plataforma imobiliária</small>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            className="mi-platform-sidebar-toggle"
+            aria-label={sidebarCollapsed ? "Abrir menu lateral" : "Ocultar menu lateral"}
+            title={sidebarCollapsed ? "Abrir menu lateral" : "Ocultar menu lateral"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          </button>
+        </div>
 
         <div className="mi-platform-sidebar-scroll">
           <PlatformNavSection
