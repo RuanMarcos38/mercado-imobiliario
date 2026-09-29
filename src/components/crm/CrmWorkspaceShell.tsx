@@ -10,7 +10,7 @@ type Module = "leads" | "pipeline" | "attendance" | CrmOperationsMode | "reports
 
 const modules: Array<{ id: Module; label: string }> = [
   { id: "leads", label: "Leads" },
-  { id: "pipeline", label: "Oportunidades" },
+  { id: "pipeline", label: "Pipeline" },
   { id: "attendance", label: "Atendimento" },
   { id: "proposals", label: "Propostas" },
   { id: "emails", label: "E-mails" },
