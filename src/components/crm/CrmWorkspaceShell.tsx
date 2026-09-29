@@ -6,13 +6,7 @@ import { CrmReportsPanel } from "@/components/crm/CrmReportsPanel";
 import { CrmDiagnosticsPanel } from "@/components/crm/CrmDiagnosticsPanel";
 import { AtendimentoPage } from "@/routes/_authenticated/atendimento";
 
-type Module =
-  | "leads"
-  | "pipeline"
-  | "attendance"
-  | CrmOperationsMode
-  | "reports"
-  | "diagnostics";
+type Module = "leads" | "pipeline" | "attendance" | CrmOperationsMode | "reports" | "diagnostics";
 
 const modules: Array<{ id: Module; label: string }> = [
   { id: "leads", label: "Leads" },
@@ -52,9 +46,7 @@ export function CrmWorkspaceShell() {
         <div>
           <span className="crm-corporate-eyebrow">Gestão comercial</span>
           <h1>CRM e Oportunidades</h1>
-          <p>
-            Leads, atendimento, negociações e documentos em um único ambiente operacional.
-          </p>
+          <p>Leads, atendimento, negociações e documentos em um único ambiente operacional.</p>
         </div>
 
         <label className="crm-corporate-search">
