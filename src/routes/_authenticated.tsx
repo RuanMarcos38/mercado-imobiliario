@@ -251,10 +251,10 @@ const principalMenuEntries: PlatformMenuEntry[] = [
 const operationMenuEntries: PlatformMenuEntry[] = [
   {
     kind: "group",
-    label: "Atendimento e IA",
+    label: "Atendimento",
     icon: MessageCircle,
     items: [
-      { to: "/assistente", label: "Assistente IA", icon: Bot, feature: "assistente" },
+      { to: "/assistente", label: "Assistente", icon: Bot, feature: "assistente" },
       {
         to: "/atendimento",
         label: "Atendimento WhatsApp",
@@ -277,7 +277,7 @@ const operationMenuEntries: PlatformMenuEntry[] = [
       { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
       { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
       { to: "/parcerias", label: "Parcerias imobiliárias", icon: Handshake, feature: "buscar" },
-      { to: "/prospectos", label: "Prospecção IA", icon: Target, feature: "buscar" },
+      { to: "/prospectos", label: "Prospecção", icon: Target, feature: "buscar" },
     ],
   },
   {
