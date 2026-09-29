@@ -217,7 +217,7 @@ function isMetaFreeformWindowClosed(input: {
   return Date.now() - new Date(inboundAt).getTime() > 24 * 60 * 60 * 1000;
 }
 
-export function AtendimentoPage() {
+export function AtendimentoPage({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
   const qrFn = useServerFn(getWhatsAppQrCode);
@@ -955,313 +955,388 @@ export function AtendimentoPage() {
 
   return (
     <div
-      className={`mi-wa-shell px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
+      className={`mi-wa-shell ${embedded ? "mi-wa-embedded" : "mi-wa-standalone"} px-4 py-5 text-[var(--mi-text)] sm:px-6 ${mobileConversationOpen ? "mi-mobile-chat-open" : ""}`}
     >
       <div className="mi-wa-layout mx-auto flex h-[calc(100vh-112px)] min-h-[560px] max-w-[1600px] overflow-hidden rounded-[28px] border border-[var(--mi-border)] bg-[var(--mi-surface)] shadow-sm">
-        <aside className="mi-wa-rail hidden w-[58px] shrink-0 flex-col items-center border-r border-[var(--mi-border)] bg-[var(--mi-surface)] py-3 lg:flex">
-          <button
-            type="button"
-            onClick={() => setQueueTab("waiting")}
-            className="mi-wa-rail-brand grid h-9 w-9 place-items-center rounded-xl text-emerald-600"
-            title="Caixa de entrada"
-          >
-            <MessageCircle className="h-5 w-5" />
-          </button>
-          <div className="mt-4 flex flex-1 flex-col items-center gap-2">
+        {!embedded && (
+          <>
+          <aside className="mi-wa-rail hidden w-[58px] shrink-0 flex-col items-center border-r border-[var(--mi-border)] bg-[var(--mi-surface)] py-3 lg:flex">
             <button
               type="button"
               onClick={() => setQueueTab("waiting")}
-              className={`mi-wa-rail-button ${queueTab === "waiting" ? "is-active" : ""}`}
-              title="Esperando"
+              className="mi-wa-rail-brand grid h-9 w-9 place-items-center rounded-xl text-emerald-600"
+              title="Caixa de entrada"
             >
-              <Users className="h-4 w-4" />
+              <MessageCircle className="h-5 w-5" />
             </button>
-            <button
-              type="button"
-              onClick={() => setQueueTab("in_service")}
-              className={`mi-wa-rail-button ${queueTab === "in_service" ? "is-active" : ""}`}
-              title="Em atendimento"
-            >
-              <UserCheck className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setQueueTab("automatic")}
-              className={`mi-wa-rail-button ${queueTab === "automatic" ? "is-active" : ""}`}
-              title="Automático"
-            >
-              <Bot className="h-4 w-4" />
-            </button>
+            <div className="mt-4 flex flex-1 flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setQueueTab("waiting")}
+                className={`mi-wa-rail-button ${queueTab === "waiting" ? "is-active" : ""}`}
+                title="Esperando"
+              >
+                <Users className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueTab("in_service")}
+                className={`mi-wa-rail-button ${queueTab === "in_service" ? "is-active" : ""}`}
+                title="Em atendimento"
+              >
+                <UserCheck className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueTab("automatic")}
+                className={`mi-wa-rail-button ${queueTab === "automatic" ? "is-active" : ""}`}
+                title="Automático"
+              >
+                <Bot className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRealtimePanel(true)}
+                className="mi-wa-rail-button"
+                title="Dashboard"
+              >
+                <BarChart3 className="h-4 w-4" />
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => setShowRealtimePanel(true)}
-              className="mi-wa-rail-button"
-              title="Dashboard"
+              className="mi-wa-rail-avatar"
+              title="Atendimento"
             >
-              <BarChart3 className="h-4 w-4" />
+              MI
             </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowRealtimePanel(true)}
-            className="mi-wa-rail-avatar"
-            title="Atendimento"
-          >
-            MI
-          </button>
-        </aside>
-
-        <aside className="mi-wa-folders hidden w-[176px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface)] xl:flex">
-          <div className="border-b border-[var(--mi-border)] px-4 py-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
-                  Atendimento
-                </p>
-                <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.01em]">Inbox</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => void startConversation()}
-                className="grid h-7 w-7 place-items-center rounded-full bg-[#17191c] text-white transition hover:opacity-85"
-                title="Nova conversa"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-2 py-3">
-            <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
-              Conversas
-            </p>
-            <div className="mt-2 space-y-1">
-              {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
+          </aside>
+  
+          <aside className="mi-wa-folders hidden w-[176px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface)] xl:flex">
+            <div className="border-b border-[var(--mi-border)] px-4 py-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                    Atendimento
+                  </p>
+                  <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.01em]">Inbox</h2>
+                </div>
                 <button
-                  key={tab}
                   type="button"
-                  onClick={() => setQueueTab(tab)}
-                  className={`mi-wa-folder-row ${queueTab === tab ? "is-active" : ""}`}
+                  onClick={() => void startConversation()}
+                  className="grid h-7 w-7 place-items-center rounded-full bg-[#17191c] text-white transition hover:opacity-85"
+                  title="Nova conversa"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    {tab === "waiting" ? (
-                      <Clock3 className="h-3.5 w-3.5" />
-                    ) : tab === "in_service" ? (
-                      <UserCheck className="h-3.5 w-3.5" />
-                    ) : (
-                      <Bot className="h-3.5 w-3.5" />
-                    )}
-                    <span className="truncate">{QUEUE_LABELS[tab]}</span>
-                  </span>
-                  <span className="text-[10px] text-[var(--mi-text-soft)]">{queueCounts[tab]}</span>
+                  <MessageCircle className="h-3.5 w-3.5" />
                 </button>
-              ))}
+              </div>
             </div>
-
-            <p className="mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
-              Ações
-            </p>
-            <div className="mt-2 space-y-1">
-              <button
-                type="button"
-                onClick={() => void startConversation()}
-                className="mi-wa-folder-row"
-              >
-                <span className="flex items-center gap-2">
-                  <MessageCircle className="h-3.5 w-3.5" /> Nova conversa
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowRealtimePanel(true)}
-                className="mi-wa-folder-row"
-              >
-                <span className="flex items-center gap-2">
-                  <BarChart3 className="h-3.5 w-3.5" /> Dashboard
-                </span>
-              </button>
+            <div className="flex-1 overflow-y-auto px-2 py-3">
+              <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                Conversas
+              </p>
+              <div className="mt-2 space-y-1">
+                {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setQueueTab(tab)}
+                    className={`mi-wa-folder-row ${queueTab === tab ? "is-active" : ""}`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      {tab === "waiting" ? (
+                        <Clock3 className="h-3.5 w-3.5" />
+                      ) : tab === "in_service" ? (
+                        <UserCheck className="h-3.5 w-3.5" />
+                      ) : (
+                        <Bot className="h-3.5 w-3.5" />
+                      )}
+                      <span className="truncate">{QUEUE_LABELS[tab]}</span>
+                    </span>
+                    <span className="text-[10px] text-[var(--mi-text-soft)]">{queueCounts[tab]}</span>
+                  </button>
+                ))}
+              </div>
+  
+              <p className="mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mi-text-soft)]">
+                Ações
+              </p>
+              <div className="mt-2 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => void startConversation()}
+                  className="mi-wa-folder-row"
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageCircle className="h-3.5 w-3.5" /> Nova conversa
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRealtimePanel(true)}
+                  className="mi-wa-folder-row"
+                >
+                  <span className="flex items-center gap-2">
+                    <BarChart3 className="h-3.5 w-3.5" /> Dashboard
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+  
+            </>
+        )}
 
         <aside className="mi-wa-sidebar mi-wa-conversations-panel flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--mi-border)] bg-[var(--mi-surface-soft)]">
-          <div className="mi-wa-sidebar-head border-b border-[var(--mi-border)] p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">
-                  Central
-                </p>
-                <h1 className="text-lg font-black">Conversas</h1>
+          {embedded ? (
+            <div className="mi-wa-sidebar-head crm-attendance-head border-b border-[var(--mi-border)] p-4">
+              <div className="crm-attendance-headline">
+                <div>
+                  <p>Atendimento</p>
+                  <h1>WhatsApp</h1>
+                </div>
+                <span
+                  className={
+                    connection.data?.connected
+                      ? "crm-attendance-status is-online"
+                      : "crm-attendance-status is-offline"
+                  }
+                >
+                  <span />
+                  {connection.data?.connected ? "Online" : "Offline"}
+                </span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRealtimePanel(true)}
-                className="rounded-xl border-blue-300/50 bg-[var(--mi-surface)] text-xs font-black text-blue-600"
-              >
-                <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="mi-wa-dashboard-label">Dashboard Atendimento</span>
-              </Button>
-            </div>
 
-            <div className="mi-wa-sidebar-actions flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => void startConversation()}
-                className="h-10 flex-1 rounded-xl border-[var(--mi-border)] bg-[var(--mi-surface)] font-black"
-              >
-                <MessageCircle className="mr-2 h-4 w-4" />
-                <span>Nova conversa</span>
-              </Button>
-              {isMetaWhatsApp && (
-                <>
+              <div className="crm-attendance-toolbar">
+                <button type="button" onClick={() => void startConversation()} title="Nova conversa">
+                  <MessageCircle />
+                  <span>Nova</span>
+                </button>
+                <button type="button" onClick={() => setShowRealtimePanel(true)} title="Dashboard">
+                  <BarChart3 />
+                  <span>Dashboard</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void navigate({ to: "/assistente" })}
+                  title="Configurar agente de IA"
+                >
+                  <Bot />
+                  <span>IA</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void navigate({ to: "/central-integracoes" })}
+                  title="Configurar WhatsApp"
+                >
+                  <Settings />
+                  <span>WhatsApp</span>
+                </button>
+              </div>
+
+              <div className="crm-attendance-search-row">
+                <label>
+                  <Search />
                   <input
-                    ref={profilePictureInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    className="hidden"
-                    onChange={(event) =>
-                      void selectWhatsAppProfilePicture(event.target.files?.[0] ?? null)
-                    }
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar conversa..."
                   />
-                  <Button
-                    variant="outline"
-                    disabled={savingProfilePicture}
-                    onClick={() => profilePictureInputRef.current?.click()}
-                    className="h-10 rounded-xl border-blue-300/50 bg-blue-500/[0.05] px-3 font-black text-blue-600"
-                    title="Alterar foto de perfil do WhatsApp"
-                  >
-                    {savingProfilePicture ? (
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Settings className="mr-2 h-4 w-4" />
-                    )}
-                    <span className="mi-wa-photo-label">
-                      {savingProfilePicture ? "Enviando foto..." : "Foto do WhatsApp"}
-                    </span>
-                  </Button>
-                </>
-              )}
-              <span
-                className={`mi-wa-connection-chip inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
-              >
-                {connection.data?.connected ? (
-                  <Link2 className="h-4 w-4" />
-                ) : (
-                  <WifiOff className="h-4 w-4" />
-                )}
-                {connection.data?.connected ? "Conectado" : "Desconectado"}
-              </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void conversations.refetch();
+                    if (selectedId) void messages.refetch();
+                  }}
+                  title="Atualizar conversas"
+                  aria-label="Atualizar conversas"
+                >
+                  <RefreshCw />
+                </button>
+              </div>
             </div>
-            {viewer.data?.isPlatformAdmin && (
-              <details className="mi-wa-config mt-3 overflow-hidden rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)]">
-                <summary className="cursor-pointer px-3 py-2.5 text-xs font-black text-[var(--mi-text-muted)]">
-                  Configurações do atendimento
-                </summary>
-                <div className="border-t border-[var(--mi-border)] p-3">
-                  {isMetaWhatsApp ? (
-                    <>
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900">
-                        <div className="flex items-center gap-2 font-black">
-                          <CheckCheck className="h-4 w-4" />
-                          WhatsApp API Oficial da Meta
-                        </div>
-                        <p className="mt-1 text-emerald-800">
-                          {connection.data?.identityMismatch
-                            ? "Conexão pausada porque o número ativo não corresponde ao número autorizado deste projeto."
-                            : isWhatsAppConnected
-                              ? "Conexão oficial ativa para este atendimento."
-                              : "Configuração oficial encontrada. Valide a conexão para atualizar o status."}
-                        </p>
-                        {connection.data?.identityMismatch
-                          ? connection.data.expectedPhoneNumber && (
-                              <p className="mt-1 font-bold">
-                                Número autorizado: {connection.data.expectedPhoneNumber}
-                              </p>
-                            )
-                          : connection.data?.phoneNumber && (
-                              <p className="mt-1 font-bold">{connection.data.phoneNumber}</p>
-                            )}
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => void connect()}
-                        className="mt-2 h-10 w-full rounded-xl border-emerald-300/70 font-black text-emerald-700 hover:bg-emerald-50"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" /> Validar API Oficial
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => void navigate({ to: "/central-integracoes" })}
-                        className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
-                      >
-                        <Settings className="mr-2 h-4 w-4" /> Configurar API Oficial
-                      </Button>
-                    </>
-                  ) : connection.data?.connected ? (
+          ) : (
+            <div className="mi-wa-sidebar-head border-b border-[var(--mi-border)] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">
+                    Central
+                  </p>
+                  <h1 className="text-lg font-black">Conversas</h1>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRealtimePanel(true)}
+                  className="rounded-xl border-blue-300/50 bg-[var(--mi-surface)] text-xs font-black text-blue-600"
+                >
+                  <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
+                  <span className="mi-wa-dashboard-label">Dashboard Atendimento</span>
+                </Button>
+              </div>
+  
+              <div className="mi-wa-sidebar-actions flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void startConversation()}
+                  className="h-10 flex-1 rounded-xl border-[var(--mi-border)] bg-[var(--mi-surface)] font-black"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  <span>Nova conversa</span>
+                </Button>
+                {isMetaWhatsApp && (
+                  <>
+                    <input
+                      ref={profilePictureInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      className="hidden"
+                      onChange={(event) =>
+                        void selectWhatsAppProfilePicture(event.target.files?.[0] ?? null)
+                      }
+                    />
                     <Button
                       variant="outline"
-                      disabled={disconnecting}
-                      onClick={() => void disconnect()}
-                      className="h-10 w-full rounded-xl border-rose-300/50 font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                      disabled={savingProfilePicture}
+                      onClick={() => profilePictureInputRef.current?.click()}
+                      className="h-10 rounded-xl border-blue-300/50 bg-blue-500/[0.05] px-3 font-black text-blue-600"
+                      title="Alterar foto de perfil do WhatsApp"
                     >
-                      <WifiOff className="mr-2 h-4 w-4" />
-                      {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
+                      {savingProfilePicture ? (
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Settings className="mr-2 h-4 w-4" />
+                      )}
+                      <span className="mi-wa-photo-label">
+                        {savingProfilePicture ? "Enviando foto..." : "Foto do WhatsApp"}
+                      </span>
                     </Button>
+                  </>
+                )}
+                <span
+                  className={`mi-wa-connection-chip inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${connection.data?.connected ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-700 dark:text-emerald-200" : "border-amber-300/20 bg-amber-300/[0.05] text-amber-700 dark:text-amber-100"}`}
+                >
+                  {connection.data?.connected ? (
+                    <Link2 className="h-4 w-4" />
                   ) : (
-                    <div className="space-y-2">
-                      <Button
-                        onClick={() => void navigate({ to: "/central-integracoes" })}
-                        className="h-10 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
-                      >
-                        <Settings className="mr-2 h-4 w-4" /> Configurar WhatsApp API Oficial
-                      </Button>
+                    <WifiOff className="h-4 w-4" />
+                  )}
+                  {connection.data?.connected ? "Conectado" : "Desconectado"}
+                </span>
+              </div>
+              {viewer.data?.isPlatformAdmin && (
+                <details className="mi-wa-config mt-3 overflow-hidden rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)]">
+                  <summary className="cursor-pointer px-3 py-2.5 text-xs font-black text-[var(--mi-text-muted)]">
+                    Configurações do atendimento
+                  </summary>
+                  <div className="border-t border-[var(--mi-border)] p-3">
+                    {isMetaWhatsApp ? (
+                      <>
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900">
+                          <div className="flex items-center gap-2 font-black">
+                            <CheckCheck className="h-4 w-4" />
+                            WhatsApp API Oficial da Meta
+                          </div>
+                          <p className="mt-1 text-emerald-800">
+                            {connection.data?.identityMismatch
+                              ? "Conexão pausada porque o número ativo não corresponde ao número autorizado deste projeto."
+                              : isWhatsAppConnected
+                                ? "Conexão oficial ativa para este atendimento."
+                                : "Configuração oficial encontrada. Valide a conexão para atualizar o status."}
+                          </p>
+                          {connection.data?.identityMismatch
+                            ? connection.data.expectedPhoneNumber && (
+                                <p className="mt-1 font-bold">
+                                  Número autorizado: {connection.data.expectedPhoneNumber}
+                                </p>
+                              )
+                            : connection.data?.phoneNumber && (
+                                <p className="mt-1 font-bold">{connection.data.phoneNumber}</p>
+                              )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => void connect()}
+                          className="mt-2 h-10 w-full rounded-xl border-emerald-300/70 font-black text-emerald-700 hover:bg-emerald-50"
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" /> Validar API Oficial
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => void navigate({ to: "/central-integracoes" })}
+                          className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                        >
+                          <Settings className="mr-2 h-4 w-4" /> Configurar API Oficial
+                        </Button>
+                      </>
+                    ) : connection.data?.connected ? (
                       <Button
                         variant="outline"
-                        onClick={() => void connect()}
-                        className="h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                        disabled={disconnecting}
+                        onClick={() => void disconnect()}
+                        className="h-10 w-full rounded-xl border-rose-300/50 font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
                       >
-                        <Link2 className="mr-2 h-4 w-4" /> Conectar por QR Code
+                        <WifiOff className="mr-2 h-4 w-4" />
+                        {disconnecting ? "Desconectando..." : "Desconectar WhatsApp"}
                       </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => void navigate({ to: "/central-integracoes" })}
+                          className="h-10 w-full rounded-xl bg-emerald-600 font-black text-white hover:bg-emerald-700"
+                        >
+                          <Settings className="mr-2 h-4 w-4" /> Configurar WhatsApp API Oficial
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => void connect()}
+                          className="h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                        >
+                          <Link2 className="mr-2 h-4 w-4" /> Conectar por QR Code
+                        </Button>
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => void navigate({ to: "/assistente" })}
+                      className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
+                    >
+                      <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA
+                    </Button>
+                    <div className="mt-2">
+                      <AttendanceDistributionPanel />
                     </div>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => void navigate({ to: "/assistente" })}
-                    className="mt-2 h-10 w-full rounded-xl border-[var(--mi-border)] font-black"
-                  >
-                    <Bot className="mr-2 h-4 w-4" /> Configurar agente de IA
-                  </Button>
-                  <div className="mt-2">
-                    <AttendanceDistributionPanel />
                   </div>
+                </details>
+              )}
+              <div className="mt-3 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar por nome, telefone ou tag"
+                    className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] pl-9 pr-3 text-sm outline-none focus:border-blue-500"
+                  />
                 </div>
-              </details>
-            )}
-            <div className="mt-3 flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--mi-text-soft)]" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por nome, telefone ou tag"
-                  className="h-10 w-full rounded-xl border border-[var(--mi-border)] bg-[var(--mi-surface)] pl-9 pr-3 text-sm outline-none focus:border-blue-500"
-                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => {
+                    void conversations.refetch();
+                    if (selectedId) void messages.refetch();
+                  }}
+                  className="h-10 w-10 rounded-xl border-[var(--mi-border)]"
+                  title="Atualizar conversas"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  void conversations.refetch();
-                  if (selectedId) void messages.refetch();
-                }}
-                className="h-10 w-10 rounded-xl border-[var(--mi-border)]"
-                title="Atualizar conversas"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
             </div>
-          </div>
-
+  
+          )}
           <div className="mi-wa-tabs grid grid-cols-3 border-b border-[var(--mi-border)] bg-[var(--mi-surface)]">
             {(Object.keys(QUEUE_LABELS) as QueueTab[]).map((tab) => (
               <button
