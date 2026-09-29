@@ -13,12 +13,19 @@ export const Route = createFileRoute("/_authenticated/admin/parametros")({
 function friendlyServiceName(label: string) {
   const normalized = label.toLowerCase();
   if (normalized.includes("openai")) return "Assistente inteligente";
-  if (normalized.includes("google") && (normalized.includes("maps") || normalized.includes("places"))) {
+  if (
+    normalized.includes("google") &&
+    (normalized.includes("maps") || normalized.includes("places"))
+  ) {
     return "Pesquisa de empresas";
   }
   if (normalized.includes("whatsapp")) return "WhatsApp";
   if (normalized.includes("direct") || normalized.includes("messenger")) return "Mensagens sociais";
-  if (normalized.includes("smtp") || normalized.includes("e-mail") || normalized.includes("email")) {
+  if (
+    normalized.includes("smtp") ||
+    normalized.includes("e-mail") ||
+    normalized.includes("email")
+  ) {
     return "E-mail";
   }
   if (normalized.includes("stripe")) return "Pagamentos";

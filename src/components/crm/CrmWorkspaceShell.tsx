@@ -63,15 +63,15 @@ export function CrmWorkspaceShell() {
         {modules
           .filter((item) => item.id !== "diagnostics")
           .map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setModule(item.id)}
-            className={module === item.id ? "is-active" : ""}
-          >
-            {item.label}
-          </button>
-        ))}
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setModule(item.id)}
+              className={module === item.id ? "is-active" : ""}
+            >
+              {item.label}
+            </button>
+          ))}
       </nav>
 
       <div className="crm-corporate-content">
