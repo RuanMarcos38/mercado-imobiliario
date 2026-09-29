@@ -3295,3 +3295,329 @@ button.crm-lead-reference-icon:not(:disabled) {
     display: none !important;
   }
 }
+
+
+/* CRM embedded attendance isolation — prevent legacy/new layout mixing */
+.crm-template-attendance .mi-wa-embedded {
+  --wa-accent: #3975ee;
+  --wa-accent-strong: #3975ee;
+  --wa-text: #344054;
+  --wa-muted: #8d96a4;
+  --wa-border: #edf0f4;
+  --wa-soft: #f8fafc;
+  --wa-soft-2: #f5f7fa;
+  --wa-green-bubble: #eef4ff;
+  --wa-company-bubble: #f7f8fb;
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-layout {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: calc(100vh - 112px) !important;
+  min-height: 520px !important;
+  border: 1px solid #edf0f4 !important;
+  border-radius: 7px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-conversations-panel {
+  width: 286px !important;
+  min-width: 286px !important;
+  flex: 0 0 286px !important;
+  border-right: 1px solid #edf0f4 !important;
+  background: #fbfcfe !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .crm-attendance-head {
+  padding: 12px !important;
+  border-bottom: 1px solid #edf0f4 !important;
+  background: #ffffff !important;
+}
+
+.crm-attendance-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.crm-attendance-headline p {
+  margin: 0;
+  color: #3975ee;
+  font-size: 7px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.crm-attendance-headline h1 {
+  margin: 2px 0 0;
+  color: #2f3949;
+  font-size: 14px !important;
+  font-weight: 720 !important;
+  letter-spacing: -0.02em;
+}
+
+.crm-attendance-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 23px;
+  border: 1px solid #e7eaf0;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 3px 7px;
+  color: #737d8c;
+  font-size: 7px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.crm-attendance-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #a4acb8;
+}
+
+.crm-attendance-status.is-online > span {
+  background: #2ec67d;
+}
+
+.crm-attendance-status.is-offline > span {
+  background: #e2a63a;
+}
+
+.crm-attendance-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.crm-attendance-toolbar button {
+  display: inline-flex;
+  min-width: 0;
+  height: 31px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid #e9edf2;
+  border-radius: 5px;
+  background: #ffffff;
+  padding: 0 5px;
+  color: #657083;
+  font-size: 7.5px;
+  font-weight: 650;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-attendance-toolbar button:hover {
+  border-color: #dce3ec;
+  background: #f7f9fc;
+  color: #3975ee;
+}
+
+.crm-attendance-toolbar button svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+.crm-attendance-search-row {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.crm-attendance-search-row label {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.crm-attendance-search-row label > svg {
+  position: absolute;
+  left: 9px;
+  width: 12px;
+  height: 12px;
+  color: #9aa3b0;
+  pointer-events: none;
+}
+
+.crm-template-attendance .mi-wa-embedded .crm-attendance-search-row input {
+  width: 100%;
+  height: 32px !important;
+  border: 1px solid #e9edf2 !important;
+  border-radius: 5px !important;
+  outline: none !important;
+  background: #f9fafc !important;
+  padding: 0 9px 0 27px !important;
+  color: #445064 !important;
+  font-size: 8.5px !important;
+}
+
+.crm-attendance-search-row > button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid #e9edf2;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #7b8594;
+  cursor: pointer;
+}
+
+.crm-attendance-search-row > button:hover {
+  background: #f7f9fc;
+  color: #3975ee;
+}
+
+.crm-attendance-search-row > button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  min-height: 39px;
+  border-bottom: 1px solid #edf0f4 !important;
+  background: #ffffff !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-tabs button {
+  min-width: 0;
+  padding: 9px 3px !important;
+  color: #8d96a4 !important;
+  font-size: 8px !important;
+  font-weight: 650 !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-tabs button[class*="text-blue-600"] {
+  color: #3975ee !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-conversation-list {
+  background: #fbfcfe !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-conversation-list > button {
+  min-height: 64px !important;
+  border-color: #f0f2f5 !important;
+  background: transparent !important;
+  padding: 8px 10px !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-conversation-list > button:hover {
+  background: #ffffff !important;
+}
+
+.crm-template-attendance
+  .mi-wa-embedded
+  .mi-wa-conversation-list
+  > button[class*="bg-blue-500/10"] {
+  background: #f0f5ff !important;
+  box-shadow: inset 3px 0 0 #3975ee;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-chat {
+  background: #ffffff !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-chat-header {
+  min-height: 57px !important;
+  border-bottom: 1px solid #edf0f4 !important;
+  background: #ffffff !important;
+  padding: 9px 13px !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-message-list {
+  background: #f8fafc !important;
+  padding: 14px 17px !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-bubble-in {
+  border: 1px solid #e8edf3 !important;
+  background: #ffffff !important;
+  color: #3d4757 !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-bubble-out {
+  border: 1px solid #dfe9fb !important;
+  background: #edf4ff !important;
+  color: #344054 !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-composer {
+  border-top: 1px solid #edf0f4 !important;
+  background: #ffffff !important;
+}
+
+.crm-template-attendance .mi-wa-embedded .mi-wa-details-panel {
+  width: 225px !important;
+  min-width: 225px !important;
+  flex: 0 0 225px !important;
+  border-left: 1px solid #edf0f4 !important;
+  background: #fbfcfe !important;
+}
+
+@media (max-width: 1180px) {
+  .crm-template-attendance .mi-wa-embedded .mi-wa-details-panel {
+    display: none !important;
+  }
+
+  .crm-template-attendance .mi-wa-embedded .mi-wa-conversations-panel {
+    width: 260px !important;
+    min-width: 260px !important;
+    flex-basis: 260px !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .crm-template-attendance .mi-wa-embedded .mi-wa-layout {
+    height: calc(100vh - 92px) !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .crm-template-attendance .mi-wa-embedded .mi-wa-conversations-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-basis: 100% !important;
+  }
+
+  .crm-template-attendance
+    .mi-wa-embedded.mi-mobile-chat-open
+    .mi-wa-conversations-panel {
+    display: none !important;
+  }
+
+  .crm-template-attendance .mi-wa-embedded.mi-mobile-chat-open .mi-wa-chat {
+    display: flex !important;
+  }
+}
