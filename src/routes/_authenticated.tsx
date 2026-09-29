@@ -6,12 +6,13 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   Bell,
   Bot,
   Calculator,
   Camera,
+  ChevronDown,
   CreditCard,
   Gavel,
   Handshake,
@@ -201,53 +202,98 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
-const primaryItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: "dashboard" },
-  { to: "/buscar", label: "Buscar imóveis", icon: Search, feature: "buscar" },
-  { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel, feature: "leiloes" },
-  { to: "/alertas", label: "Alertas", icon: Bell, feature: "alertas" },
-] as const;
+type PlatformMenuItem = {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  feature?: string;
+  adminOnly?: boolean;
+};
 
-const toolItems = [
+type PlatformMenuEntry =
+  | { kind: "item"; item: PlatformMenuItem }
+  | {
+      kind: "group";
+      label: string;
+      icon: ComponentType<{ className?: string }>;
+      items: PlatformMenuItem[];
+    };
+
+const principalMenuEntries: PlatformMenuEntry[] = [
   {
-    to: "/atendimento",
-    label: "Atendimento WhatsApp",
+    kind: "item",
+    item: { to: "/alertas", label: "Alertas", icon: Bell, feature: "alertas" },
+  },
+  {
+    kind: "item",
+    item: { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: "dashboard" },
+  },
+  {
+    kind: "group",
+    label: "Imóveis e crédito",
+    icon: Search,
+    items: [
+      {
+        to: "/analise-localizacao",
+        label: "Análise de localização",
+        icon: MapPin,
+        feature: "analise_localizacao",
+      },
+      { to: "/buscar", label: "Buscar imóveis", icon: Search, feature: "buscar" },
+      { to: "/leiloes", label: "Leilões CAIXA", icon: Gavel, feature: "leiloes" },
+      {
+        to: "/simulador-financiamento",
+        label: "Simulador financiamento",
+        icon: Calculator,
+        feature: "simulador",
+      },
+    ],
+  },
+];
+
+const operationMenuEntries: PlatformMenuEntry[] = [
+  {
+    kind: "group",
+    label: "Atendimento e IA",
     icon: MessageCircle,
-    feature: "atendimento",
+    items: [
+      { to: "/assistente", label: "Assistente IA", icon: Bot, feature: "assistente" },
+      {
+        to: "/atendimento",
+        label: "Atendimento WhatsApp",
+        icon: MessageCircle,
+        feature: "atendimento",
+      },
+      {
+        to: "/midias-sociais",
+        label: "Direct / Messenger",
+        icon: Camera,
+        feature: "midias",
+      },
+    ],
   },
   {
-    to: "/central-integracoes",
-    label: "Central de Integrações",
-    icon: Settings,
-    feature: "central_integracoes",
+    kind: "group",
+    label: "Comercial",
+    icon: Users,
+    items: [
+      { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
+      { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
+      { to: "/parcerias", label: "Parcerias imobiliárias", icon: Handshake, feature: "buscar" },
+      { to: "/prospectos", label: "Prospecção IA", icon: Target, feature: "buscar" },
+    ],
   },
   {
-    to: "/midias-sociais",
-    label: "Direct / Messenger",
-    icon: Camera,
-    feature: "midias",
+    kind: "item",
+    item: {
+      to: "/central-integracoes",
+      label: "Conexões",
+      icon: Settings,
+      feature: "central_integracoes",
+    },
   },
-  { to: "/crm", label: "CRM / Oportunidades", icon: Users, feature: "crm" },
-  { to: "/parcerias", label: "Parcerias imobiliárias", icon: Handshake, feature: "buscar" },
-  { to: "/prospectos", label: "Prospecção IA", icon: Target, feature: "buscar" },
-  { to: "/afiliados", label: "Afiliados / Wallet", icon: WalletCards, feature: "afiliados" },
-  {
-    to: "/analise-localizacao",
-    label: "Análise de localização",
-    icon: MapPin,
-    feature: "analise_localizacao",
-  },
-  {
-    to: "/simulador-financiamento",
-    label: "Simulador financiamento",
-    icon: Calculator,
-    feature: "simulador",
-  },
-  { to: "/fluxos", label: "Fluxos", icon: Workflow, adminOnly: true },
-  { to: "/assistente", label: "Assistente IA", icon: Bot, feature: "assistente" },
-  { to: "/diagnostico", label: "Diagnóstico", icon: ShieldCheck, adminOnly: true },
-  { to: "/integracoes", label: "Fontes de imóveis", icon: Plug, adminOnly: true },
-] as const;
+];
+
 
 function AuthenticatedLayout() {
   const location = useLocation();
@@ -257,14 +303,19 @@ function AuthenticatedLayout() {
   const allowedFeatures = new Set(access.allowedFeatures ?? []);
   const isFeatureAllowed = (feature?: string) =>
     !feature || isAdmin || allowedFeatures.has(feature);
-  const visiblePrimaryItems = primaryItems.filter((item) => isFeatureAllowed(item.feature));
-  const internalTechnicalPaths = new Set(["/fluxos", "/diagnostico", "/integracoes"]);
-  const visibleToolItems = toolItems.filter(
-    (item) =>
-      !internalTechnicalPaths.has(item.to) &&
-      (!("adminOnly" in item) || item.adminOnly !== true || isAdmin) &&
-      (!("feature" in item) || isFeatureAllowed(item.feature)),
-  );
+
+  const canShowMenuItem = (item: PlatformMenuItem) =>
+    (!item.adminOnly || isAdmin) && isFeatureAllowed(item.feature);
+
+  const filterMenuEntries = (entries: PlatformMenuEntry[]) =>
+    entries.flatMap<PlatformMenuEntry>((entry) => {
+      if (entry.kind === "item") return canShowMenuItem(entry.item) ? [entry] : [];
+      const items = entry.items.filter(canShowMenuItem);
+      return items.length ? [{ ...entry, items }] : [];
+    });
+
+  const visiblePrincipalEntries = filterMenuEntries(principalMenuEntries);
+  const visibleOperationEntries = filterMenuEntries(operationMenuEntries);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
@@ -360,9 +411,17 @@ function AuthenticatedLayout() {
         ]
       : []),
   ];
-  const visibleAccountItems = accountItems.filter((item) => item.to !== "/admin/parametros");
+  const visibleAccountItems = accountItems
+    .filter((item) => item.to !== "/admin/parametros")
+    .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
 
-  const allVisibleItems = [...visiblePrimaryItems, ...visibleToolItems];
+  const flattenMenuEntries = (entries: PlatformMenuEntry[]) =>
+    entries.flatMap((entry) => (entry.kind === "item" ? [entry.item] : entry.items));
+
+  const allVisibleItems = [
+    ...flattenMenuEntries(visiblePrincipalEntries),
+    ...flattenMenuEntries(visibleOperationEntries),
+  ];
   const currentItem = [...allVisibleItems, ...accountItems].find(
     (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
   );
@@ -411,15 +470,15 @@ function AuthenticatedLayout() {
         <div className="mi-platform-sidebar-scroll">
           <PlatformNavSection
             label="Principal"
-            items={visiblePrimaryItems}
+            entries={visiblePrincipalEntries}
             pathname={location.pathname}
           />
           <PlatformNavSection
             label="Operação"
-            items={visibleToolItems}
+            entries={visibleOperationEntries}
             pathname={location.pathname}
           />
-          <PlatformNavSection
+          <PlatformAccountSection
             label="Conta"
             items={visibleAccountItems}
             pathname={location.pathname}
@@ -553,17 +612,17 @@ function AuthenticatedLayout() {
             <div className="mi-platform-mobile-scroll">
               <PlatformNavSection
                 label="Principal"
-                items={visiblePrimaryItems}
+                entries={visiblePrincipalEntries}
                 pathname={location.pathname}
                 onNavigate={() => setMobileOpen(false)}
               />
               <PlatformNavSection
                 label="Operação"
-                items={visibleToolItems}
+                entries={visibleOperationEntries}
                 pathname={location.pathname}
                 onNavigate={() => setMobileOpen(false)}
               />
-              <PlatformNavSection
+              <PlatformAccountSection
                 label="Conta"
                 items={visibleAccountItems}
                 pathname={location.pathname}
@@ -590,7 +649,133 @@ function platformNavigationLabel(item: { to: string; label: string }) {
   return item.label;
 }
 
+function isNavigationItemActive(pathname: string, item: { to: string }) {
+  return pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
+
 function PlatformNavSection({
+  label,
+  entries,
+  pathname,
+  onNavigate,
+}: {
+  label: string;
+  entries: PlatformMenuEntry[];
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <section className="mi-platform-nav-section">
+      <h2>{label}</h2>
+      <nav>
+        {entries.map((entry) =>
+          entry.kind === "item" ? (
+            <PlatformNavLink
+              key={entry.item.to}
+              item={entry.item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ) : (
+            <PlatformNavGroup
+              key={entry.label}
+              label={entry.label}
+              icon={entry.icon}
+              items={entry.items}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ),
+        )}
+      </nav>
+    </section>
+  );
+}
+
+function PlatformNavGroup({
+  label,
+  icon: Icon,
+  items,
+  pathname,
+  onNavigate,
+}: {
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  items: PlatformMenuItem[];
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  const active = items.some((item) => isNavigationItemActive(pathname, item));
+  const [open, setOpen] = useState(active);
+
+  useEffect(() => {
+    if (active) setOpen(true);
+  }, [active]);
+
+  return (
+    <div className={active ? "mi-platform-nav-group is-active" : "mi-platform-nav-group"}>
+      <button
+        type="button"
+        className="mi-platform-nav-group-trigger"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        title={label}
+      >
+        <Icon />
+        <span>{label}</span>
+        <ChevronDown className={open ? "is-open" : ""} />
+      </button>
+
+      {open && (
+        <div className="mi-platform-nav-group-items">
+          {items.map((item) => (
+            <PlatformNavLink
+              key={item.to}
+              item={item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+              nested
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlatformNavLink({
+  item,
+  pathname,
+  onNavigate,
+  nested = false,
+}: {
+  item: PlatformMenuItem;
+  pathname: string;
+  onNavigate?: () => void;
+  nested?: boolean;
+}) {
+  const Icon = item.icon;
+  const active = isNavigationItemActive(pathname, item);
+  return (
+    <Link
+      to={item.to}
+      onClick={onNavigate}
+      className={[
+        "mi-platform-nav-link",
+        nested ? "is-nested" : "",
+        active ? "is-active" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      title={platformNavigationLabel(item)}
+    >
+      <Icon />
+      <span>{platformNavigationLabel(item)}</span>
+    </Link>
+  );
+}
+
+function PlatformAccountSection({
   label,
   items,
   pathname,
@@ -600,7 +785,7 @@ function PlatformNavSection({
   items: ReadonlyArray<{
     to: string;
     label: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: ComponentType<{ className?: string }>;
   }>;
   pathname: string;
   onNavigate?: () => void;
@@ -611,7 +796,7 @@ function PlatformNavSection({
       <nav>
         {items.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
+          const active = isNavigationItemActive(pathname, item);
           return (
             <Link
               key={item.to}
