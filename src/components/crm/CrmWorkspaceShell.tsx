@@ -132,14 +132,6 @@ export function CrmWorkspaceShell() {
             <ChevronDown />
           </button>
 
-          {module === "attendance" && (
-            <div className="crm-template-attendance-subnav">
-              <span>Esperando</span>
-              <span>Atendimentos</span>
-              <span>Automático IA</span>
-            </div>
-          )}
-
           <button
             type="button"
             className="crm-template-nav-item"
@@ -244,7 +236,7 @@ export function CrmWorkspaceShell() {
           {module === "leads" && <CrmLeadInboxPanel />}
           {module === "attendance" && (
             <div className="crm-template-attendance">
-              <AtendimentoPage />
+              <AtendimentoPage embedded />
             </div>
           )}
           {module === "pipeline" && <CrmPipelineWorkspace />}
