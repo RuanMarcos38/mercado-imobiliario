@@ -1,12 +1,13 @@
 import { useEffect, useState, type ComponentType } from "react";
 import {
   BarChart3,
+  Columns3,
   FileSignature,
   FileText,
   FolderOpen,
-  Columns3,
   Mail,
   MessageCircle,
+  Search,
   Users,
 } from "lucide-react";
 import { CrmLeadInboxPanel } from "@/components/crm/CrmLeadInboxPanel";
@@ -22,24 +23,21 @@ type CrmModuleItem = {
   id: Module;
   label: string;
   icon: ComponentType<{ className?: string }>;
-  section: "main" | "other";
 };
 
 const modules: CrmModuleItem[] = [
-  { id: "attendance", label: "Atendimento", icon: MessageCircle, section: "main" },
-  { id: "leads", label: "Leads", icon: Users, section: "main" },
-  { id: "pipeline", label: "Pipeline", icon: Columns3, section: "main" },
-  { id: "signatures", label: "Assinaturas", icon: FileSignature, section: "other" },
-  { id: "documents", label: "Documentos", icon: FolderOpen, section: "other" },
-  { id: "emails", label: "E-mails", icon: Mail, section: "other" },
-  { id: "proposals", label: "Propostas", icon: FileText, section: "other" },
-  { id: "reports", label: "Relatórios", icon: BarChart3, section: "other" },
-  { id: "diagnostics", label: "Diagnóstico", icon: FileText, section: "other" },
+  { id: "leads", label: "Leads", icon: Users },
+  { id: "pipeline", label: "Pipeline", icon: Columns3 },
+  { id: "attendance", label: "Atendimento", icon: MessageCircle },
+  { id: "proposals", label: "Propostas", icon: FileText },
+  { id: "emails", label: "E-mails", icon: Mail },
+  { id: "documents", label: "Documentos", icon: FolderOpen },
+  { id: "signatures", label: "Assinaturas", icon: FileSignature },
+  { id: "reports", label: "Relatórios", icon: BarChart3 },
+  { id: "diagnostics", label: "Diagnóstico", icon: FileText },
 ];
 
 const visibleModules = modules.filter((item) => item.id !== "diagnostics");
-const mainModules = visibleModules.filter((item) => item.section === "main");
-const otherModules = visibleModules.filter((item) => item.section === "other");
 
 export function CrmWorkspaceShell() {
   const [module, setModule] = useState<Module>("leads");
@@ -61,102 +59,58 @@ export function CrmWorkspaceShell() {
     );
   }, [search]);
 
+  const currentModule = visibleModules.find((item) => item.id === module);
+
   return (
-    <section className="crm-corporate-workspace crm-reference-workspace">
-      <aside className="crm-reference-rail" aria-label="Módulos do CRM">
-        <div className="crm-reference-rail-section">
-          <span className="crm-reference-rail-label">Principal</span>
-          {mainModules.map((item) => (
-            <CrmModuleButton
+    <section className="crm-corporate-workspace crm-medcare-workspace">
+      <header className="crm-medcare-header">
+        <div>
+          <h1>{currentModule?.label ?? "CRM"}</h1>
+          <span>CRM / Oportunidades</span>
+        </div>
+
+        <label className="crm-medcare-search">
+          <Search />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar..."
+          />
+        </label>
+      </header>
+
+      <nav className="crm-medcare-nav" aria-label="Módulos do CRM">
+        {visibleModules.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
               key={item.id}
-              item={item}
-              active={module === item.id}
-              onSelect={() => setModule(item.id)}
-            />
-          ))}
-        </div>
+              type="button"
+              onClick={() => setModule(item.id)}
+              className={module === item.id ? "is-active" : ""}
+            >
+              <Icon />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
-        <div className="crm-reference-rail-divider" />
-
-        <div className="crm-reference-rail-section">
-          <span className="crm-reference-rail-label">Outros</span>
-          {otherModules.map((item) => (
-            <CrmModuleButton
-              key={item.id}
-              item={item}
-              active={module === item.id}
-              onSelect={() => setModule(item.id)}
-            />
-          ))}
-        </div>
-      </aside>
-
-      <div className="crm-reference-stage">
-        <header className="crm-corporate-header">
-          <div>
-            <span className="crm-corporate-eyebrow">Gestão comercial</span>
-            <h1>CRM e Oportunidades</h1>
-            <p>Leads, atendimento, negociações e documentos em um único ambiente operacional.</p>
+      <div className="crm-corporate-content crm-medcare-content">
+        {module === "leads" && <CrmLeadInboxPanel />}
+        {module === "pipeline" && <CrmPipelineWorkspace />}
+        {module === "attendance" && (
+          <div className="crm-template-attendance">
+            <AtendimentoPage embedded />
           </div>
-
-          <label className="crm-corporate-search">
-            <span>Buscar</span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nome, telefone, protocolo ou oportunidade"
-            />
-          </label>
-        </header>
-
-        <div className="crm-reference-module-title">
-          <div>
-            <span>Módulo</span>
-            <strong>{visibleModules.find((item) => item.id === module)?.label ?? "CRM"}</strong>
-          </div>
-        </div>
-
-        <div className="crm-corporate-content">
-          {module === "leads" && <CrmLeadInboxPanel />}
-          {module === "pipeline" && <CrmPipelineWorkspace />}
-          {module === "attendance" && (
-            <div className="crm-template-attendance">
-              <AtendimentoPage embedded />
-            </div>
-          )}
-          {module === "proposals" && <CrmOperationsHub mode="proposals" />}
-          {module === "emails" && <CrmOperationsHub mode="emails" />}
-          {module === "documents" && <CrmOperationsHub mode="documents" />}
-          {module === "signatures" && <CrmOperationsHub mode="signatures" />}
-          {module === "reports" && <CrmReportsPanel />}
-          {module === "diagnostics" && <CrmDiagnosticsPanel />}
-        </div>
+        )}
+        {module === "proposals" && <CrmOperationsHub mode="proposals" />}
+        {module === "emails" && <CrmOperationsHub mode="emails" />}
+        {module === "documents" && <CrmOperationsHub mode="documents" />}
+        {module === "signatures" && <CrmOperationsHub mode="signatures" />}
+        {module === "reports" && <CrmReportsPanel />}
+        {module === "diagnostics" && <CrmDiagnosticsPanel />}
       </div>
     </section>
-  );
-}
-
-function CrmModuleButton({
-  item,
-  active,
-  onSelect,
-}: {
-  item: CrmModuleItem;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = item.icon;
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={active ? "crm-reference-rail-button is-active" : "crm-reference-rail-button"}
-      aria-label={item.label}
-      title={item.label}
-    >
-      <Icon />
-      <span>{item.label}</span>
-    </button>
   );
 }
