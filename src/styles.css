@@ -4627,3 +4627,81 @@ button.crm-lead-reference-icon:not(:disabled) {
     display: none;
   }
 }
+
+
+/* Full desktop sidebar hide/reopen override — 2026-09-29 */
+.mi-platform-brand-full {
+  color: #1f2937 !important;
+}
+
+.mi-platform-brand-full > span {
+  color: #3975ee !important;
+}
+
+.mi-platform-shell.is-sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.mi-platform-sidebar.is-collapsed {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.mi-platform-sidebar-reopen {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid #e4e9ef;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #6f7b8d;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.mi-platform-sidebar-reopen:hover {
+  border-color: #cfd9e8;
+  background: #f7f9fc;
+  color: #3975ee;
+}
+
+.mi-platform-sidebar-reopen svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.dark .mi-platform-brand-full {
+  color: #f1f5f9 !important;
+}
+
+.dark .mi-platform-sidebar-reopen {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: #202b3a;
+  color: #cbd5e1;
+}
+
+.dark .mi-platform-sidebar-reopen:hover {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: rgba(59, 130, 246, 0.1);
+  color: #bfdbfe;
+}
+
+@media (max-width: 900px) {
+  .mi-platform-sidebar-reopen {
+    display: none;
+  }
+
+  .mi-platform-shell.is-sidebar-collapsed {
+    display: block;
+  }
+}
