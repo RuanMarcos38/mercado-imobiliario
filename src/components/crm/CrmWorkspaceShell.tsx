@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import {
   BarChart3,
+  ChevronRight,
   Columns3,
   FileSignature,
   FileText,
@@ -62,24 +63,32 @@ export function CrmWorkspaceShell() {
   const currentModule = visibleModules.find((item) => item.id === module);
 
   return (
-    <section className="crm-corporate-workspace crm-medcare-workspace">
-      <header className="crm-medcare-header">
-        <div>
+    <section className="crm-corporate-workspace crm-medcare-workspace crm-aligno-workspace">
+      <header className="crm-medcare-header crm-aligno-header">
+        <div className="crm-aligno-heading">
+          <div className="crm-aligno-breadcrumb" aria-label="Localização no CRM">
+            <span>CRM</span>
+            <ChevronRight aria-hidden="true" />
+            <span>Oportunidades</span>
+            <ChevronRight aria-hidden="true" />
+            <strong>{currentModule?.label ?? "CRM"}</strong>
+          </div>
           <h1>{currentModule?.label ?? "CRM"}</h1>
-          <span>CRM / Oportunidades</span>
         </div>
 
-        <label className="crm-medcare-search">
-          <Search />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar..."
-          />
-        </label>
+        <div className="crm-aligno-header-actions">
+          <label className="crm-medcare-search crm-aligno-search">
+            <Search />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar..."
+            />
+          </label>
+        </div>
       </header>
 
-      <nav className="crm-medcare-nav" aria-label="Módulos do CRM">
+      <nav className="crm-medcare-nav crm-aligno-nav" aria-label="Módulos do CRM">
         {visibleModules.map((item) => {
           const Icon = item.icon;
           return (
@@ -96,7 +105,7 @@ export function CrmWorkspaceShell() {
         })}
       </nav>
 
-      <div className="crm-corporate-content crm-medcare-content">
+      <div className="crm-corporate-content crm-medcare-content crm-aligno-content">
         {module === "leads" && <CrmLeadInboxPanel />}
         {module === "pipeline" && <CrmPipelineWorkspace />}
         {module === "attendance" && (
