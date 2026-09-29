@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Activity,
   BarChart3,
@@ -9,6 +10,7 @@ import {
   Inbox,
   Layers3,
   Mail,
+  MessageCircle,
   Paperclip,
   PenLine,
   Search,
@@ -22,11 +24,19 @@ import { CrmPipelineWorkspace } from "@/components/crm/CrmPipelineWorkspace";
 import { CrmOperationsHub, type CrmOperationsMode } from "@/components/crm/CrmOperationsHub";
 import { CrmReportsPanel } from "@/components/crm/CrmReportsPanel";
 import { CrmDiagnosticsPanel } from "@/components/crm/CrmDiagnosticsPanel";
+import { AtendimentoPage } from "@/routes/_authenticated/atendimento";
 
-type Module = "leads" | "pipeline" | CrmOperationsMode | "reports" | "diagnostics";
+type Module =
+  | "leads"
+  | "pipeline"
+  | "attendance"
+  | CrmOperationsMode
+  | "reports"
+  | "diagnostics";
 
 const modules: Array<{ id: Module; label: string; icon: typeof Layers3 }> = [
   { id: "leads", label: "Leads", icon: Inbox },
+  { id: "attendance", label: "Atendimento", icon: MessageCircle },
   { id: "pipeline", label: "Pipeline", icon: Layers3 },
   { id: "proposals", label: "Propostas", icon: FileText },
   { id: "emails", label: "E-mails", icon: Mail },
@@ -37,6 +47,7 @@ const modules: Array<{ id: Module; label: string; icon: typeof Layers3 }> = [
 ];
 
 export function CrmWorkspaceShell() {
+  const navigate = useNavigate();
   const [module, setModule] = useState<Module>("leads");
   const [search, setSearch] = useState("");
 
@@ -117,6 +128,28 @@ export function CrmWorkspaceShell() {
 
           <button
             type="button"
+            className={
+              module === "attendance"
+                ? "crm-template-nav-item is-active"
+                : "crm-template-nav-item"
+            }
+            onClick={() => setModule("attendance")}
+          >
+            <MessageCircle />
+            <span>Atendimento</span>
+            <ChevronDown />
+          </button>
+
+          {module === "attendance" && (
+            <div className="crm-template-attendance-subnav">
+              <span>Esperando</span>
+              <span>Atendimentos</span>
+              <span>Automático IA</span>
+            </div>
+          )}
+
+          <button
+            type="button"
             className="crm-template-nav-item"
             onClick={() => setModule("pipeline")}
           >
@@ -153,7 +186,7 @@ export function CrmWorkspaceShell() {
         <div className="crm-template-tools-label">Ferramentas</div>
         <nav className="crm-template-nav crm-template-nav-secondary">
           {modules
-            .filter((item) => !["leads", "pipeline", "reports"].includes(item.id))
+            .filter((item) => !["leads", "attendance", "pipeline", "reports"].includes(item.id))
             .map((item) => {
               const Icon = item.icon;
               return (
@@ -185,13 +218,21 @@ export function CrmWorkspaceShell() {
           </label>
 
           <div className="crm-template-user-area">
-            <button type="button" className="crm-template-top-icon" aria-label="Mensagens">
+            <button
+              type="button"
+              className="crm-template-top-icon"
+              aria-label="Atendimento"
+              title="Abrir atendimento WhatsApp"
+              onClick={() => setModule("attendance")}
+            >
               <Mail />
             </button>
             <button
               type="button"
               className="crm-template-top-icon crm-template-bell"
               aria-label="Notificações"
+              title="Abrir alertas"
+              onClick={() => void navigate({ to: "/alertas" })}
             >
               <Bell />
               <span />
@@ -209,6 +250,11 @@ export function CrmWorkspaceShell() {
 
         <main className="crm-template-main">
           {module === "leads" && <CrmLeadInboxPanel />}
+          {module === "attendance" && (
+            <div className="crm-template-attendance">
+              <AtendimentoPage />
+            </div>
+          )}
           {module === "pipeline" && <CrmPipelineWorkspace />}
           {module === "proposals" && <CrmOperationsHub mode="proposals" />}
           {module === "emails" && <CrmOperationsHub mode="emails" />}
