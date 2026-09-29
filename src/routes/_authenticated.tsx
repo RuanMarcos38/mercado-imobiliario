@@ -256,8 +256,10 @@ function AuthenticatedLayout() {
   const isFeatureAllowed = (feature?: string) =>
     !feature || isAdmin || allowedFeatures.has(feature);
   const visiblePrimaryItems = primaryItems.filter((item) => isFeatureAllowed(item.feature));
+  const internalTechnicalPaths = new Set(["/fluxos", "/diagnostico", "/integracoes"]);
   const visibleToolItems = toolItems.filter(
     (item) =>
+      !internalTechnicalPaths.has(item.to) &&
       (!("adminOnly" in item) || item.adminOnly !== true || isAdmin) &&
       (!("feature" in item) || isFeatureAllowed(item.feature)),
   );
@@ -346,6 +348,7 @@ function AuthenticatedLayout() {
         ]
       : []),
   ];
+  const visibleAccountItems = accountItems.filter((item) => item.to !== "/admin/parametros");
 
   const allVisibleItems = [...visiblePrimaryItems, ...visibleToolItems];
   const currentItem = [...allVisibleItems, ...accountItems].find(
@@ -385,7 +388,11 @@ function AuthenticatedLayout() {
             items={visibleToolItems}
             pathname={location.pathname}
           />
-          <PlatformNavSection label="Conta" items={accountItems} pathname={location.pathname} />
+          <PlatformNavSection
+            label="Conta"
+            items={visibleAccountItems}
+            pathname={location.pathname}
+          />
         </div>
 
         <div className="mi-platform-sidebar-footer">
@@ -516,7 +523,7 @@ function AuthenticatedLayout() {
               />
               <PlatformNavSection
                 label="Conta"
-                items={accountItems}
+                items={visibleAccountItems}
                 pathname={location.pathname}
                 onNavigate={() => setMobileOpen(false)}
               />
@@ -534,6 +541,11 @@ function AuthenticatedLayout() {
       )}
     </div>
   );
+}
+
+function platformNavigationLabel(item: { to: string; label: string }) {
+  if (item.to === "/central-integracoes") return "Conexões";
+  return item.label;
 }
 
 function PlatformNavSection({
@@ -566,7 +578,7 @@ function PlatformNavSection({
               className={active ? "mi-platform-nav-link is-active" : "mi-platform-nav-link"}
             >
               <Icon />
-              <span>{item.label}</span>
+              <span>{platformNavigationLabel(item)}</span>
             </Link>
           );
         })}
