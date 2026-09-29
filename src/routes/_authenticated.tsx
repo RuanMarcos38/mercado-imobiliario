@@ -254,7 +254,7 @@ const operationMenuEntries: PlatformMenuEntry[] = [
     label: "Atendimento",
     icon: MessageCircle,
     items: [
-      { to: "/assistente", label: "Assistente", icon: Bot, feature: "assistente" },
+      { to: "/assistente", label: "Assistente IA", icon: Bot, feature: "assistente" },
       {
         to: "/atendimento",
         label: "Atendimento WhatsApp",
@@ -648,6 +648,8 @@ function AuthenticatedLayout() {
 
 function platformNavigationLabel(item: { to: string; label: string }) {
   if (item.to === "/central-integracoes") return "Conexões";
+  if (item.to === "/assistente") return "Assistente";
+  if (item.to === "/prospectos") return "Prospecção";
   return item.label;
 }
 
