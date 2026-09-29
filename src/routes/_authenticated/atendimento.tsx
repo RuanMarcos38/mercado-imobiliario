@@ -217,7 +217,7 @@ function isMetaFreeformWindowClosed(input: {
   return Date.now() - new Date(inboundAt).getTime() > 24 * 60 * 60 * 1000;
 }
 
-function AtendimentoPage() {
+export function AtendimentoPage() {
   const navigate = useNavigate();
   const statusFn = useServerFn(getWhatsAppConnectionStatus);
   const qrFn = useServerFn(getWhatsAppQrCode);
@@ -246,6 +246,14 @@ function AtendimentoPage() {
   const [queueTab, setQueueTab] = useState<QueueTab>("waiting");
   const [search, setSearch] = useState("");
   const [text, setText] = useState("");
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      setSearch(String((event as CustomEvent<string>).detail ?? ""));
+    };
+    window.addEventListener("mercadoimobi:crm-search", handler);
+    return () => window.removeEventListener("mercadoimobi:crm-search", handler);
+  }, []);
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -1287,10 +1295,23 @@ function AtendimentoPage() {
                 }}
                 className={`flex w-full items-start gap-3 border-b border-[var(--mi-border)] px-4 py-3 text-left transition ${selectedId === conversation.id ? "bg-blue-500/10" : "hover:bg-[var(--mi-surface)]"}`}
               >
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-500/10 text-xs font-black text-blue-600">
-                  {(conversation.contact_name || conversation.phone_e164 || "CO")
-                    .slice(0, 2)
-                    .toUpperCase()}
+                <span className="mi-wa-contact-avatar relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-500/10 text-xs font-black text-blue-600">
+                  <span>
+                    {(conversation.contact_name || conversation.phone_e164 || "CO")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </span>
+                  {conversation.avatar_url && (
+                    <img
+                      src={conversation.avatar_url}
+                      alt=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-3">
@@ -1355,10 +1376,22 @@ function AtendimentoPage() {
                   >
                     <ArrowLeft className="h-5 w-5" />
                   </button>
-                  <span className="mi-wa-chat-avatar grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#dfe5e7] text-xs font-black text-[#54656f]">
-                    {(selected.contact_name || selected.phone_e164 || "CO")
-                      .slice(0, 2)
-                      .toUpperCase()}
+                  <span className="mi-wa-chat-avatar relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#dfe5e7] text-xs font-black text-[#54656f]">
+                    <span>
+                      {(selected.contact_name || selected.phone_e164 || "CO")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </span>
+                    {selected.avatar_url && (
+                      <img
+                        src={selected.avatar_url}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
