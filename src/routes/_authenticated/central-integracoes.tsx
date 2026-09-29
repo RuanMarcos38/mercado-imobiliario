@@ -49,11 +49,36 @@ import {
 
 export const Route = createFileRoute("/_authenticated/central-integracoes")({
   component: IntegrationsHubPage,
-  head: () => ({ title: "Central de Integrações | MercadoImobi" }),
+  head: () => ({ title: "Conexões | MercadoImobi" }),
 });
 
 function dateTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString("pt-BR") : "—";
+}
+
+function publicIntegrationName(name: string) {
+  const normalized = name.toLowerCase();
+  if (normalized.includes("openai")) return "Assistente inteligente";
+  if (normalized.includes("google") && (normalized.includes("maps") || normalized.includes("places"))) {
+    return "Pesquisa de empresas";
+  }
+  if (normalized.includes("whatsapp")) return "WhatsApp";
+  if (normalized.includes("stripe")) return "Pagamentos";
+  if (normalized.includes("twilio")) return "Telefonia";
+  if (normalized.includes("smtp") || normalized.includes("resend")) return "E-mail";
+  if (normalized.includes("n8n") || normalized.includes("make") || normalized.includes("zapier")) {
+    return "Automação";
+  }
+  if (
+    normalized.includes("api") ||
+    normalized.includes("webhook") ||
+    normalized.includes("endpoint") ||
+    normalized.includes("supabase") ||
+    normalized.includes("database")
+  ) {
+    return "Integração automática";
+  }
+  return name;
 }
 
 const API_TOKEN_PLACEHOLDER = "mi_live_SEU_TOKEN";
@@ -518,11 +543,11 @@ function IntegrationsHubPage() {
             <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
               Ecossistema
             </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">Central de Integrações</h1>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">Conexões</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
-              Conecte agenda, Google Meet, Drive, automações, APIs e fontes imobiliárias sem
-              misturar dados entre usuários. Cada token e conexão pertence ao usuário e à
-              organização autenticada.
+              Acompanhe os serviços conectados à sua operação em uma visão simples e segura.
+              Detalhes internos de configuração são gerenciados pela plataforma e não aparecem
+              nesta tela.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -583,15 +608,15 @@ function IntegrationsHubPage() {
                     </span>
                     <StatusBadge status={item.status} />
                   </div>
-                  <h2 className="mt-4 font-black">{item.name}</h2>
+                  <h2 className="mt-4 font-black">{publicIntegrationName(item.name)}</h2>
                   <p className="mt-2 text-xs leading-5 text-[var(--mi-text-muted)]">
-                    {item.description}
+                    Serviço gerenciado automaticamente pela plataforma.
                   </p>
                 </div>
               ))}
             </section>
 
-            <section className="grid gap-6 2xl:grid-cols-2">
+            <section className="hidden" aria-hidden="true">
               <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
@@ -1462,7 +1487,7 @@ function StatusBadge({ status }: { status: string }) {
     normalized === "configured"
       ? "Conectado"
       : normalized === "partner_required"
-        ? "Requer parceria/API"
+        ? "Requer autorização"
         : normalized === "planned"
           ? "Planejado"
           : normalized === "active"
