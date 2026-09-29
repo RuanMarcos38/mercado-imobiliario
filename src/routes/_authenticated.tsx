@@ -21,17 +21,14 @@ import {
   MapPin,
   Menu,
   MessageCircle,
-  Plug,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
   Settings,
-  ShieldCheck,
   Target,
   UserRound,
   Users,
   WalletCards,
-  Workflow,
   X,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
