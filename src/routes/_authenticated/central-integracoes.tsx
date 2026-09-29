@@ -59,7 +59,10 @@ function dateTime(value: string | null | undefined) {
 function publicIntegrationName(name: string) {
   const normalized = name.toLowerCase();
   if (normalized.includes("openai")) return "Assistente inteligente";
-  if (normalized.includes("google") && (normalized.includes("maps") || normalized.includes("places"))) {
+  if (
+    normalized.includes("google") &&
+    (normalized.includes("maps") || normalized.includes("places"))
+  ) {
     return "Pesquisa de empresas";
   }
   if (normalized.includes("whatsapp")) return "WhatsApp";
@@ -546,8 +549,8 @@ function IntegrationsHubPage() {
             <h1 className="mt-2 text-3xl font-black tracking-tight">Conexões</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--mi-text-muted)]">
               Acompanhe os serviços conectados à sua operação em uma visão simples e segura.
-              Detalhes internos de configuração são gerenciados pela plataforma e não aparecem
-              nesta tela.
+              Detalhes internos de configuração são gerenciados pela plataforma e não aparecem nesta
+              tela.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
