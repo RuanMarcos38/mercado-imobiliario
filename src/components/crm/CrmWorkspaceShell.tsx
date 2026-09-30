@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ComponentType,
-} from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
@@ -34,13 +29,7 @@ import { AtendimentoPage } from "@/routes/_authenticated/atendimento";
 import { supabase } from "@/integrations/supabase/client";
 
 type Module =
-  | "dashboard"
-  | "leads"
-  | "pipeline"
-  | "attendance"
-  | CrmOperationsMode
-  | "reports"
-  | "diagnostics";
+  "dashboard" | "leads" | "pipeline" | "attendance" | CrmOperationsMode | "reports" | "diagnostics";
 
 type CrmModuleItem = {
   id: Module;
@@ -168,10 +157,7 @@ export function CrmWorkspaceShell() {
   return (
     <section className="crm-salespro-shell">
       <aside
-        className={[
-          "crm-salespro-sidebar",
-          mobileMenuOpen ? "is-mobile-open" : "",
-        ]
+        className={["crm-salespro-sidebar", mobileMenuOpen ? "is-mobile-open" : ""]
           .filter(Boolean)
           .join(" ")}
       >
@@ -207,17 +193,11 @@ export function CrmWorkspaceShell() {
           <div className="crm-salespro-nav-separator" />
 
           <nav className="crm-salespro-nav" aria-label="Configurações do CRM">
-            <button
-              type="button"
-              onClick={() => void navigate({ to: "/central-integracoes" })}
-            >
+            <button type="button" onClick={() => void navigate({ to: "/central-integracoes" })}>
               <PlugZap />
               <span>Integrações</span>
             </button>
-            <button
-              type="button"
-              onClick={() => void navigate({ to: "/settings/security" })}
-            >
+            <button type="button" onClick={() => void navigate({ to: "/settings/security" })}>
               <Settings />
               <span>Configurações</span>
             </button>
@@ -303,9 +283,7 @@ export function CrmWorkspaceShell() {
 
           <div className="crm-salespro-module">
             {module === "dashboard" && (
-              <CrmDashboardOverview
-                onNavigate={(target) => chooseModule(target)}
-              />
+              <CrmDashboardOverview onNavigate={(target) => chooseModule(target)} />
             )}
             {module === "leads" && <CrmLeadInboxPanel />}
             {module === "pipeline" && <CrmPipelineWorkspace />}

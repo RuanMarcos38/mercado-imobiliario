@@ -108,7 +108,8 @@ export function CrmDashboardOverview({
     const qualifiedLeads = leadRows.filter((lead) =>
       ["qualified", "converted"].includes(lead.status),
     ).length;
-    const conversion = won.length + lost.length ? (won.length / (won.length + lost.length)) * 100 : 0;
+    const conversion =
+      won.length + lost.length ? (won.length / (won.length + lost.length)) * 100 : 0;
 
     const stageData = stages.map((stage) => {
       const stageOpportunities = opportunities.filter((item) => item.stage_id === stage.id);
@@ -152,12 +153,12 @@ export function CrmDashboardOverview({
     });
 
     const recentDeals = [...opportunities]
-      .sort(
-        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-      )
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 5);
 
-    const sourcePerformance = [...new Set(opportunities.map((item) => item.source || "Não informado"))]
+    const sourcePerformance = [
+      ...new Set(opportunities.map((item) => item.source || "Não informado")),
+    ]
       .map((source) => {
         const sourceOpps = opportunities.filter(
           (item) => (item.source || "Não informado") === source,
@@ -309,7 +310,9 @@ export function CrmDashboardOverview({
           <div className="crm-salespro-card-head">
             <div>
               <h2>Pipeline de vendas</h2>
-              <p>Valor total em aberto: <strong>{money(dashboard.pipelineValue)}</strong></p>
+              <p>
+                Valor total em aberto: <strong>{money(dashboard.pipelineValue)}</strong>
+              </p>
             </div>
             <button type="button" onClick={() => onNavigate("pipeline")}>
               Ver pipeline
@@ -323,10 +326,7 @@ export function CrmDashboardOverview({
                 const width = Math.max(44, Math.round((stage.value / max) * 100));
                 return (
                   <div key={stage.id} className="crm-salespro-funnel-row">
-                    <div
-                      className="crm-salespro-funnel-shape"
-                      style={{ width: `${width}%` }}
-                    >
+                    <div className="crm-salespro-funnel-shape" style={{ width: `${width}%` }}>
                       <span>{stage.value}</span>
                     </div>
                     <div className="crm-salespro-funnel-label">
@@ -354,7 +354,12 @@ export function CrmDashboardOverview({
               <BarChart data={dashboard.stageData}>
                 <CartesianGrid stroke="#edf3f4" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                   {dashboard.stageData.map((entry, index) => (
@@ -388,10 +393,7 @@ export function CrmDashboardOverview({
                     paddingAngle={2}
                   >
                     {dashboard.sources.map((entry, index) => (
-                      <Cell
-                        key={entry.name}
-                        fill={chartPalette[index % chartPalette.length]}
-                      />
+                      <Cell key={entry.name} fill={chartPalette[index % chartPalette.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -554,7 +556,9 @@ export function CrmDashboardOverview({
               <tbody>
                 {dashboard.sourcePerformance.map((row) => (
                   <tr key={row.source}>
-                    <td><strong>{row.source}</strong></td>
+                    <td>
+                      <strong>{row.source}</strong>
+                    </td>
                     <td>{row.opportunities}</td>
                     <td>{row.won}</td>
                     <td>{money(row.revenue)}</td>
