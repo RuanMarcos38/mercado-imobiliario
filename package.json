@@ -111,5 +111,6 @@
     "body-parser@^2": "2.4.0",
     "seroval": "1.7.2",
     "seroval-plugins": "1.7.2"
-  }
+  },
+  "packageManager": "npm@10.9.9"
 }
