@@ -491,7 +491,7 @@ export const getProspectRadarSnapshot = createServerFn({ method: "GET" })
 
 export const searchHotRealEstateProspects = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => searchSchema.parse(input))
+  .validator((input: unknown) => searchSchema.parse(input))
   .handler(async ({ data, context }): Promise<ProspectSearchResponse> => {
     await requireTenantId(context.supabase, context.userId);
     return runPublicProspectSearch(data);

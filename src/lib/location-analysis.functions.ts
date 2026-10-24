@@ -456,7 +456,7 @@ function potentialScore(input: {
 
 export const analyzePropertyLocation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => analysisSchema.parse(data))
+  .validator((data: unknown) => analysisSchema.parse(data))
   .handler(async ({ data, context }): Promise<LocationAnalysisResult> => {
     const db = context.supabase as any;
     const address = data.address?.trim() ?? "";

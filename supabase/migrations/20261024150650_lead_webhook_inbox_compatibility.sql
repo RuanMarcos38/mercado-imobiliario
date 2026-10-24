@@ -123,4 +123,3 @@ create trigger lead_webhook_inbox_insert
 instead of insert on public.leads
 for each row execute function public.insert_lead_webhook_into_inbox();
 notify pgrst, 'reload schema';
-

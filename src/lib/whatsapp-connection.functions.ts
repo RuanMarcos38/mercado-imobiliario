@@ -395,7 +395,7 @@ export const getMetaWhatsAppOfficialSettings = createServerFn({ method: "GET" })
 
 export const saveMetaWhatsAppOfficialSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => metaOfficialSettingsSchema.parse(data))
+  .validator((data: unknown) => metaOfficialSettingsSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -540,7 +540,7 @@ export const getMetaWhatsAppBusinessProfileSettings = createServerFn({ method: "
 
 export const saveMetaWhatsAppBusinessProfileSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => metaBusinessProfileSchema.parse(data))
+  .validator((data: unknown) => metaBusinessProfileSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

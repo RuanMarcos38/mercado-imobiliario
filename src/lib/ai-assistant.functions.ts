@@ -38,7 +38,7 @@ export const getAiRuntimeStatus = createServerFn({ method: "GET" })
 
 export const generateConversationDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => draftSchema.parse(data))
+  .validator((data: unknown) => draftSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -96,7 +96,7 @@ export const generateConversationDraft = createServerFn({ method: "POST" })
 
 export const testAiAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => testSchema.parse(data))
+  .validator((data: unknown) => testSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

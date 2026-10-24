@@ -320,7 +320,7 @@ export const listWhatsAppConversations = createServerFn({ method: "GET" })
 
 export const listWhatsAppMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }): Promise<WhatsAppMessage[]> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = supabaseAdmin as any;
@@ -382,7 +382,7 @@ export const listWhatsAppMessages = createServerFn({ method: "POST" })
 
 export const markWhatsAppConversationRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -397,7 +397,7 @@ export const markWhatsAppConversationRead = createServerFn({ method: "POST" })
 
 export const sendWhatsAppText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => sendTextSchema.parse(data))
+  .validator((data: unknown) => sendTextSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

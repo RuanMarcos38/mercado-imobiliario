@@ -86,7 +86,7 @@ export const listMyCrmAppointments = createServerFn({ method: "GET" })
 
 export const createCrmAppointment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => appointmentSchema.parse(data))
+  .validator((data: unknown) => appointmentSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     if (new Date(data.endsAt).getTime() <= new Date(data.startsAt).getTime()) {
@@ -178,7 +178,7 @@ export const createCrmAppointment = createServerFn({ method: "POST" })
 
 export const cancelCrmAppointment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => appointmentIdSchema.parse(data))
+  .validator((data: unknown) => appointmentIdSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const db = context.supabase as any;

@@ -11,7 +11,7 @@ const startConversationSchema = z.object({
 
 export const startWhatsAppConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => startConversationSchema.parse(data))
+  .validator((data: unknown) => startConversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

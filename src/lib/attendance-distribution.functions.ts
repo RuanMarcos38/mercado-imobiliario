@@ -168,7 +168,7 @@ export const getAttendanceDistributionWorkspace = createServerFn({ method: "GET"
 
 export const createAttendanceDistributionList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => createSchema.parse(data))
+  .validator((data: unknown) => createSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await requireManager(tenantId, context.userId);
@@ -198,7 +198,7 @@ export const createAttendanceDistributionList = createServerFn({ method: "POST" 
 
 export const updateAttendanceDistributionList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => updateSchema.parse(data))
+  .validator((data: unknown) => updateSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await requireManager(tenantId, context.userId);
@@ -219,7 +219,7 @@ export const updateAttendanceDistributionList = createServerFn({ method: "POST" 
 
 export const setDefaultAttendanceDistributionList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => listIdSchema.parse(data))
+  .validator((data: unknown) => listIdSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await requireManager(tenantId, context.userId);
@@ -242,7 +242,7 @@ export const setDefaultAttendanceDistributionList = createServerFn({ method: "PO
 
 export const setAttendanceDistributionMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => memberSchema.parse(data))
+  .validator((data: unknown) => memberSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await requireManager(tenantId, context.userId);
@@ -290,7 +290,7 @@ export const setAttendanceDistributionMember = createServerFn({ method: "POST" }
 
 export const deleteAttendanceDistributionList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => listIdSchema.parse(data))
+  .validator((data: unknown) => listIdSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await requireManager(tenantId, context.userId);

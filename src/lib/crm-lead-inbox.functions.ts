@@ -179,7 +179,7 @@ export const listCrmLeadInbox = createServerFn({ method: "GET" })
 
 export const updateCrmLeadQualification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => qualificationSchema.parse(data))
+  .validator((data: unknown) => qualificationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const db = context.supabase as any;
@@ -239,7 +239,7 @@ export const updateCrmLeadQualification = createServerFn({ method: "POST" })
 
 export const discardCrmLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const result = await (context.supabase as any)
@@ -254,7 +254,7 @@ export const discardCrmLead = createServerFn({ method: "POST" })
 
 export const restoreCrmLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const result = await (context.supabase as any)
@@ -269,7 +269,7 @@ export const restoreCrmLead = createServerFn({ method: "POST" })
 
 export const convertCrmLeadToOpportunity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const db = context.supabase as any;

@@ -26,7 +26,7 @@ const propertySchema = z.object({
  */
 export const syncPropertiesBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.array(propertySchema).max(500).parse(data))
+  .validator((data: unknown) => z.array(propertySchema).max(500).parse(data))
   .handler(async ({ data: properties, context }) => {
     const { supabase, userId } = context;
     const tenantId = await requireTenantId(supabase, userId);

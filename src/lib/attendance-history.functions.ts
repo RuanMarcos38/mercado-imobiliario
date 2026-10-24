@@ -105,7 +105,7 @@ function emptyReport(): AttendanceHistoryReport {
 
 export const getAttendanceHistoryReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => reportSchema.parse(data))
+  .validator((data: unknown) => reportSchema.parse(data))
   .handler(async ({ data, context }): Promise<AttendanceHistoryReport> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const database = db();

@@ -92,7 +92,7 @@ export const getDialerStatus = createServerFn({ method: "GET" })
 
 export const startDialerCall = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => callSchema.parse(data))
+  .validator((data: unknown) => callSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requireTenantId(context.supabase, context.userId);
     const config = twilioConfig();

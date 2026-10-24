@@ -217,13 +217,22 @@ function metaApiErrorMessage(error: unknown) {
 
 export async function listMetaWhatsAppTemplates(config: MetaWhatsAppConfig, name?: string) {
   if (!config.businessAccountId) throw new Error("META_BUSINESS_ACCOUNT_REQUIRED");
-  const params = new URLSearchParams({ fields: "id,name,status,language,category,components,rejected_reason", limit: "100" });
+  const params = new URLSearchParams({
+    fields: "id,name,status,language,category,components,rejected_reason",
+    limit: "100",
+  });
   if (name) params.set("name", name);
   const all: JsonObject[] = [];
   let after: string | null = null;
   do {
     if (after) params.set("after", after);
-    const payload = await metaJson(endpoint(config, `/${encodeURIComponent(config.businessAccountId)}/message_templates?${params}`), config);
+    const payload = await metaJson(
+      endpoint(
+        config,
+        `/${encodeURIComponent(config.businessAccountId)}/message_templates?${params}`,
+      ),
+      config,
+    );
     if (!Array.isArray(payload.data)) throw new Error("META_TEMPLATES_INVALID_RESPONSE");
     all.push(...payload.data.map(object));
     const paging = object(payload.paging);
@@ -239,16 +248,39 @@ export async function listMetaWhatsAppTemplates(config: MetaWhatsAppConfig, name
 
 export async function createMetaWhatsAppTemplate(config: MetaWhatsAppConfig, submission: object) {
   if (!config.businessAccountId) throw new Error("META_BUSINESS_ACCOUNT_REQUIRED");
-  const result = await metaJson(endpoint(config, `/${encodeURIComponent(config.businessAccountId)}/message_templates`), config, { method: "POST", body: JSON.stringify(submission) });
-  if (typeof result.id !== "string" || typeof result.status !== "string") throw new Error("META_TEMPLATES_INVALID_RESPONSE");
+  const result = await metaJson(
+    endpoint(config, `/${encodeURIComponent(config.businessAccountId)}/message_templates`),
+    config,
+    { method: "POST", body: JSON.stringify(submission) },
+  );
+  if (typeof result.id !== "string" || typeof result.status !== "string")
+    throw new Error("META_TEMPLATES_INVALID_RESPONSE");
   return { id: result.id, status: result.status };
 }
 
-export async function sendMetaWhatsAppApprovedTemplate(config: MetaWhatsAppConfig, phone: string, name: string, firstName: string) {
-  return metaJson(endpoint(config, `/${encodeURIComponent(config.phoneNumberId)}/messages`), config, {
-    method: "POST",
-    body: JSON.stringify({ messaging_product: "whatsapp", to: phone, type: "template", template: { name, language: { code: "pt_BR" }, components: [{ type: "body", parameters: [{ type: "text", text: firstName }] }] } }),
-  });
+export async function sendMetaWhatsAppApprovedTemplate(
+  config: MetaWhatsAppConfig,
+  phone: string,
+  name: string,
+  firstName: string,
+) {
+  return metaJson(
+    endpoint(config, `/${encodeURIComponent(config.phoneNumberId)}/messages`),
+    config,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "template",
+        template: {
+          name,
+          language: { code: "pt_BR" },
+          components: [{ type: "body", parameters: [{ type: "text", text: firstName }] }],
+        },
+      }),
+    },
+  );
 }
 
 export function isMetaWhatsAppAccessTokenFailure(errorMessage: string) {

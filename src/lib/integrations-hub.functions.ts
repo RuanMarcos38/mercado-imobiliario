@@ -144,7 +144,7 @@ export const backupToGoogleDriveNow = createServerFn({ method: "POST" })
 
 export const createMyApiToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => tokenCreateSchema.parse(data))
+  .validator((data: unknown) => tokenCreateSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const { createHash, randomBytes } = await import("node:crypto");
@@ -177,7 +177,7 @@ export const createMyApiToken = createServerFn({ method: "POST" })
 
 export const revokeMyApiToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => tokenIdSchema.parse(data))
+  .validator((data: unknown) => tokenIdSchema.parse(data))
   .handler(async ({ context, data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any)

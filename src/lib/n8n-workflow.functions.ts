@@ -360,7 +360,7 @@ export const getN8nWorkflowSettings = createServerFn({ method: "GET" })
 
 export const saveN8nWorkflowSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => connectionSchema.parse(data))
+  .validator((data: unknown) => connectionSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -403,7 +403,7 @@ export const testN8nWorkflowConnection = createServerFn({ method: "POST" })
 
 export const previewWhatsAppFlowJson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ json: z.string().min(2).max(MAX_JSON_CHARS) }).parse(data),
   )
   .handler(async ({ context, data }) => {
@@ -425,7 +425,7 @@ export const previewWhatsAppFlowJson = createServerFn({ method: "POST" })
 
 export const importWhatsAppFlowJson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => importSchema.parse(data))
+  .validator((data: unknown) => importSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

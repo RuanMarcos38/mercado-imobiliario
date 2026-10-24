@@ -84,7 +84,7 @@ export const listCrmLeads = createServerFn({ method: "GET" })
 
 export const createCrmLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => createLeadSchema.parse(data))
+  .validator((data: unknown) => createLeadSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -107,7 +107,7 @@ export const createCrmLead = createServerFn({ method: "POST" })
 
 export const updateCrmLeadStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => updateStageSchema.parse(data))
+  .validator((data: unknown) => updateStageSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -123,7 +123,7 @@ export const updateCrmLeadStage = createServerFn({ method: "POST" })
 
 export const deleteCrmLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => leadIdSchema.parse(data))
+  .validator((data: unknown) => leadIdSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

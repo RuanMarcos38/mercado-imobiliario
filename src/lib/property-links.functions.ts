@@ -441,7 +441,7 @@ export const listExternalPropertyLinks = createServerFn({ method: "GET" })
 
 export const registerExternalPropertyLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => linkSchema.parse(data))
+  .validator((data: unknown) => linkSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const url = assertPublicFeedUrl(data.url);
@@ -473,7 +473,7 @@ export const registerExternalPropertyLink = createServerFn({ method: "POST" })
 
 export const syncExternalPropertyLinkNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => linkIdSchema.parse(data))
+  .validator((data: unknown) => linkIdSchema.parse(data))
   .handler(async ({ context, data }) => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const { data: row, error } = await (context.supabase as any)

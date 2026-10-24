@@ -276,7 +276,7 @@ async function fetchConfiguredLiveSource(
 
 export const searchRealProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => searchSchema.parse(data ?? {}))
+  .validator((data: unknown) => searchSchema.parse(data ?? {}))
   .handler(async ({ data: input, context }) => {
     let indexQuery = context.supabase
       .from("property_search_index")
@@ -502,7 +502,7 @@ const savedSearchSchema = z.object({
 
 export const savePropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => savedSearchSchema.parse(data ?? {}))
+  .validator((data: unknown) => savedSearchSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const criteria = JSON.parse(JSON.stringify(data.criteria));
     const { error } = await context.supabase.from("search_configurations").insert({
@@ -583,7 +583,7 @@ export const listFavoriteProperties = createServerFn({ method: "GET" })
 
 export const setPropertyFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => favoriteMutationSchema.parse(data ?? {}))
+  .validator((data: unknown) => favoriteMutationSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const propertyKey = favoriteKey(data.property);
     if (!data.favorite) {
@@ -616,7 +616,7 @@ const savedSearchUpdateSchema = z.object({
 
 export const renameSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => savedSearchUpdateSchema.parse(data ?? {}))
+  .validator((data: unknown) => savedSearchUpdateSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("search_configurations")
@@ -631,7 +631,7 @@ const savedSearchDeleteSchema = z.object({ id: z.string().uuid() });
 
 export const deleteSavedPropertySearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => savedSearchDeleteSchema.parse(data ?? {}))
+  .validator((data: unknown) => savedSearchDeleteSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("search_configurations")

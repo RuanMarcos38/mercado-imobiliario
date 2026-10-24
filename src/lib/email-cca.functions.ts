@@ -54,7 +54,7 @@ export const listEmailCcaLeads = createServerFn({ method: "GET" })
 
 export const sendCcaDocumentsByEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => sendSchema.parse(data))
+  .validator((data: unknown) => sendSchema.parse(data))
   .handler(async ({ data, context }) => {
     const runtime = emailRuntimeStatus();
     if (!runtime.configured) throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");

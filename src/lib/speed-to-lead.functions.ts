@@ -220,7 +220,7 @@ export const getLeadWebhookSetup = createServerFn({ method: "GET" })
 
 export const createSpeedToLeadTestLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => testLeadSchema.parse(data))
+  .validator((data: unknown) => testLeadSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { ingestLeadForTenant, normalizeLeadPayload } =

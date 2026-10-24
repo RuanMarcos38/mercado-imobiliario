@@ -7,7 +7,7 @@ import { z } from "zod";
  * O Webhook URL deve ser configurado como segredo SLACK_WEBHOOK_URL.
  */
 export const sendSlackAlert = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         message: z.string(),
@@ -59,7 +59,7 @@ export const sendSlackAlert = createServerFn({ method: "POST" })
  * a função falha explicitamente para que a UI mostre o estado real.
  */
 export const sendEmailAlert = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         to: z.string().email(),
@@ -76,7 +76,7 @@ export const sendEmailAlert = createServerFn({ method: "POST" })
  * Obtém logs de auditoria com filtros avançados.
  */
 export const getFilteredAuditLogs = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         userId: z.string().optional(),
@@ -111,7 +111,7 @@ export const getFilteredAuditLogs = createServerFn({ method: "GET" })
  * Gera relatório de retenção.
  */
 export const generateRetentionReport = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => z.object({ days: z.number().default(30) }).parse(data))
+  .validator((data: unknown) => z.object({ days: z.number().default(30) }).parse(data))
   .handler(async ({ data }) => {
     const { data: report, error } = await supabase.rpc("generate_retention_report", {
       _days: data.days,

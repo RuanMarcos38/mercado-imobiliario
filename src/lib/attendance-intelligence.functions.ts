@@ -145,7 +145,7 @@ function peakHourLabel(hour: number) {
 
 export const getAttendanceIntelligence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => dashboardSchema.parse(data))
+  .validator((data: unknown) => dashboardSchema.parse(data))
   .handler(async ({ data, context }): Promise<AttendanceIntelligence> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const database = db();

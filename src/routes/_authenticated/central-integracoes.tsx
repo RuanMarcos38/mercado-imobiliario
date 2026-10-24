@@ -765,7 +765,7 @@ function IntegrationsHubPage() {
                   </Button>
                 </div>
 
-                <WhatsAppTemplates />
+                <WhatsAppTemplates scopeKey={whatsappSettings?.phoneNumberId ?? ""} />
                 <div
                   id="whatsapp-profile"
                   className="mt-6 scroll-mt-24 border-t border-[var(--mi-border)] pt-5"

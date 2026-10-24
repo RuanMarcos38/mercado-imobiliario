@@ -163,7 +163,7 @@ export const getAffiliateOverview = createServerFn({ method: "GET" })
 
 export const linkMyAffiliateSponsor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => sponsorSchema.parse(data))
+  .validator((data: unknown) => sponsorSchema.parse(data))
   .handler(async ({ context, data }): Promise<AffiliateOverview> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;

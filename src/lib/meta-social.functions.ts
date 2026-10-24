@@ -91,7 +91,7 @@ export const disconnectMetaSocialAccount = createServerFn({ method: "POST" })
 
 export const selectMetaSocialAccountForTenant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => selectAccountSchema.parse(data))
+  .validator((data: unknown) => selectAccountSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { selectActiveMetaSocialAccount } = await import("@/lib/meta-social.server");
@@ -105,9 +105,7 @@ export const selectMetaSocialAccountForTenant = createServerFn({ method: "POST" 
 
 export const listSocialConversations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z.object({ channel: channelSchema.default("all") }).parse(data),
-  )
+  .validator((data: unknown) => z.object({ channel: channelSchema.default("all") }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { listMetaSocialConversations } = await import("@/lib/meta-social.server");
@@ -116,7 +114,7 @@ export const listSocialConversations = createServerFn({ method: "POST" })
 
 export const listSocialMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { listMetaSocialMessages } = await import("@/lib/meta-social.server");
@@ -125,7 +123,7 @@ export const listSocialMessages = createServerFn({ method: "POST" })
 
 export const sendSocialText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => sendSchema.parse(data))
+  .validator((data: unknown) => sendSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { sendMetaSocialText } = await import("@/lib/meta-social.server");
@@ -135,7 +133,7 @@ export const sendSocialText = createServerFn({ method: "POST" })
 
 export const scanSocialInterestComments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => scanCommentsSchema.parse(data))
+  .validator((data: unknown) => scanCommentsSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { scanMetaSocialComments } = await import("@/lib/meta-social.server");

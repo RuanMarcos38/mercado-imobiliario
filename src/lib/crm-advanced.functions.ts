@@ -301,7 +301,7 @@ const opportunitySchema = z.object({
 
 export const createCrmOpportunity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => opportunitySchema.parse(data))
+  .validator((data: unknown) => opportunitySchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const db = context.supabase as any;
@@ -333,7 +333,7 @@ export const createCrmOpportunity = createServerFn({ method: "POST" })
 
 export const updateCrmOpportunity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => opportunitySchema.extend({ id: uuid }).parse(data))
+  .validator((data: unknown) => opportunitySchema.extend({ id: uuid }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const db = context.supabase as any;
@@ -363,7 +363,7 @@ export const updateCrmOpportunity = createServerFn({ method: "POST" })
 
 export const bulkMoveCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ ids: idsSchema, pipelineId: uuid, stageId: uuid }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -381,7 +381,7 @@ export const bulkMoveCrmOpportunities = createServerFn({ method: "POST" })
 
 export const bulkLoseCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({ ids: idsSchema, pipelineId: uuid, lostStageId: uuid, lossReasonId: uuid })
       .parse(data),
@@ -416,7 +416,7 @@ export const bulkLoseCrmOpportunities = createServerFn({ method: "POST" })
 
 export const bulkDeleteCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ ids: idsSchema }).parse(data))
+  .validator((data: unknown) => z.object({ ids: idsSchema }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -430,7 +430,7 @@ export const bulkDeleteCrmOpportunities = createServerFn({ method: "POST" })
 
 export const createCrmPipeline = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({ name: z.string().trim().min(2).max(100), description: optionalText(500) })
       .parse(data),
@@ -463,7 +463,7 @@ export const createCrmPipeline = createServerFn({ method: "POST" })
 
 export const createCrmStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         pipelineId: uuid,
@@ -502,7 +502,7 @@ export const createCrmStage = createServerFn({ method: "POST" })
 
 export const updateCrmStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         id: uuid,
@@ -533,9 +533,7 @@ export const updateCrmStage = createServerFn({ method: "POST" })
 
 export const createCrmLossReason = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z.object({ name: z.string().trim().min(2).max(120) }).parse(data),
-  )
+  .validator((data: unknown) => z.object({ name: z.string().trim().min(2).max(120) }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -547,7 +545,7 @@ export const createCrmLossReason = createServerFn({ method: "POST" })
 
 export const toggleCrmLossReason = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid, isActive: z.boolean() }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid, isActive: z.boolean() }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -561,7 +559,7 @@ export const toggleCrmLossReason = createServerFn({ method: "POST" })
 
 export const createCrmCustomField = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         key: z
@@ -600,7 +598,7 @@ export const createCrmCustomField = createServerFn({ method: "POST" })
 
 export const createCrmCadence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         pipelineId: uuid,
@@ -630,7 +628,7 @@ export const createCrmCadence = createServerFn({ method: "POST" })
 
 export const addCrmCadenceStep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         cadenceId: uuid,
@@ -674,7 +672,7 @@ export const addCrmCadenceStep = createServerFn({ method: "POST" })
 
 export const toggleCrmCadence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid, isActive: z.boolean() }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid, isActive: z.boolean() }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -688,7 +686,7 @@ export const toggleCrmCadence = createServerFn({ method: "POST" })
 
 export const createCrmAutomation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         pipelineId: uuid,
@@ -727,7 +725,7 @@ export const createCrmAutomation = createServerFn({ method: "POST" })
 
 export const toggleCrmAutomation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid, isActive: z.boolean() }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid, isActive: z.boolean() }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -741,7 +739,7 @@ export const toggleCrmAutomation = createServerFn({ method: "POST" })
 
 export const completeCrmActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: uuid }).parse(data))
+  .validator((data: unknown) => z.object({ id: uuid }).parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const { error } = await (context.supabase as any)
@@ -765,7 +763,7 @@ const importRowSchema = z.object({
 
 export const importCrmOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({ pipelineId: uuid, stageId: uuid, rows: z.array(importRowSchema).min(1).max(500) })
       .parse(data),

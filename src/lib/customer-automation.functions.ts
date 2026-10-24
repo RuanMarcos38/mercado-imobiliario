@@ -36,7 +36,7 @@ export interface PipelineAgeAlert {
 
 export const getConversationAiMode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationInput.parse(data))
+  .validator((data: unknown) => conversationInput.parse(data))
   .handler(async ({ context, data }): Promise<ConversationAiMode> => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const { data: conversation, error } = await (context.supabase as any)
@@ -57,7 +57,7 @@ export const getConversationAiMode = createServerFn({ method: "POST" })
 
 export const setConversationAiMode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => aiModeInput.parse(data))
+  .validator((data: unknown) => aiModeInput.parse(data))
   .handler(async ({ context, data }): Promise<ConversationAiMode> => {
     const tenantId = await requireTenantId(context.supabase as any, context.userId);
     const now = new Date().toISOString();

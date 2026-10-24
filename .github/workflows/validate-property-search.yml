@@ -81,6 +81,9 @@ jobs:
       - name: Test all automated checks
         run: npm run test -- --passWithNoTests
 
+      - name: Audit all dependencies including build and tests
+        run: npm run audit:security
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 

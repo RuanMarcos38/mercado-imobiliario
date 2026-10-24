@@ -124,7 +124,7 @@ export const getPropertySourceHealth = createServerFn({ method: "GET" })
 
 export const registerPropertyFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => feedSchema.parse(data))
+  .validator((data: unknown) => feedSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -166,7 +166,7 @@ export const registerPropertyFeed = createServerFn({ method: "POST" })
 
 export const syncPropertyFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => syncSchema.parse(data))
+  .validator((data: unknown) => syncSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const { syncAuthorizedFeedConnection } = await import("@/lib/property-feed.server");
