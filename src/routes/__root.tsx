@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
 import mercadoImobiCss from "../mercadoimobi.css?url";
+import workspaceCss from "../workspace.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const themeBootScript = `
@@ -118,6 +119,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: mercadoImobiCss },
+      { rel: "stylesheet", href: workspaceCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),

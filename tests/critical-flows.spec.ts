@@ -140,12 +140,15 @@ describe("MercadoImobi product invariants", () => {
     expect(openaiText).toContain("https://api.openai.com/v1/chat/completions");
   });
 
-  it("keeps the Lovable template visual primitives and paginates the full property base", () => {
+  it("uses shared workspace styling and paginates the full property base", () => {
     const workspace = source("src/components/property/PropertyWorkspace.tsx");
     const css = source("src/mercadoimobi.css");
     const search = source("src/lib/property-search.functions.ts");
     expect(workspace).toContain("max-w-6xl");
-    expect(workspace).toContain("Urbanist");
+    const sharedTheme = source("src/workspace.css");
+    expect(workspace).toContain("mi-workspace-page");
+    expect(sharedTheme).toContain("--mi-surface:");
+    expect(sharedTheme).toContain("html.dark-mode");
     expect(workspace).toContain("Página {page}");
     expect(css).toContain("LOVABLE_EXACT_TEMPLATE_V2");
     expect(css).toContain("--gradient-results");
