@@ -125,8 +125,8 @@ export function CrmAutomationLayer() {
 
   return (
     <>
-      <div className="border-b border-[var(--mi-border)] bg-[var(--mi-surface)] px-4 py-3 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-[1900px] flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="mi-crm-alerts">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <WatchBadge label="Etapa +5 dias" value={counts.five} tone="amber" />
             <WatchBadge label="Etapa +10 dias" value={counts.ten} tone="orange" />

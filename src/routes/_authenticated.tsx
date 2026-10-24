@@ -223,7 +223,7 @@ const principalMenuEntries: PlatformMenuEntry[] = [
   },
   {
     kind: "item",
-    item: { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: "dashboard" },
+    item: { to: "/dashboard", label: "Imóveis", icon: LayoutDashboard, feature: "dashboard" },
   },
   {
     kind: "group",
@@ -312,7 +312,10 @@ function AuthenticatedLayout() {
   const filterMenuEntries = (entries: PlatformMenuEntry[]) =>
     entries.flatMap<PlatformMenuEntry>((entry) => {
       if (entry.kind === "item") return canShowMenuItem(entry.item) ? [entry] : [];
-      const items = entry.items.filter(canShowMenuItem);
+      const items = entry.items.filter(
+        (item) =>
+          canShowMenuItem(item) && !(item.to === "/buscar" && isFeatureAllowed("dashboard")),
+      );
       return items.length ? [{ ...entry, items }] : [];
     });
 
@@ -321,6 +324,18 @@ function AuthenticatedLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const globalSearchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        globalSearchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
   const touchPresenceFn = useServerFn(touchUserPresence);
   const recordActivityFn = useServerFn(recordUserActivity);
   const presenceSessionId = useRef("");
@@ -438,11 +453,7 @@ function AuthenticatedLayout() {
 
   return (
     <div
-      className={[
-        "mi-platform-shell",
-        sidebarCollapsed ? "is-sidebar-collapsed" : "",
-        searchIsCrm ? "is-crm-context" : "",
-      ]
+      className={["mi-platform-shell", sidebarCollapsed ? "is-sidebar-collapsed" : ""]
         .filter(Boolean)
         .join(" ")}
     >
@@ -546,7 +557,7 @@ function AuthenticatedLayout() {
             </div>
           </div>
 
-          {isFeatureAllowed("buscar") && (
+          {(isFeatureAllowed("buscar") || searchIsCrm) && (
             <form
               onSubmit={(event) => {
                 event.preventDefault();
@@ -564,6 +575,8 @@ function AuthenticatedLayout() {
             >
               <Search />
               <input
+                ref={globalSearchRef}
+                aria-label={searchIsCrm ? "Buscar no CRM" : "Buscar imóveis"}
                 value={globalSearch}
                 onChange={(event) => setGlobalSearch(event.target.value)}
                 placeholder={

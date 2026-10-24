@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CrmAutomationLayer } from "@/components/crm/CrmAutomationLayer";
 import { CrmWorkspaceShell } from "@/components/crm/CrmWorkspaceShell";
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -8,10 +7,5 @@ export const Route = createFileRoute("/_authenticated/crm")({
 });
 
 function CrmPage() {
-  return (
-    <>
-      <CrmAutomationLayer />
-      <CrmWorkspaceShell />
-    </>
-  );
+  return <CrmWorkspaceShell />;
 }

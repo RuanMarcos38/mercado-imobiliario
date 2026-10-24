@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Building2, KeyRound, LogOut, Mail, UserRound } from "lucide-react";
+import { KeyRound, LogOut, Mail, UserRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -59,27 +59,8 @@ function AccountPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[var(--mi-bg)] text-[var(--mi-text)]">
-      <header className="border-b border-[var(--mi-border)] bg-[var(--mi-bg)]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <Link to="/dashboard" className="flex items-center gap-2 font-bold">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600/10 text-blue-600 ring-1 ring-blue-500/20">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <span>
-              Mercado<span className="text-blue-600">Imobi</span>
-            </span>
-          </Link>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--mi-border)] px-3 py-2 text-sm text-[var(--mi-text-muted)] hover:bg-white/5"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar para busca
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
+    <div className="mi-workspace-page">
+      <section className="mx-auto max-w-4xl">
         <div className="mb-8">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Sua conta</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight">Preferências e acesso</h1>
@@ -164,12 +145,12 @@ function AccountPage() {
 
           <button
             onClick={() => void signOut()}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-300/15 px-4 py-2.5 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/[0.06]"
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-300/30 px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-400/[0.06] dark:text-rose-300"
           >
             <LogOut className="h-4 w-4" /> Sair da conta
           </button>
         </div>
-      </main>
+      </section>
     </div>
   );
 }

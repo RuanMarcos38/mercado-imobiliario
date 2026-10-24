@@ -37,6 +37,7 @@ import {
   type PropertySearchItem,
 } from "@/lib/property-search.functions";
 import { getPropertyDashboardStats } from "@/lib/property-dashboard.functions";
+import { uniquePropertyCards } from "@/lib/property-cards";
 import { listFavoritePropertiesWithStatus } from "@/lib/favorite-status.functions";
 import { startWhatsAppConversation } from "@/lib/whatsapp-conversation.functions";
 
@@ -228,7 +229,10 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
     };
   }, []);
 
-  const results = searchQuery.data?.items ?? [];
+  const results = useMemo(
+    () => uniquePropertyCards(searchQuery.data?.items ?? []),
+    [searchQuery.data?.items],
+  );
   const comparedKeys = useMemo(() => new Set(compare.map(propertyKey)), [compare]);
   const opportunityKeys = useMemo(() => calculateOpportunityKeys(results), [results]);
   const bestValueKeys = useMemo(() => calculateBestValueKeys(results), [results]);
@@ -328,19 +332,14 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
   };
 
   return (
-    <div className="mi-theme-safe min-h-full bg-[var(--mi-bg)] text-[var(--mi-text)]">
-      <div className="px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <div className="mx-auto max-w-6xl space-y-10 sm:space-y-12">
-          <header className="mi-template-header mx-auto max-w-3xl space-y-3 text-center">
+    <div className="mi-theme-safe mi-property-workspace bg-[var(--mi-bg)] text-[var(--mi-text)]">
+      <div className="mi-workspace-page">
+        <div className="space-y-6">
+          <header className="mi-page-heading">
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
               MERCADOIMOBI · BUSCA NACIONAL
             </p>
-            <h1
-              className="text-4xl font-semibold tracking-tighter sm:text-5xl lg:text-6xl"
-              style={{ fontFamily: "Urbanist, system-ui, -apple-system, sans-serif" }}
-            >
-              Encontre seu <span className="text-primary">imóvel ideal</span>
-            </h1>
+            <h1>Imóveis e oportunidades</h1>
             <p className="text-balance text-sm text-muted-foreground sm:text-base">
               Consulte imóveis reais de múltiplas fontes, compare oportunidades e acompanhe novos
               imóveis em um único ambiente.
