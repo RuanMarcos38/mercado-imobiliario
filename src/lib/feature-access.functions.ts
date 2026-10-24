@@ -69,7 +69,7 @@ export const getFeatureAccessAdmin = createServerFn({ method: "GET" })
 
 export const updateFeatureAccessAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => updateSchema.parse(data))
+  .validator((data: unknown) => updateSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context as any);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

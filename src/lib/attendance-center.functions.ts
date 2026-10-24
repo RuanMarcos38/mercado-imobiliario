@@ -408,7 +408,7 @@ export const getAttendanceViewer = createServerFn({ method: "GET" })
 
 export const queueAttendanceConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = adminDb();
@@ -446,7 +446,7 @@ export const queueAttendanceConversation = createServerFn({ method: "POST" })
 
 export const claimAttendanceConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = adminDb();
@@ -517,7 +517,7 @@ export const claimAttendanceConversation = createServerFn({ method: "POST" })
 
 export const endAttendanceConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = adminDb();
@@ -607,7 +607,7 @@ export const endAttendanceConversation = createServerFn({ method: "POST" })
 
 export const recordAttendanceFirstResponse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const conversation = await ensureConversation(tenantId, data.conversationId);
@@ -653,7 +653,7 @@ export const recordAttendanceFirstResponse = createServerFn({ method: "POST" })
 
 export const updateAttendancePresence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => presenceSchema.parse(data))
+  .validator((data: unknown) => presenceSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const statusSince = await setOwnPresence(tenantId, context.userId, data.status);
@@ -662,7 +662,7 @@ export const updateAttendancePresence = createServerFn({ method: "POST" })
 
 export const updateAttendanceTags = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => tagsSchema.parse(data))
+  .validator((data: unknown) => tagsSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     await ensureConversation(tenantId, data.conversationId);
@@ -678,7 +678,7 @@ export const updateAttendanceTags = createServerFn({ method: "POST" })
 
 export const revealAttendancePhone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => conversationSchema.parse(data))
+  .validator((data: unknown) => conversationSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const member = await membership(tenantId, context.userId);
@@ -700,7 +700,7 @@ export const revealAttendancePhone = createServerFn({ method: "POST" })
 
 export const setSensitiveDataVisibility = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => permissionSchema.parse(data))
+  .validator((data: unknown) => permissionSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const requester = await membership(tenantId, context.userId);
@@ -720,7 +720,7 @@ export const setSensitiveDataVisibility = createServerFn({ method: "POST" })
 
 export const getAttendanceDashboard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => dashboardSchema.parse(data))
+  .validator((data: unknown) => dashboardSchema.parse(data))
   .handler(async ({ data, context }): Promise<AttendanceDashboard> => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = adminDb();

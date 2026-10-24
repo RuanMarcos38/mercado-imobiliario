@@ -40,7 +40,7 @@ export const listWhatsAppFlows = createServerFn({ method: "GET" })
 
 export const createWhatsAppFlow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => flowSchema.parse(data))
+  .validator((data: unknown) => flowSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -63,7 +63,7 @@ export const createWhatsAppFlow = createServerFn({ method: "POST" })
 
 export const addWhatsAppFlowStep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => flowStepSchema.parse(data))
+  .validator((data: unknown) => flowStepSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -94,7 +94,7 @@ export const addWhatsAppFlowStep = createServerFn({ method: "POST" })
 
 export const setWhatsAppFlowEnabled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => flowEnabledSchema.parse(data))
+  .validator((data: unknown) => flowEnabledSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -138,7 +138,7 @@ export const getAiAgentSettings = createServerFn({ method: "GET" })
 
 export const saveAiAgentSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         enabled: z.boolean(),

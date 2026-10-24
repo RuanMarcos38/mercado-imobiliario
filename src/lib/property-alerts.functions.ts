@@ -41,7 +41,7 @@ export const listPropertyAlertRules = createServerFn({ method: "GET" })
 
 export const createPropertyAlertRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => createRuleSchema.parse(data))
+  .validator((data: unknown) => createRuleSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -65,7 +65,7 @@ export const createPropertyAlertRule = createServerFn({ method: "POST" })
 
 export const togglePropertyAlertRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ id: z.string().uuid(), active: z.boolean() }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -83,7 +83,7 @@ export const togglePropertyAlertRule = createServerFn({ method: "POST" })
 
 export const deletePropertyAlertRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => idSchema.parse(data))
+  .validator((data: unknown) => idSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;
@@ -115,7 +115,7 @@ export const listPropertyAlertEvents = createServerFn({ method: "GET" })
 
 export const markPropertyAlertRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => idSchema.parse(data))
+  .validator((data: unknown) => idSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await requireTenantId(context.supabase, context.userId);
     const db = context.supabase as any;

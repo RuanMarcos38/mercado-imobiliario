@@ -288,7 +288,7 @@ export const listPlatformUsers = createServerFn({ method: "GET" })
 
 export const createPlatformUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => createUserSchema.parse(data))
+  .validator((data: unknown) => createUserSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requirePlatformAdmin(context as AdminContext);
     const { planId, ...platformData } = data;
@@ -306,7 +306,7 @@ export const createPlatformUser = createServerFn({ method: "POST" })
 
 export const updatePlatformUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => updateUserSchema.parse(data))
+  .validator((data: unknown) => updateUserSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requirePlatformAdmin(context as AdminContext);
     const { planId, ...platformData } = data;

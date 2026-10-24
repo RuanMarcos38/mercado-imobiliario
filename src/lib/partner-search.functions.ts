@@ -485,7 +485,7 @@ export const getPartnerSearchStatus = createServerFn({ method: "GET" })
 
 export const searchRealEstatePartners = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => searchSchema.parse(data))
+  .validator((data: unknown) => searchSchema.parse(data))
   .handler(async ({ data, context }): Promise<PartnerSearchResponse> => {
     await requireTenantId(context.supabase, context.userId);
 

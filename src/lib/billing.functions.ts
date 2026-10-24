@@ -180,7 +180,7 @@ export const getMyBillingOverview = createServerFn({ method: "GET" })
 
 export const createSubscriptionCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => checkoutSchema.parse(data))
+  .validator((data: unknown) => checkoutSchema.parse(data))
   .handler(async ({ data, context }) => {
     const asaasReady = await asaasConfigured();
     const stripeReady = Boolean(process.env["STRIPE_SECRET_KEY"]?.trim());

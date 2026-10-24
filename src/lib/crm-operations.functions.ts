@@ -318,7 +318,7 @@ export const getCrmOperationsWorkspace = createServerFn({ method: "GET" })
 
 export const createCrmProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => proposalSchema.parse(data))
+  .validator((data: unknown) => proposalSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     await assertOpportunity(tenantId, data.opportunityId);
@@ -341,7 +341,7 @@ export const createCrmProposal = createServerFn({ method: "POST" })
 
 export const updateCrmProposalStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => proposalStatusSchema.parse(data))
+  .validator((data: unknown) => proposalStatusSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const result = await db()
@@ -355,7 +355,7 @@ export const updateCrmProposalStatus = createServerFn({ method: "POST" })
 
 export const sendCrmOpportunityEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => emailSchema.parse(data))
+  .validator((data: unknown) => emailSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     await assertOpportunity(tenantId, data.opportunityId);
@@ -397,7 +397,7 @@ export const sendCrmOpportunityEmail = createServerFn({ method: "POST" })
 
 export const createCrmDocumentUploadTarget = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => uploadSchema.parse(data))
+  .validator((data: unknown) => uploadSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     await assertOpportunity(tenantId, data.opportunityId);
@@ -412,7 +412,7 @@ export const createCrmDocumentUploadTarget = createServerFn({ method: "POST" })
 
 export const registerCrmDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => registerDocumentSchema.parse(data))
+  .validator((data: unknown) => registerDocumentSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     await assertOpportunity(tenantId, data.opportunityId);
@@ -440,7 +440,7 @@ export const registerCrmDocument = createServerFn({ method: "POST" })
 
 export const deleteCrmDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => documentSchema.parse(data))
+  .validator((data: unknown) => documentSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const admin = db();
@@ -466,7 +466,7 @@ export const deleteCrmDocument = createServerFn({ method: "POST" })
 
 export const createCrmSignatureRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => signatureSchema.parse(data))
+  .validator((data: unknown) => signatureSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     await assertOpportunity(tenantId, data.opportunityId);
@@ -491,7 +491,7 @@ export const createCrmSignatureRequest = createServerFn({ method: "POST" })
 
 export const updateCrmSignatureStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => signatureStatusSchema.parse(data))
+  .validator((data: unknown) => signatureStatusSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const result = await db()
@@ -508,7 +508,7 @@ export const updateCrmSignatureStatus = createServerFn({ method: "POST" })
 
 export const getCrmContactProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => opportunitySchema.parse(data))
+  .validator((data: unknown) => opportunitySchema.parse(data))
   .handler(async ({ data, context }): Promise<CrmContactProfile> => {
     const tenantId = await tenant(context);
     const opportunity = await assertOpportunity(tenantId, data.opportunityId);
@@ -549,7 +549,7 @@ export const getCrmContactProfile = createServerFn({ method: "POST" })
 
 export const saveCrmContactProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => contactSchema.parse(data))
+  .validator((data: unknown) => contactSchema.parse(data))
   .handler(async ({ data, context }) => {
     const tenantId = await tenant(context);
     const opportunity = await assertOpportunity(tenantId, data.opportunityId);

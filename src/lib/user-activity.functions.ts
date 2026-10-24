@@ -28,7 +28,7 @@ async function requirePlatformAdmin(db: any, userId: string) {
 
 export const touchUserPresence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => presenceSchema.parse(data))
+  .validator((data: unknown) => presenceSchema.parse(data))
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const tenantId = await requireTenantId(db, context.userId);
@@ -50,7 +50,7 @@ export const touchUserPresence = createServerFn({ method: "POST" })
 
 export const recordUserActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => activitySchema.parse(data))
+  .validator((data: unknown) => activitySchema.parse(data))
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const tenantId = await requireTenantId(db, context.userId);

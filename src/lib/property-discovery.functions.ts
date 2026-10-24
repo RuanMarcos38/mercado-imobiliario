@@ -16,7 +16,7 @@ export const getPropertyDiscoveryStatus = createServerFn({ method: "GET" })
 
 export const runPropertyDiscovery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => discoverySchema.parse(data))
+  .validator((data: unknown) => discoverySchema.parse(data))
   .handler(async ({ data, context }) => {
     const { discoverPublicPropertySources } = await import("@/lib/property-discovery.server");
     const result = await discoverPublicPropertySources(data);

@@ -813,7 +813,7 @@ export const runBackendAudit = createServerFn({ method: "POST" })
 
 export const askBackendAuditAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => chatSchema.parse(data))
+  .validator((data: unknown) => chatSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requirePlatformAdmin(context);
     const fallback = deterministicReport(data.checks);

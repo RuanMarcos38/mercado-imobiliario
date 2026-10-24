@@ -48,7 +48,7 @@ async function cancelStripeSubscription(stripeSubscriptionId: string | null) {
 
 export const deletePlatformUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => deleteUserSchema.parse(data))
+  .validator((data: unknown) => deleteUserSchema.parse(data))
   .handler(async ({ data, context }) => {
     await requirePlatformAdmin(context as AdminContext);
 

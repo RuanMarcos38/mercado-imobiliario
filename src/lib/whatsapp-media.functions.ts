@@ -56,7 +56,7 @@ function safeFileName(value: string) {
 
 export const sendWhatsAppAttachment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => mediaSchema.parse(data))
+  .validator((data: unknown) => mediaSchema.parse(data))
   .handler(async ({ data, context }) => {
     const parameters = whatsappParameters();
     const bytes = base64Bytes(data.base64);

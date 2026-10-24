@@ -118,7 +118,7 @@ async function listFiles(admin: any, bucket: string, basePrefix: string): Promis
 
 export const createCcaUploadTarget = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => uploadSchema.parse(data))
+  .validator((data: unknown) => uploadSchema.parse(data))
   .handler(async ({ data, context }) => {
     const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(data.mimeType)) throw new Error("Tipo de arquivo não permitido.");
@@ -140,7 +140,7 @@ export const createCcaUploadTarget = createServerFn({ method: "POST" })
 
 export const listCcaDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => leadSchema.parse(data))
+  .validator((data: unknown) => leadSchema.parse(data))
   .handler(async ({ data, context }): Promise<CcaDocument[]> => {
     const { tenantId } = await assertLeadOwnership(context, data.leadId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -150,7 +150,7 @@ export const listCcaDocuments = createServerFn({ method: "POST" })
 
 export const removeCcaDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => removeSchema.parse(data))
+  .validator((data: unknown) => removeSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { tenantId } = await assertLeadOwnership(context, data.leadId);
     const base = `${prefix(tenantId, context.userId, data.leadId)}/`;
@@ -165,7 +165,7 @@ export const removeCcaDocument = createServerFn({ method: "POST" })
 
 export const submitLeadToCca = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => leadSchema.parse(data))
+  .validator((data: unknown) => leadSchema.parse(data))
   .handler(async ({ data, context }) => {
     const endpoint = process.env["CCA_INTEGRATION_URL"]?.trim();
     const token = process.env["CCA_INTEGRATION_TOKEN"]?.trim();

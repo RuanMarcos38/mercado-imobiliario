@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WhatsAppTemplates } from "@/components/WhatsAppTemplates";
 import {
   backupToGoogleDriveNow,
   createMyApiToken,
@@ -764,6 +765,7 @@ function IntegrationsHubPage() {
                   </Button>
                 </div>
 
+                <WhatsAppTemplates scopeKey={whatsappSettings?.phoneNumberId ?? ""} />
                 <div
                   id="whatsapp-profile"
                   className="mt-6 scroll-mt-24 border-t border-[var(--mi-border)] pt-5"
