@@ -620,6 +620,8 @@ function IntegrationsHubPage() {
               ))}
             </section>
 
+            <WhatsAppTemplates scopeKey={whatsappSettings?.phoneNumberId ?? ""} />
+
             <section className="hidden" aria-hidden="true">
               <div className="rounded-[26px] border border-[var(--mi-border)] bg-[var(--mi-surface)] p-5">
                 <div className="flex items-start justify-between gap-4">
@@ -765,7 +767,6 @@ function IntegrationsHubPage() {
                   </Button>
                 </div>
 
-                <WhatsAppTemplates scopeKey={whatsappSettings?.phoneNumberId ?? ""} />
                 <div
                   id="whatsapp-profile"
                   className="mt-6 scroll-mt-24 border-t border-[var(--mi-border)] pt-5"
