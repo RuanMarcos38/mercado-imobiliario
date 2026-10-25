@@ -3,17 +3,24 @@ name: MercadoImobi public property discovery
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
   push:
+    branches: [main]
     paths:
       - "scripts/public_property_discovery.py"
       - "scripts/public_property_entrypoint_discovery.py"
+      - "scripts/sc_property_discovery.py"
+      - "scripts/test_sc_property_discovery.py"
       - "scripts/repair_quintoandar_prices.py"
       - "scripts/sanitize_public_properties.py"
       - ".github/workflows/public-property-discovery.yml"
 
 permissions:
   contents: write
+
+concurrency:
+  group: mercadoimobi-public-discovery
+  cancel-in-progress: false
 
 jobs:
   discover:
@@ -113,6 +120,9 @@ jobs:
       - name: Validate real-estate classifier
         run: python scripts/sanitize_public_properties.py --self-test
 
+      - name: Validate Santa Catarina discovery
+        run: python scripts/test_sc_property_discovery.py
+
       - name: Discover public listings
         run: |
           python scripts/public_property_discovery.py \
@@ -129,6 +139,15 @@ jobs:
             --name "${{ matrix.name }}" \
             --domain "${{ matrix.domain }}" \
             --limit 40 \
+            --input "public-${{ matrix.code }}.json"
+
+      - name: Supplement Santa Catarina sale listings
+        run: |
+          python scripts/sc_property_discovery.py \
+            --code "${{ matrix.code }}" \
+            --name "${{ matrix.name }}" \
+            --domain "${{ matrix.domain }}" \
+            --limit 32 \
             --input "public-${{ matrix.code }}.json"
 
       - name: Sweep stale QuintoAndar purchase prices
@@ -169,6 +188,9 @@ jobs:
         run: |
           import glob
           import json
+          import re
+          import urllib.request
+          from pathlib import Path
           from datetime import datetime, timezone
 
           sources = {}
@@ -191,6 +213,16 @@ jobs:
 
           for url in removed:
               items_by_url.pop(url, None)
+
+          expected_sources = set(re.findall(r"^\s+- code: (\w+)$", Path(".github/workflows/public-property-discovery.yml").read_text(), re.M))
+          if set(sources) != expected_sources:
+              raise SystemExit("Incomplete source snapshots; preserving previous published catalog")
+          previous_url = "https://raw.githubusercontent.com/RuanMarcos38/mercado-imobiliario/public-data-cache/public-properties.json"
+          with urllib.request.urlopen(previous_url, timeout=20) as response:
+              previous = json.load(response)
+          previous_count = len(previous.get("items") or [])
+          if previous_count and len(items_by_url) < previous_count * 0.7:
+              raise SystemExit("Abnormally small snapshot; preserving previous published catalog")
 
           output = {
               "generated_at": datetime.now(timezone.utc).isoformat(),

@@ -79,7 +79,9 @@ jobs:
         run: npm run lint
 
       - name: Test all automated checks
-        run: npm run test -- --passWithNoTests
+        run: |
+          npm run test -- --passWithNoTests
+          python3 scripts/test_sc_property_discovery.py
 
       - name: Audit all dependencies including build and tests
         run: npm run audit:security
