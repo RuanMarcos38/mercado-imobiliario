@@ -626,7 +626,30 @@ export function PropertyWorkspace({ initialMarket = "all" }: { initialMarket?: M
                 {searchQuery.isLoading && <Skeletons />}
                 {!searchQuery.isLoading && !searchQuery.isError && results.length === 0 && (
                   <div className="mi-card rounded-2xl border-dashed p-12 text-center text-sm text-[var(--mi-text-muted)]">
-                    Nenhum imóvel encontrado para estes filtros.
+                    <p>Nenhum imóvel encontrado para estes filtros.</p>
+                    {applied.market !== "all" && (
+                      <div className="mt-3 space-y-3">
+                        <p>
+                          A busca está limitada a{" "}
+                          {applied.market === "market"
+                            ? "imóveis de Mercado"
+                            : applied.market === "caixa"
+                              ? "imóveis CAIXA"
+                              : "leilões CAIXA"}
+                          . Consulte também as outras fontes mantendo a cidade e os demais filtros.
+                        </p>
+                        <Button
+                          onClick={() => {
+                            const next = { ...applied, market: "all" as const };
+                            setPage(1);
+                            setFilters(next);
+                            setApplied(next);
+                          }}
+                        >
+                          Buscar em todas as fontes
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {!searchQuery.isLoading && results.length > 0 && (
