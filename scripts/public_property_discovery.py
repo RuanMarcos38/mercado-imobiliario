@@ -355,9 +355,8 @@ def json_ld_objects(text: str) -> list[dict[str, Any]]:
             value = stack.pop()
             if isinstance(value, dict):
                 objects.append(value)
-                graph = value.get("@graph")
-                if isinstance(graph, list):
-                    stack.extend(graph)
+                # Property addresses are often nested in itemOffered/about, not @graph.
+                stack.extend(child for child in value.values() if isinstance(child, (dict, list)))
             elif isinstance(value, list):
                 stack.extend(value)
     return objects
@@ -421,16 +420,28 @@ def extract_contact(text: str) -> tuple[str | None, str | None, str | None]:
 
 
 def schema_address(objects: list[dict[str, Any]]) -> tuple[str | None, str | None, str | None]:
-    for obj in objects:
+    property_types = {"apartment", "house", "singlefamilyresidence", "residence", "realestatelisting", "accommodation", "product"}
+    candidates = sorted(objects, key=lambda obj: 0 if str(obj.get("@type", "")).lower() in property_types else 1)
+    for obj in candidates:
+        # Never label a listing with the publisher's head-office address.
+        if str(obj.get("@type", "")).lower() in {"organization", "localbusiness", "realestateagent"}:
+            continue
         address = obj.get("address")
         if not isinstance(address, dict):
             continue
         street = clean_text(str(address.get("streetAddress") or ""))
         neighborhood = clean_text(str(address.get("addressLocality") or ""))
         region = clean_text(str(address.get("addressRegion") or ""))
+        if region and "," in region:
+            region_city, region = [part.strip() for part in region.rsplit(",", 1)]
+            neighborhood = region_city
+        elif neighborhood and "," in neighborhood:
+            neighborhood = neighborhood.rsplit(",", 1)[-1].strip()
+        if region and region.lower() == "santa catarina":
+            region = "SC"
         parts = [street]
         address_text = ", ".join(part for part in parts if part) or None
-        return address_text, neighborhood, region[:2].upper() if region else None
+        return address_text, neighborhood, region.upper() if region and len(region) == 2 else None
     return None, None, None
 
 
@@ -498,8 +509,12 @@ def extract_price(objects: list[dict[str, Any]], text: str) -> float | None:
     value = currency_number(meta_price)
     if value and value > 0:
         return value
-    match = re.search(r"R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)", plain, re.I)
-    return currency_number(match.group(1)) if match else None
+    for match in re.finditer(r"R\$\s*([0-9][0-9.\s]*(?:,[0-9]{2})?)", plain, re.I):
+        prefix = plain[max(0, match.start() - 100):match.start()]
+        if re.search(r"(?:subs[ií]dios?|parcelas?|sinal|entrada|renda).{0,70}$", prefix, re.I):
+            continue
+        return currency_number(match.group(1))
+    return None
 
 
 def extract_int(patterns: list[str], text: str) -> int | None:

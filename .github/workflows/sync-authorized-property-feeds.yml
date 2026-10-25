@@ -3,7 +3,7 @@ name: MercadoImobi authorized source sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
