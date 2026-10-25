@@ -252,6 +252,68 @@ html.dark-mode {
   background: var(--mi-surface);
 }
 
+/* Legacy dashboard labels must follow the current theme, including chart SVG text. */
+.crm-salespro-funnel-label strong,
+.crm-salespro-donut-total strong,
+.crm-salespro-source-list strong,
+.crm-salespro-table td,
+.crm-salespro-table td strong {
+  color: var(--mi-text);
+}
+.crm-salespro-funnel-label span,
+.crm-salespro-donut-total span,
+.crm-salespro-source-list > div,
+.crm-salespro-task-list time,
+.crm-salespro-activity-list time,
+.crm-salespro-performance-table td:last-child small,
+.crm-salespro-loading {
+  color: var(--mi-text-muted);
+}
+.crm-salespro-table th {
+  background: var(--mi-surface-soft);
+  color: var(--mi-text-muted);
+}
+.crm-salespro-progress {
+  background: var(--mi-surface-strong);
+}
+.crm-salespro-chart .recharts-cartesian-axis-tick-value {
+  fill: var(--mi-text-muted);
+}
+.crm-salespro-chart .recharts-cartesian-grid line {
+  stroke: var(--mi-border);
+}
+.crm-salespro-chart .recharts-default-tooltip {
+  border-color: var(--mi-border) !important;
+  background: var(--mi-surface) !important;
+  color: var(--mi-text);
+}
+.mi-platform-nav-link,
+.mi-platform-nav-group-trigger,
+.mi-platform-signout,
+.mi-platform-search input {
+  font-size: 12px;
+}
+.mi-platform-user-card strong {
+  font-size: 12px;
+}
+.mi-platform-user-card small {
+  font-size: 10px;
+  color: var(--mi-text-muted);
+}
+.mi-platform-content button.bg-blue-600 {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+.mi-platform-content button.bg-blue-600:hover {
+  background-color: #1d4ed8 !important;
+}
+.dark .mi-platform-nav-link.is-active,
+.dark .mi-platform-nav-group.is-active > .mi-platform-nav-group-trigger {
+  background: var(--mi-accent-soft) !important;
+  border-color: var(--mi-border);
+  color: var(--mi-accent) !important;
+}
+
 @media (max-width: 900px) {
   .mi-workspace-page {
     padding: 20px;
@@ -261,6 +323,9 @@ html.dark-mode {
   }
 }
 @media (max-width: 560px) {
+  .mi-workspace-tabs :is(button, a) {
+    min-height: 44px;
+  }
   .mi-workspace-page {
     padding: 16px;
   }
