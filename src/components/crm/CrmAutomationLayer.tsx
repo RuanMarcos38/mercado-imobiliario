@@ -307,14 +307,14 @@ function WatchBadge({
   tone: "amber" | "orange" | "rose" | "red";
 }) {
   const classes = {
-    amber: "border-amber-300/40 bg-amber-500/[0.06] text-amber-700",
-    orange: "border-orange-300/40 bg-orange-500/[0.06] text-orange-700",
-    rose: "border-rose-300/40 bg-rose-500/[0.06] text-rose-700",
-    red: "border-red-300/40 bg-red-500/[0.06] text-red-700",
+    amber: "border-amber-300/40 bg-amber-500/[0.06] text-amber-700 dark:text-amber-200",
+    orange: "border-orange-300/40 bg-orange-500/[0.06] text-orange-700 dark:text-orange-200",
+    rose: "border-rose-300/40 bg-rose-500/[0.06] text-rose-700 dark:text-rose-200",
+    red: "border-red-300/40 bg-red-500/[0.06] text-red-700 dark:text-red-200",
   }[tone];
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] font-black ${classes}`}
+      className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-black ${classes}`}
     >
       {label}
       <strong className="grid h-5 min-w-5 place-items-center rounded-full bg-current/10 px-1">
